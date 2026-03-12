@@ -482,6 +482,7 @@ export default function Conciliacion() {
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Cliente</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Referencia</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>
+                            {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Celular</th>}
                             {!isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>}
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Megasoft</th>}
                             <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>
@@ -504,6 +505,9 @@ export default function Conciliacion() {
                                   </span>
                                 </td>
                                 <td className="px-3 py-3 font-mono font-semibold">{fmt(p.monto)}</td>
+                                {isCajero && (
+                                  <td className="px-3 py-3 font-mono">{p.celular || "—"}</td>
+                                )}
                                 <td className="px-3 py-3 text-muted-foreground hidden md:table-cell">{p.bancoReceptor}</td>
                                 <td className="px-3 py-3 hidden lg:table-cell">{p.cliente || "—"}</td>
                                 <td className="px-3 py-3 font-mono hidden lg:table-cell">{p.referencia || "—"}</td>
