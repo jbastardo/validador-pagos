@@ -46,6 +46,9 @@ const schema = z.object({
   if (data.tipoPago === "Transferencia" && !data.referencia?.trim()) {
     ctx.addIssue({ code: "custom", path: ["referencia"], message: "La referencia es obligatoria para transferencias" });
   }
+  if (data.tipoPago === "PagoMovil" && !data.celular?.trim()) {
+    ctx.addIssue({ code: "custom", path: ["celular"], message: "El número de celular es obligatorio para Pago Móvil" });
+  }
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -163,7 +166,7 @@ export default function RegistrarPago() {
               )}/>
 
               {tipoPago==="PagoMovil"&&<FormField control={form.control} name="celular" render={({field})=>(
-                <FormItem><FormLabel>Número de Celular</FormLabel><FormControl>
+                <FormItem><FormLabel>Número de Celular <span className="text-red-500">*</span></FormLabel><FormControl>
                   <Input placeholder="0424-1234567" {...field} data-testid="input-celular"/>
                 </FormControl><FormMessage/></FormItem>
               )}/>}

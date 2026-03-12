@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserPlus, Edit2, ToggleLeft, ToggleRight } from "lucide-react";
+import { UserPlus, Edit2, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Usuario {
   id: number;
@@ -36,6 +37,8 @@ const rolColors: Record<string, string> = {
 export default function Usuarios() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.rol === "admin";
 
   const { data: usuarios = [], isLoading } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
@@ -78,6 +81,38 @@ export default function Usuarios() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<Usuario | null>(null);
   const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "vendedor" });
+
+  // ── Modal eliminar usuario (admin) ──
+  const [deleteOpen,     setDeleteOpen]     = useState(false);
+  const [deleteUserId,   setDeleteUserId]   = useState<number | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading,  setDeleteLoading]  = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: number; password: string }) => {
+      const res = await apiRequest("DELETE", `/api/usuarios/${id}`, { email: user?.email ?? "", password });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error al eliminar");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      toast({ title: "Usuario eliminado" });
+      setDeleteOpen(false);
+      setDeletePassword("");
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al eliminar", variant: "destructive" }),
+  });
+
+  const handleDeleteUser = async () => {
+    if (deleteUserId === null || !deletePassword) return;
+    setDeleteLoading(true);
+    try {
+      await deleteMutation.mutateAsync({ id: deleteUserId, password: deletePassword });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const openNew = () => {
     setEditUser(null);
@@ -193,6 +228,17 @@ export default function Usuarios() {
                           >
                             {u.activo === "true" ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                           </Button>
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-700"
+                              onClick={() => { setDeleteUserId(u.id); setDeletePassword(""); setDeleteOpen(true); }}
+                              data-testid={`button-delete-usuario-${u.id}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -263,6 +309,47 @@ export default function Usuarios() {
             </Button>
             <Button onClick={handleSubmit} disabled={isPending} data-testid="button-guardar">
               {isPending ? "Guardando…" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ── Modal eliminar usuario (admin) ── */}
+      <Dialog open={deleteOpen} onOpenChange={(o) => { if (!deleteLoading) { setDeleteOpen(o); if (!o) setDeletePassword(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-4 h-4" /> Eliminar usuario
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Esta acción es <span className="font-semibold text-foreground">irreversible</span>. El usuario será eliminado permanentemente.
+              Ingresa tu contraseña para confirmar.
+            </p>
+            <div className="space-y-2">
+              <Label>Tu contraseña</Label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && deletePassword) handleDeleteUser(); }}
+                autoFocus
+                data-testid="input-delete-password-usuario"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeletePassword(""); }} disabled={deleteLoading}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={!deletePassword || deleteLoading}
+              data-testid="button-confirm-delete-usuario"
+            >
+              {deleteLoading ? "Eliminando…" : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>

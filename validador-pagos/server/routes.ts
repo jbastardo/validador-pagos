@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import {
   getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, checkDuplicado,
+  deletePago, deletePagoDivisa, deleteUsuario,
   getUsuarios, addUsuario, updateUsuario,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
@@ -213,6 +214,58 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e: any) {
       console.error("Error updatePagoDivisaEstado:", e.message);
       res.status(500).json({ message: "Error al actualizar estado" });
+    }
+  });
+
+  // ===== DELETE (solo admin, requiere revalidación de clave) =====
+  app.delete("/api/pagos/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && x.password === password && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas o sin permisos" });
+      const ok = await deletePago(id);
+      if (!ok) return res.status(404).json({ message: "Pago no encontrado" });
+      res.json({ message: "Eliminado" });
+    } catch (e: any) {
+      console.error("Error deletePago:", e.message);
+      res.status(500).json({ message: "Error al eliminar" });
+    }
+  });
+
+  app.delete("/api/pagos-divisas/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && x.password === password && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas o sin permisos" });
+      const ok = await deletePagoDivisa(id);
+      if (!ok) return res.status(404).json({ message: "Pago en divisas no encontrado" });
+      res.json({ message: "Eliminado" });
+    } catch (e: any) {
+      console.error("Error deletePagoDivisa:", e.message);
+      res.status(500).json({ message: "Error al eliminar" });
+    }
+  });
+
+  app.delete("/api/usuarios/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && x.password === password && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas o sin permisos" });
+      const ok = await deleteUsuario(id);
+      if (!ok) return res.status(404).json({ message: "Usuario no encontrado" });
+      res.json({ message: "Eliminado" });
+    } catch (e: any) {
+      console.error("Error deleteUsuario:", e.message);
+      res.status(500).json({ message: "Error al eliminar" });
     }
   });
 

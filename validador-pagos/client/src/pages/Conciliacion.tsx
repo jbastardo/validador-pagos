@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,6 +102,14 @@ export default function Conciliacion() {
   const [editDivTipo,    setEditDivTipo]    = useState("");
   const [editDivRef,     setEditDivRef]     = useState("");
 
+  // ── Modal eliminar (admin) ──
+  const [deleteOpen,     setDeleteOpen]     = useState(false);
+  const [deleteTarget,   setDeleteTarget]   = useState<{ id: string; tipo: "bs" | "div" } | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading,  setDeleteLoading]  = useState(false);
+
+  const isAdmin = user?.rol === "admin";
+
   const { data: pagos,   isLoading: loadingBs  } = useQuery<Pago[]>      ({ queryKey: ["/api/pagos"] });
   const { data: divisas, isLoading: loadingDiv } = useQuery<PagoDivisa[]>({ queryKey: ["/api/pagos-divisas"] });
 
@@ -188,6 +196,56 @@ export default function Conciliacion() {
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al editar", variant: "destructive" }),
   });
+
+  // ── Mutación eliminar pago Bs ──
+  const deleteBsMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const res = await apiRequest("DELETE", `/api/pagos/${id}`, { email: user?.email ?? "", password });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error al eliminar");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      qc.invalidateQueries({ queryKey: ["/api/stats"] });
+      setDeleteOpen(false);
+      setDeletePassword("");
+      toast({ title: "Pago eliminado" });
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al eliminar", variant: "destructive" }),
+  });
+
+  // ── Mutación eliminar pago Divisas ──
+  const deleteDivMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const res = await apiRequest("DELETE", `/api/pagos-divisas/${id}`, { email: user?.email ?? "", password });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error al eliminar");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/pagos-divisas"] });
+      qc.invalidateQueries({ queryKey: ["/api/stats"] });
+      setDeleteOpen(false);
+      setDeletePassword("");
+      toast({ title: "Pago en divisas eliminado" });
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al eliminar", variant: "destructive" }),
+  });
+
+  const handleDelete = async () => {
+    if (!deleteTarget || !deletePassword) return;
+    setDeleteLoading(true);
+    try {
+      if (deleteTarget.tipo === "bs") {
+        await deleteBsMutation.mutateAsync({ id: deleteTarget.id, password: deletePassword });
+      } else {
+        await deleteDivMutation.mutateAsync({ id: deleteTarget.id, password: deletePassword });
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // ── Mutación estado Divisas ──
   const updateDivMutation = useMutation({
@@ -294,7 +352,7 @@ export default function Conciliacion() {
   // Puede ver info de validación (quien validó + cundo)
   const canSeeValidacion = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "supervisor";
 
-  // Componente tooltip de auditoría inline
+  // Componente tooltip de auditoría — panel fijo, ancho generoso
   const AuditTooltip = ({ vendedor, creadoEn, validadoPor, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; estado?: string }) => {
     const [show, setShow] = useState(false);
     const hasValidacion = canSeeValidacion && validadoPor && estado !== "Pendiente";
@@ -302,25 +360,31 @@ export default function Conciliacion() {
       <div className="relative inline-flex" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
         <Info className="w-3.5 h-3.5 text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors" />
         {show && (
-          <div className="absolute z-50 bottom-full mb-1.5 left-1/2 -translate-x-1/2 w-56 bg-popover border border-border rounded-lg shadow-lg p-3 text-xs space-y-1.5 pointer-events-none">
-            <div>
-              <span className="text-muted-foreground">Registrado por:</span>
-              <span className="ml-1 font-medium text-foreground">{vendedor || "—"}</span>
-            </div>
-            {creadoEn && (
-              <div>
-                <span className="text-muted-foreground">Fecha registro:</span>
-                <span className="ml-1 font-medium text-foreground">{fmtDateTime(creadoEn)}</span>
+          <div
+            className="fixed z-[9999] w-72 bg-popover border border-border rounded-xl shadow-xl p-4 text-xs pointer-events-none"
+            style={{ transform: "translateY(-110%)" }}
+          >
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Auditoría del registro</p>
+            <div className="space-y-2">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground">Registrado por</span>
+                <span className="font-medium text-foreground break-all">{vendedor || "—"}</span>
               </div>
-            )}
-            {hasValidacion && (
-              <>
-                <div className="border-t border-border pt-1.5">
-                  <span className="text-muted-foreground">Validado por:</span>
-                  <span className="ml-1 font-medium text-foreground">{validadoPor}</span>
+              {creadoEn && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground">Fecha y hora de registro</span>
+                  <span className="font-medium text-foreground">{fmtDateTime(creadoEn)}</span>
                 </div>
-              </>
-            )}
+              )}
+              {hasValidacion && (
+                <>
+                  <div className="border-t border-border pt-2 flex flex-col gap-0.5">
+                    <span className="text-muted-foreground">Validado por</span>
+                    <span className="font-medium text-foreground break-all">{validadoPor}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -488,6 +552,13 @@ export default function Conciliacion() {
                                         <Receipt className="w-3 h-3"/> Editar
                                       </Button>
                                     )}
+                                    {isAdmin && (
+                                      <Button size="sm" variant="ghost" className="h-7 px-2 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                        onClick={() => { setDeleteTarget({ id: p.id, tipo: "bs" }); setDeletePassword(""); setDeleteOpen(true); }}
+                                        data-testid={`button-delete-bs-${p.id}`}>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -602,6 +673,13 @@ export default function Conciliacion() {
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
                                         onClick={() => openEditDiv(p)}>
                                         <Pencil className="w-3 h-3"/> Editar
+                                      </Button>
+                                    )}
+                                    {isAdmin && (
+                                      <Button size="sm" variant="ghost" className="h-7 px-2 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                        onClick={() => { setDeleteTarget({ id: p.id, tipo: "div" }); setDeletePassword(""); setDeleteOpen(true); }}
+                                        data-testid={`button-delete-div-${p.id}`}>
+                                        <Trash2 className="w-3.5 h-3.5" />
                                       </Button>
                                     )}
                                   </div>
@@ -871,6 +949,48 @@ export default function Conciliacion() {
             <Button variant="outline" onClick={() => setCajeroOpen(false)}>Cancelar</Button>
             <Button onClick={() => cajeroMutation.mutate({ id: cajeroPago!.id, factura: cajeroFactura, megasoft: cajeroMega })} disabled={cajeroMutation.isPending}>
               {cajeroMutation.isPending ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal eliminar pago (admin) ── */}
+      <Dialog open={deleteOpen} onOpenChange={(o) => { if (!deleteLoading) { setDeleteOpen(o); if (!o) setDeletePassword(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-4 h-4" /> Eliminar pago
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Esta acción es <span className="font-semibold text-foreground">irreversible</span>. El registro será eliminado permanentemente.
+              Ingresa tu contraseña para confirmar.
+            </p>
+            <div className="space-y-2">
+              <Label>Tu contraseña</Label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && deletePassword) handleDelete(); }}
+                autoFocus
+                data-testid="input-delete-password"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeletePassword(""); }} disabled={deleteLoading}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={!deletePassword || deleteLoading}
+              data-testid="button-confirm-delete"
+            >
+              {deleteLoading ? "Eliminando…" : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>

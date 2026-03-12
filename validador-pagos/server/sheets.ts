@@ -60,13 +60,15 @@ export interface SheetPago {
 export async function getPagos(): Promise<SheetPago[]> {
   const rows = await getRows(TAB_PAGOS);
   if (rows.length < 2) return [];
-  return rows.slice(1).map((row, i) => ({
-    id: row[0]??"", fechaPago: row[1]??"", tipoPago: row[2]??"", bancoEmisor: row[3]??"",
-    monto: row[4]??"", celular: row[5]??"", bancoReceptor: row[6]??"", referencia: row[7]??"",
-    rif: row[8]??"", factura: row[9]??"", estado: row[10]??"", validadoPor: row[11]??"",
-    vendedor: row[12]??"", observaciones: row[13]??"", creadoEn: row[14]??"",
-    cliente: row[15]??"", megasoft: row[16]??"", _rowIndex: i + 2,
-  }));
+  return rows.slice(1)
+    .map((row, i) => ({
+      id: row[0]??"", fechaPago: row[1]??"", tipoPago: row[2]??"", bancoEmisor: row[3]??"",
+      monto: row[4]??"", celular: row[5]??"", bancoReceptor: row[6]??"", referencia: row[7]??"",
+      rif: row[8]??"", factura: row[9]??"", estado: row[10]??"", validadoPor: row[11]??"",
+      vendedor: row[12]??"", observaciones: row[13]??"", creadoEn: row[14]??"",
+      cliente: row[15]??"", megasoft: row[16]??"", _rowIndex: i + 2,
+    }))
+    .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
 }
 
 export async function getNextId(): Promise<number> {
@@ -143,10 +145,12 @@ export interface SheetUsuario {
 export async function getUsuarios(): Promise<SheetUsuario[]> {
   const rows = await getRows(TAB_USUARIOS);
   if (rows.length < 2) return [];
-  return rows.slice(1).map((row, i) => ({
-    id: row[0]??"", nombre: row[1]??"", email: row[2]??"", password: row[3]??"",
-    rol: row[4]??"vendedor", activo: row[5]??"true", _rowIndex: i + 2,
-  }));
+  return rows.slice(1)
+    .map((row, i) => ({
+      id: row[0]??"", nombre: row[1]??"", email: row[2]??"", password: row[3]??"",
+      rol: row[4]??"vendedor", activo: row[5]??"true", _rowIndex: i + 2,
+    }))
+    .filter(u => u.id !== "" && u.activo !== "ELIMINADO");
 }
 
 export async function addUsuario(u: Omit<SheetUsuario, "_rowIndex">): Promise<SheetUsuario> {
@@ -176,12 +180,14 @@ export interface SheetPagoDivisa {
 export async function getPagosDivisas(): Promise<SheetPagoDivisa[]> {
   const rows = await getRows(TAB_DIVISAS);
   if (rows.length < 2) return [];
-  return rows.slice(1).map((row, i) => ({
-    id: row[0]??"", fecha: row[1]??"", nombrePagador: row[2]??"", correo: row[3]??"",
-    monto: row[4]??"", tipo: row[5]??"", referencia: row[6]??"", cliente: row[7]??"",
-    rif: row[8]??"", factura: row[9]??"", observaciones: row[10]??"", estado: row[11]??"",
-    validadoPor: row[12]??"", vendedor: row[13]??"", creadoEn: row[14]??"", _rowIndex: i + 2,
-  }));
+  return rows.slice(1)
+    .map((row, i) => ({
+      id: row[0]??"", fecha: row[1]??"", nombrePagador: row[2]??"", correo: row[3]??"",
+      monto: row[4]??"", tipo: row[5]??"", referencia: row[6]??"", cliente: row[7]??"",
+      rif: row[8]??"", factura: row[9]??"", observaciones: row[10]??"", estado: row[11]??"",
+      validadoPor: row[12]??"", vendedor: row[13]??"", creadoEn: row[14]??"", _rowIndex: i + 2,
+    }))
+    .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
 }
 
 export async function addPagoDivisa(pago: Omit<SheetPagoDivisa, "id"|"_rowIndex">): Promise<SheetPagoDivisa> {
@@ -225,4 +231,35 @@ export async function updatePagoDivisaEdicion(id: string, data: { fecha: string;
     pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn];
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
   return { ...pago, ...data };
+}
+
+// ─── ELIMINAR (marcar como ELIMINADO) ──────────────────────────────────────────
+export async function deletePago(id: string): Promise<boolean> {
+  const pagos = await getPagos();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return false;
+  // 17 columnas A:Q — sobreescribir con vacíos + Estado=ELIMINADO
+  const emptyRow = ["", "", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", "", "", "", ""];
+  await updateRow(TAB_PAGOS, pago._rowIndex, emptyRow);
+  return true;
+}
+
+export async function deletePagoDivisa(id: string): Promise<boolean> {
+  const pagos = await getPagosDivisas();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return false;
+  // 15 columnas A:O — sobreescribir con vacíos + Estado=ELIMINADO
+  const emptyRow = ["", "", "", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", ""];
+  await updateRow(TAB_DIVISAS, pago._rowIndex, emptyRow);
+  return true;
+}
+
+export async function deleteUsuario(id: string): Promise<boolean> {
+  const usuarios = await getUsuarios();
+  const u = usuarios.find(x => x.id === id);
+  if (!u || !u._rowIndex) return false;
+  // 6 columnas A:F — sobreescribir con vacíos + Activo=ELIMINADO
+  const emptyRow = ["", "", "", "", "", "ELIMINADO"];
+  await updateRow(TAB_USUARIOS, u._rowIndex, emptyRow);
+  return true;
 }
