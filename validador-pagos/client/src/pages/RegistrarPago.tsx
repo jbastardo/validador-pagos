@@ -68,7 +68,8 @@ export default function RegistrarPago() {
 
   const mutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const res = await apiRequest("POST", "/api/pagos", { ...data, monto: data.monto.replace(",","."), vendedor: user?.email ?? "", cliente: data.cliente ?? "" });
+      const refTrimmed = (data.referencia ?? "").replace(/\D/g, "").slice(-6);
+      const res = await apiRequest("POST", "/api/pagos", { ...data, referencia: refTrimmed, monto: data.monto.replace(",","."), vendedor: user?.email ?? "", cliente: data.cliente ?? "" });
       const json = await res.json();
       if (!res.ok) throw { status: res.status, ...json };
       return json;
@@ -161,7 +162,13 @@ export default function RegistrarPago() {
 
               <FormField control={form.control} name="referencia" render={({field})=>(
                 <FormItem><FormLabel>Número de Referencia {tipoPago==="Transferencia"&&<span className="text-red-500">*</span>}</FormLabel><FormControl>
-                  <Input placeholder="Número de confirmación" {...field} data-testid="input-referencia"/>
+                  <Input
+                    placeholder="Últimos 6 dígitos"
+                    maxLength={6}
+                    {...field}
+                    onChange={e => field.onChange(e.target.value.replace(/\D/g, "").slice(-6))}
+                    data-testid="input-referencia"
+                  />
                 </FormControl><FormMessage/></FormItem>
               )}/>
 

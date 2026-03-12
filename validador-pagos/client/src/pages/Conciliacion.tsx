@@ -512,15 +512,14 @@ export default function Conciliacion() {
                         <thead className="bg-muted/40 border-y border-border">
                           <tr>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Fecha</th>
-                            {!isCajero && !isContabilidad && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Tipo</th>}
+                            {!isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Tipo</th>}
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Monto (Bs.)</th>
                             {isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Celular</th>}
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Banco Emisor</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Banco Receptor</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Cliente</th>
                             {(isContabilidad || (!isCajero && !isContabilidad)) && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Referencia</th>}
-                            {!isCajero && !isContabilidad && <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>}
-                            {isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Factura</th>}
+                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Factura</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Megasoft</th>}
                             {(isSupervisor || isCajero) && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
@@ -537,7 +536,7 @@ export default function Conciliacion() {
                                     <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} estado={p.estado} />
                                   </div>
                                 </td>
-                                {!isCajero && !isContabilidad && (
+                                {!isCajero && (
                                   <td className="px-3 py-3">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.tipoPago === "PagoMovil" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
                                       {p.tipoPago === "PagoMovil" ? "📱 Pago Móvil" : "🏦 Transferencia"}
@@ -552,8 +551,7 @@ export default function Conciliacion() {
                                 <td className="px-3 py-3 text-muted-foreground">{p.bancoReceptor || "—"}</td>
                                 <td className="px-3 py-3">{p.cliente || "—"}</td>
                                 {(isContabilidad || (!isCajero && !isContabilidad)) && <td className="px-3 py-3 font-mono">{p.referencia || "—"}</td>}
-                                {!isCajero && !isContabilidad && <td className="px-3 py-3 hidden xl:table-cell">{p.factura || "—"}</td>}
-                                {isCajero && <td className="px-3 py-3">{p.factura || "—"}</td>}
+                                <td className="px-3 py-3">{p.factura || "—"}</td>
                                 <td className="px-3 py-3">
                                   <div className="relative group inline-flex">
                                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border cursor-default ${estadoColors[p.estado] ?? ""}`}>

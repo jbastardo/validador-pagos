@@ -138,14 +138,20 @@ export async function checkDuplicado(referencia: string, monto: string, fechaPag
       p.monto === monto
     );
   }
-  // PagoMovil: duplicado = mismo monto + misma fecha + mismo celular
+  // PagoMovil: duplicado = mismo monto + misma fecha + mismo celular + misma referencia (si tiene)
   if (tipoPago === "PagoMovil") {
-    return pagos.find(p =>
-      p.tipoPago === "PagoMovil" &&
-      p.monto === monto &&
-      p.fechaPago === fechaPago &&
-      p.celular.trim() === (celular ?? "").trim()
-    );
+    return pagos.find(p => {
+      const refMatch = referencia?.trim()
+        ? p.referencia.trim() === referencia.trim()
+        : true;
+      return (
+        p.tipoPago === "PagoMovil" &&
+        p.monto === monto &&
+        p.fechaPago === fechaPago &&
+        p.celular.trim() === (celular ?? "").trim() &&
+        refMatch
+      );
+    });
   }
 }
 
