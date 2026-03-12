@@ -19,14 +19,14 @@ interface Pago {
   monto: string; celular: string; bancoReceptor: string; referencia: string;
   rif: string; factura: string; estado: string; validadoPor: string;
   vendedor: string; observaciones: string; cliente: string; megasoft: string;
-  creadoEn?: string;
+  creadoEn?: string; validadoEn?: string;
 }
 
 interface PagoDivisa {
   id: string; fecha: string; nombrePagador: string; correo: string;
   monto: string; tipo: string; referencia: string; cliente: string;
   rif: string; factura: string; observaciones: string; estado: string;
-  validadoPor: string; vendedor: string; creadoEn?: string;
+  validadoPor: string; vendedor: string; creadoEn?: string; validadoEn?: string;
 }
 
 const BANCOS_RECEPTOR = [
@@ -375,7 +375,7 @@ export default function Conciliacion() {
   const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad";
 
   // Componente tooltip de auditoría — panel fijo, ancho generoso
-  const AuditTooltip = ({ vendedor, creadoEn, validadoPor, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; estado?: string }) => {
+  const AuditTooltip = ({ vendedor, creadoEn, validadoPor, validadoEn, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; validadoEn?: string; estado?: string }) => {
     const [show, setShow] = useState(false);
     const hasValidacion = canSeeValidacion && validadoPor && estado !== "Pendiente";
     return (
@@ -400,9 +400,17 @@ export default function Conciliacion() {
               )}
               {hasValidacion && (
                 <>
-                  <div className="border-t border-border pt-2 flex flex-col gap-0.5">
-                    <span className="text-muted-foreground">Validado por</span>
-                    <span className="font-medium text-foreground break-all">{validadoPor}</span>
+                  <div className="border-t border-border pt-2 mt-1 space-y-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground">Validado / procesado por</span>
+                      <span className="font-medium text-foreground break-all">{validadoPor}</span>
+                    </div>
+                    {validadoEn && (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-muted-foreground">Fecha y hora de validación</span>
+                        <span className="font-medium text-foreground">{fmtDateTime(validadoEn)}</span>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -533,7 +541,7 @@ export default function Conciliacion() {
                                 <td className="px-3 py-3 font-medium">
                                   <div className="flex items-center gap-1.5">
                                     {p.fechaPago}
-                                    <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} estado={p.estado} />
+                                    <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} validadoEn={p.validadoEn} estado={p.estado} />
                                   </div>
                                 </td>
                                 {!isCajero && (
@@ -703,7 +711,7 @@ export default function Conciliacion() {
                                 <td className="px-3 py-3 font-medium">
                                   <div className="flex items-center gap-1.5">
                                     {p.fecha}
-                                    <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} estado={p.estado} />
+                                    <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} validadoEn={p.validadoEn} estado={p.estado} />
                                   </div>
                                 </td>
                                 <td className="px-3 py-3">
