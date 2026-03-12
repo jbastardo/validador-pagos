@@ -347,8 +347,9 @@ export default function Conciliacion() {
   const pendientesBs  = (pagos   ?? []).filter(p => p.estado === "Pendiente").length;
   const pendientesDiv = (divisas ?? []).filter(p => p.estado === "Pendiente").length;
   const isCajero      = user?.rol === "cajero";
+  const isVendedor    = user?.rol === "vendedor";
   const isContable    = user?.rol === "admin" || user?.rol === "contabilidad";
-  const isSupervisor  = user?.rol === "supervisor" || user?.rol === "admin";
+  const isSupervisor  = user?.rol === "supervisor" || user?.rol === "admin" || user?.rol === "contabilidad";
   // Puede ver info de validación (quien validó + cundo)
   const canSeeValidacion = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "supervisor";
 
@@ -485,7 +486,7 @@ export default function Conciliacion() {
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Celular</th>}
                             {!isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>}
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Megasoft</th>}
-                            <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>
+                            {!isVendedor && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -526,6 +527,7 @@ export default function Conciliacion() {
                                       : <span className="text-muted-foreground">—</span>}
                                   </td>
                                 )}
+                                {!isVendedor && (
                                 <td className="px-3 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     {isContable && p.estado === "Pendiente" && <>
@@ -565,6 +567,7 @@ export default function Conciliacion() {
                                     )}
                                   </div>
                                 </td>
+                                )}
                               </tr>
                             );
                           })}
@@ -631,7 +634,7 @@ export default function Conciliacion() {
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Referencia</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>
-                            <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>
+                            {!isVendedor && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -661,6 +664,7 @@ export default function Conciliacion() {
                                     <Icon className="w-3 h-3"/>{p.estado}
                                   </span>
                                 </td>
+                                {!isVendedor && (
                                 <td className="px-3 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     {isContable && p.estado === "Pendiente" && <>
@@ -688,6 +692,7 @@ export default function Conciliacion() {
                                     )}
                                   </div>
                                 </td>
+                                )}
                               </tr>
                             );
                           })}

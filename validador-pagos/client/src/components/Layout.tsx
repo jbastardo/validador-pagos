@@ -21,7 +21,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero", "supervisor"] },
   { href: "/registrar", label: "Registrar Pago", icon: PlusCircle, roles: ["admin", "vendedor"] },
   { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor"] },
-  { href: "/conciliacion", label: "Conciliación", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "supervisor"] },
+  { href: "/conciliacion", label: "Conciliación", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "supervisor", "vendedor"] },
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
 ];
 
@@ -37,6 +37,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     contabilidad: "Contabilidad",
     vendedor: "Vendedor",
     cajero: "Cajero",
+    supervisor: "Supervisor",
   };
 
   const rolColor: Record<string, string> = {
@@ -44,6 +45,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     contabilidad: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     vendedor: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     cajero: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+    supervisor: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
   };
 
   return (
