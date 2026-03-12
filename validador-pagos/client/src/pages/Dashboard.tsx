@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
@@ -10,6 +10,7 @@ interface Stats {
   total: number; pendientes: number; verificados: number; rechazados: number;
   pagoMovil: number; transferencias: number; montoTotal: number;
   megasoftSi: number; megasoftNo: number; megasoftPendiente: number; montoMegasoftSi: number;
+  totalDivisas: number; pendientesDivisas: number; montoDivisas: number;
 }
 
 function StatCard({ title, value, icon: Icon, color, subtitle }: { title: string; value: string | number; icon: any; color: string; subtitle?: string }) {
@@ -105,6 +106,57 @@ export default function Dashboard() {
                   </div>
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600">
                     <ShieldAlert className="w-5 h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sección Pagos en Divisas ── */}
+      {!sL && (
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pagos en Divisas</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="border-violet-200 bg-violet-50/40 dark:bg-violet-950/20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-violet-700 uppercase tracking-wide">Total Divisas</p>
+                    <p className="text-2xl font-bold text-violet-800 mt-1">{stats?.totalDivisas ?? 0}</p>
+                    <p className="text-xs text-violet-600 mt-0.5">Pagos registrados</p>
+                  </div>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-violet-100 text-violet-600">
+                    <Coins className="w-5 h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-amber-200 bg-amber-50/40 dark:bg-amber-950/20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Pendientes Divisas</p>
+                    <p className="text-2xl font-bold text-amber-800 mt-1">{stats?.pendientesDivisas ?? 0}</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Por verificar</p>
+                  </div>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-emerald-700 uppercase tracking-wide">Monto Total Divisas</p>
+                    <p className="text-2xl font-bold text-emerald-800 mt-1">${fmt(stats?.montoDivisas ?? 0)}</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">Pagos no rechazados</p>
+                  </div>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-100 text-emerald-600">
+                    <DollarSign className="w-5 h-5" />
                   </div>
                 </div>
               </CardContent>

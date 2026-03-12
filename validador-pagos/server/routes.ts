@@ -1,83 +1,34 @@
 import type { Express } from "express";
 import type { Server } from "http";
-import { getPagos, addPago, updatePagoEstado, updatePagoCajero, checkDuplicado } from "./sheets";
+import {
+  getPagos, addPago, updatePagoEstado, updatePagoCajero, checkDuplicado,
+  getUsuarios, addUsuario, updateUsuario,
+  getPagosDivisas, addPagoDivisa,
+} from "./sheets";
 import { z } from "zod";
-
-// Usuarios hardcodeados (no necesitan persistencia en Sheets)
-const USUARIOS = [
-  { id: 1, nombre: "Juan Admin",       email: "juan@onprotec.com",           password: "admin123", rol: "admin",        activo: "true" },
-  { id: 2, nombre: "Contabilidad",     email: "contabilidad@onprotec.com",   password: "conta123", rol: "contabilidad", activo: "true" },
-  { id: 3, nombre: "Vendedor 1",       email: "vendedor1@onprotec.com",      password: "vend123",  rol: "vendedor",     activo: "true" },
-  { id: 4, nombre: "Vendedor 2",       email: "vendedor2@onprotec.com",      password: "vend123",  rol: "vendedor",     activo: "true" },
-  { id: 5, nombre: "Vendedor 3",       email: "vendedor3@onprotec.com",      password: "vend123",  rol: "vendedor",     activo: "true" },
-  { id: 6, nombre: "Vendedor 4",       email: "vendedor4@onprotec.com",      password: "vend123",  rol: "vendedor",     activo: "true" },
-  { id: 7, nombre: "Milagros Morales", email: "m.morales@onprotec.com",      password: "vend123",  rol: "vendedor",     activo: "true" },
-  { id: 8, nombre: "Cajero 1",         email: "cajero1@onprotec.com",        password: "cajero123",rol: "cajero",       activo: "true" },
-];
-let usuariosRuntime = [...USUARIOS];
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
-  // ===== DIAGNÓSTICO (temporal) =====
-  app.get("/api/debug", async (_req, res) => {
-    const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-    if (!raw) return res.json({ ok: false, error: "GOOGLE_SERVICE_ACCOUNT_JSON no definida" });
-    let credentials: any;
-    try {
-      credentials = JSON.parse(raw);
-    } catch (e: any) {
-      return res.json({ ok: false, error: "JSON inválido: " + e.message, raw_start: raw.slice(0, 80) });
-    }
-    // Intentar llamada real a Google Sheets
-    try {
-      const { google } = await import("googleapis");
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-      const sheets = google.sheets({ version: "v4", auth });
-      const sheetId = process.env.GOOGLE_SHEET_ID ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
-      const tab = process.env.GOOGLE_SHEET_TAB ?? "Pagos";
-      const resp = await sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: `${tab}!A1:Q1`,
-      });
-      return res.json({
-        ok: true,
-        credentials_ok: true,
-        sheet_id: sheetId,
-        tab,
-        client_email: credentials.client_email,
-        headers: resp.data.values?.[0] ?? [],
-      });
-    } catch (e: any) {
-      return res.json({
-        ok: false,
-        credentials_parsed: true,
-        client_email: credentials.client_email,
-        sheet_id: process.env.GOOGLE_SHEET_ID,
-        google_error: e.message,
-        google_code: e.code ?? e.status ?? null,
-      });
-    }
-  });
-
   // ===== AUTH =====
-  app.post("/api/auth/login", (req, res) => {
+  app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: "Campos requeridos" });
-    const u = usuariosRuntime.find(x => x.email === email && x.password === password && x.activo === "true");
-    if (!u) return res.status(401).json({ message: "Credenciales incorrectas" });
-    res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol });
+    try {
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && x.password === password && x.activo === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas" });
+      res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol });
+    } catch (e: any) {
+      console.error("Error login:", e.message);
+      res.status(500).json({ message: "Error al verificar credenciales" });
+    }
   });
 
-  // ===== PAGOS =====
+  // ===== PAGOS BS =====
   app.get("/api/pagos", async (_req, res) => {
     try {
       const pagos = await getPagos();
-      // Ordenar más recientes primero
-      const sorted = pagos.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime());
-      res.json(sorted);
+      res.json(pagos.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()));
     } catch (e: any) {
       console.error("Error getPagos:", e.message);
       res.status(500).json({ message: "Error al obtener pagos de Google Sheets" });
@@ -102,31 +53,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
-
       const data = parsed.data;
-
-      // Verificar duplicado
       const dup = await checkDuplicado(data.referencia, data.monto, data.fechaPago, data.tipoPago);
-      if (dup) {
-        return res.status(409).json({
-          message: "Pago duplicado detectado",
-          duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
-        });
-      }
-
-      const nuevo = await addPago({
-        ...data,
-        celular: data.celular ?? "",
-        referencia: data.referencia ?? "",
-        rif: data.rif ?? "",
-        factura: data.factura ?? "",
-        cliente: data.cliente ?? "",
-        observaciones: data.observaciones ?? "",
-        estado: "Pendiente",
-        validadoPor: "",
-        megasoft: "",
-        creadoEn: new Date().toISOString(),
+      if (dup) return res.status(409).json({
+        message: "Pago duplicado detectado",
+        duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
       });
+      const nuevo = await addPago({ ...data, estado: "Pendiente", validadoPor: "", megasoft: "", creadoEn: new Date().toISOString() });
       res.status(201).json(nuevo);
     } catch (e: any) {
       console.error("Error addPago:", e.message);
@@ -138,13 +71,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { id } = req.params;
       const schema = z.object({
-        estado:       z.enum(["Pendiente", "Verificado", "Rechazado"]),
-        validadoPor:  z.string().min(1),
-        observaciones:z.string().optional().default(""),
+        estado:        z.enum(["Pendiente", "Verificado", "Rechazado"]),
+        validadoPor:   z.string().min(1),
+        observaciones: z.string().optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
-
       const updated = await updatePagoEstado(id, parsed.data.estado, parsed.data.validadoPor, parsed.data.observaciones);
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
@@ -154,46 +86,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // ===== STATS =====
-  app.get("/api/stats", async (_req, res) => {
-    try {
-      const pagos = await getPagos();
-      const verificados = pagos.filter(p => p.estado === "Verificado");
-      res.json({
-        total:              pagos.length,
-        pendientes:         pagos.filter(p => p.estado === "Pendiente").length,
-        verificados:        verificados.length,
-        rechazados:         pagos.filter(p => p.estado === "Rechazado").length,
-        pagoMovil:          pagos.filter(p => p.tipoPago === "PagoMovil").length,
-        transferencias:     pagos.filter(p => p.tipoPago === "Transferencia").length,
-        montoTotal:         pagos.filter(p => p.estado !== "Rechazado").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
-        megasoftSi:         verificados.filter(p => p.megasoft === "S\u00ed").length,
-        megasoftNo:         verificados.filter(p => p.megasoft === "No").length,
-        megasoftPendiente:  verificados.filter(p => !p.megasoft || p.megasoft === "").length,
-        montoMegasoftSi:    verificados.filter(p => p.megasoft === "S\u00ed").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
-      });
-    } catch (e: any) {
-      res.status(500).json({ message: "Error al obtener estadísticas" });
-    }
-  });
-
-  // ===== CAJERO: actualizar factura + megasoft en pagos verificados =====
   app.patch("/api/pagos/:id/cajero", async (req, res) => {
     try {
       const { id } = req.params;
       const schema = z.object({
-        factura: z.string().optional().default(""),
+        factura:  z.string().optional().default(""),
         megasoft: z.enum(["Sí", "No", ""]).optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
-
-      // Verificar que el pago esté Verificado
       const pagos = await getPagos();
       const pago = pagos.find(p => p.id === id);
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
       if (pago.estado !== "Verificado") return res.status(422).json({ message: "Solo se pueden editar pagos Verificados" });
-
       const updated = await updatePagoCajero(id, parsed.data.factura, parsed.data.megasoft);
       res.json(updated);
     } catch (e: any) {
@@ -202,28 +107,106 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // ===== USUARIOS =====
-  app.get("/api/usuarios", (_req, res) => {
-    res.json(usuariosRuntime.map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo })));
+  // ===== PAGOS DIVISAS =====
+  app.get("/api/pagos-divisas", async (_req, res) => {
+    try {
+      const pagos = await getPagosDivisas();
+      res.json(pagos.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()));
+    } catch (e: any) {
+      console.error("Error getPagosDivisas:", e.message);
+      res.status(500).json({ message: "Error al obtener pagos en divisas" });
+    }
   });
 
-  app.post("/api/usuarios", (req, res) => {
-    const { nombre, email, password, rol } = req.body;
-    if (!nombre || !email || !password) return res.status(400).json({ message: "Campos requeridos" });
-    if (usuariosRuntime.find(u => u.email === email)) return res.status(409).json({ message: "El email ya está registrado" });
-    const newId = Math.max(...usuariosRuntime.map(u => u.id)) + 1;
-    const newUser = { id: newId, nombre, email, password, rol: rol ?? "vendedor", activo: "true" };
-    usuariosRuntime.push(newUser);
-    res.status(201).json({ id: newUser.id, nombre: newUser.nombre, email: newUser.email, rol: newUser.rol, activo: newUser.activo });
+  app.post("/api/pagos-divisas", async (req, res) => {
+    try {
+      const schema = z.object({
+        fecha:         z.string().min(1),
+        nombrePagador: z.string().min(1),
+        correo:        z.string().optional().default(""),
+        monto:         z.string().min(1),
+        tipo:          z.string().min(1),
+        referencia:    z.string().optional().default(""),
+        cliente:       z.string().optional().default(""),
+        rif:           z.string().optional().default(""),
+        factura:       z.string().optional().default(""),
+        observaciones: z.string().optional().default(""),
+        vendedor:      z.string().min(1),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+      const nuevo = await addPagoDivisa({ ...parsed.data, estado: "Pendiente", validadoPor: "", creadoEn: new Date().toISOString() });
+      res.status(201).json(nuevo);
+    } catch (e: any) {
+      console.error("Error addPagoDivisa:", e.message);
+      res.status(500).json({ message: "Error al guardar pago en divisas" });
+    }
   });
 
-  app.patch("/api/usuarios/:id", (req, res) => {
-    const id = parseInt(req.params.id);
-    const idx = usuariosRuntime.findIndex(u => u.id === id);
-    if (idx === -1) return res.status(404).json({ message: "Usuario no encontrado" });
-    usuariosRuntime[idx] = { ...usuariosRuntime[idx], ...req.body };
-    const u = usuariosRuntime[idx];
-    res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo });
+  // ===== STATS =====
+  app.get("/api/stats", async (_req, res) => {
+    try {
+      const [pagos, divisas] = await Promise.all([getPagos(), getPagosDivisas()]);
+      const verificados = pagos.filter(p => p.estado === "Verificado");
+      res.json({
+        total:             pagos.length,
+        pendientes:        pagos.filter(p => p.estado === "Pendiente").length,
+        verificados:       verificados.length,
+        rechazados:        pagos.filter(p => p.estado === "Rechazado").length,
+        pagoMovil:         pagos.filter(p => p.tipoPago === "PagoMovil").length,
+        transferencias:    pagos.filter(p => p.tipoPago === "Transferencia").length,
+        montoTotal:        pagos.filter(p => p.estado !== "Rechazado").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+        megasoftSi:        verificados.filter(p => p.megasoft === "Sí").length,
+        megasoftNo:        verificados.filter(p => p.megasoft === "No").length,
+        megasoftPendiente: verificados.filter(p => !p.megasoft || p.megasoft === "").length,
+        montoMegasoftSi:   verificados.filter(p => p.megasoft === "Sí").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+        // Divisas
+        totalDivisas:      divisas.length,
+        pendientesDivisas: divisas.filter(p => p.estado === "Pendiente").length,
+        montoDivisas:      divisas.filter(p => p.estado !== "Rechazado").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+      });
+    } catch (e: any) {
+      res.status(500).json({ message: "Error al obtener estadísticas" });
+    }
+  });
+
+  // ===== USUARIOS (persistidos en Sheets) =====
+  app.get("/api/usuarios", async (_req, res) => {
+    try {
+      const usuarios = await getUsuarios();
+      res.json(usuarios.map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo })));
+    } catch (e: any) {
+      res.status(500).json({ message: "Error al obtener usuarios" });
+    }
+  });
+
+  app.post("/api/usuarios", async (req, res) => {
+    try {
+      const { nombre, email, password, rol } = req.body;
+      if (!nombre || !email || !password) return res.status(400).json({ message: "Campos requeridos" });
+      const usuarios = await getUsuarios();
+      if (usuarios.find(u => u.email === email)) return res.status(409).json({ message: "El email ya está registrado" });
+      const newId = String(Math.max(...usuarios.map(u => parseInt(u.id) || 0)) + 1);
+      const newUser = await addUsuario({ id: newId, nombre, email, password, rol: rol ?? "vendedor", activo: "true" });
+      res.status(201).json({ id: newUser.id, nombre: newUser.nombre, email: newUser.email, rol: newUser.rol, activo: newUser.activo });
+    } catch (e: any) {
+      console.error("Error addUsuario:", e.message);
+      res.status(500).json({ message: "Error al crear usuario" });
+    }
+  });
+
+  app.patch("/api/usuarios/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const usuarios = await getUsuarios();
+      const usuario = usuarios.find(u => u.id === id);
+      if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
+      const updated = await updateUsuario(id, { ...usuario, ...req.body });
+      res.json({ id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, activo: updated.activo });
+    } catch (e: any) {
+      console.error("Error updateUsuario:", e.message);
+      res.status(500).json({ message: "Error al actualizar usuario" });
+    }
   });
 
   return httpServer;

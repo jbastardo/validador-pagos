@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Menu,
   X,
+  DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero"] },
   { href: "/registrar", label: "Registrar Pago", icon: PlusCircle, roles: ["admin", "vendedor"] },
+  { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor"] },
   { href: "/conciliacion", label: "Conciliación", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero"] },
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
 ];
