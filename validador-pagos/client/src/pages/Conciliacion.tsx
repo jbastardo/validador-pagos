@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,8 +111,16 @@ export default function Conciliacion() {
 
   const isAdmin = user?.rol === "admin";
 
-  const { data: pagos,   isLoading: loadingBs  } = useQuery<Pago[]>      ({ queryKey: ["/api/pagos"] });
-  const { data: divisas, isLoading: loadingDiv } = useQuery<PagoDivisa[]>({ queryKey: ["/api/pagos-divisas"] });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const { data: pagos,   isLoading: loadingBs,  refetch: refetchBs  } = useQuery<Pago[]>      ({ queryKey: ["/api/pagos"] });
+  const { data: divisas, isLoading: loadingDiv, refetch: refetchDiv } = useQuery<PagoDivisa[]>({ queryKey: ["/api/pagos-divisas"] });
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([refetchBs(), refetchDiv()]);
+    setIsRefreshing(false);
+  };
 
   // ── Mutación estado Bs ──
   const updateMutation = useMutation({
@@ -310,7 +318,7 @@ export default function Conciliacion() {
     setEditDivOpen(true);
   };
 
-  const fmt = (v: string) => parseFloat(v || "0").toLocaleString("es-VE", { minimumFractionDigits: 2 });
+  const fmt = (v: string) => parseFloat(v || "0").toLocaleString("es-ES", { minimumFractionDigits: 2 });
 
   // ── Filtrado Bs ──
   const filtradosBs = (pagos ?? []).filter(p => {
@@ -349,12 +357,15 @@ export default function Conciliacion() {
 
   const pendientesBs  = (pagos   ?? []).filter(p => p.estado === "Pendiente").length;
   const pendientesDiv = (divisas ?? []).filter(p => p.estado === "Pendiente").length;
-  const isCajero      = user?.rol === "cajero";
-  const isVendedor    = user?.rol === "vendedor";
-  const isContable    = user?.rol === "admin" || user?.rol === "contabilidad";
-  const isSupervisor  = user?.rol === "supervisor" || user?.rol === "admin" || user?.rol === "contabilidad";
-  // Puede ver info de validación (quien validó + cundo)
-  const canSeeValidacion = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "supervisor";
+  const isCajero           = user?.rol === "cajero";
+  const isVendedor         = user?.rol === "vendedor";
+  const isContabilidad     = user?.rol === "contabilidad";
+  // Puede aprobar/rechazar
+  const isContable         = user?.rol === "admin" || user?.rol === "contabilidad";
+  // Puede editar pendientes (contabilidad, admin, vendedor)
+  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor";
+  // Puede ver info de validación (quien validó + cuándo)
+  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad";
 
   // Componente tooltip de auditoría — panel fijo, ancho generoso
   const AuditTooltip = ({ vendedor, creadoEn, validadoPor, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; estado?: string }) => {
@@ -397,19 +408,25 @@ export default function Conciliacion() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Conciliación de Pagos</h1>
           <p className="text-sm text-muted-foreground">
             {isCajero ? "Agrega el número de factura y valida con Megasoft" : "Verifica y aprueba los pagos — sincronizado con Google Sheets"}
           </p>
         </div>
-        {(pendientesBs + pendientesDiv) > 0 && !isCajero && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-amber-600"/>
-            <span className="text-xs font-semibold text-amber-700">{pendientesBs + pendientesDiv} pendiente{(pendientesBs + pendientesDiv) !== 1 ? "s" : ""}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {(pendientesBs + pendientesDiv) > 0 && !isCajero && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-amber-600"/>
+              <span className="text-xs font-semibold text-amber-700">{pendientesBs + pendientesDiv} pendiente{(pendientesBs + pendientesDiv) !== 1 ? "s" : ""}</span>
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-2 h-9">
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`}/>
+            {isRefreshing ? "Actualizando..." : "Actualizar"}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="bs">
@@ -481,16 +498,17 @@ export default function Conciliacion() {
                         <thead className="bg-muted/40 border-y border-border">
                           <tr>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Fecha</th>
-                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Tipo</th>
+                            {!isCajero && !isContabilidad && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Tipo</th>}
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Monto (Bs.)</th>
                             {isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Celular</th>}
-                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden md:table-cell">Banco Receptor</th>
-                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Cliente</th>
-                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Referencia</th>
-                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>
-                            {!isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>}
+                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Banco Emisor</th>
+                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Banco Receptor</th>
+                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Cliente</th>
+                            {(isContabilidad || (!isCajero && !isContabilidad)) && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Referencia</th>}
+                            {!isCajero && !isContabilidad && <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>}
+                            <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Megasoft</th>}
-                            {!isVendedor && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
+                            {(isSupervisor || isCajero) && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -504,26 +522,38 @@ export default function Conciliacion() {
                                     <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} estado={p.estado} />
                                   </div>
                                 </td>
-                                <td className="px-3 py-3">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.tipoPago === "PagoMovil" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
-                                    {p.tipoPago === "PagoMovil" ? "📱 Pago Móvil" : "🏦 Transferencia"}
-                                  </span>
-                                </td>
+                                {!isCajero && !isContabilidad && (
+                                  <td className="px-3 py-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.tipoPago === "PagoMovil" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                      {p.tipoPago === "PagoMovil" ? "📱 Pago Móvil" : "🏦 Transferencia"}
+                                    </span>
+                                  </td>
+                                )}
                                 <td className="px-3 py-3 font-mono font-semibold">{fmt(p.monto)}</td>
                                 {isCajero && (
                                   <td className="px-3 py-3 font-mono">{p.celular || "—"}</td>
                                 )}
-                                <td className="px-3 py-3 text-muted-foreground hidden md:table-cell">{p.bancoReceptor || "—"}</td>
-                                <td className="px-3 py-3 hidden lg:table-cell">{p.cliente || "—"}</td>
-                                <td className="px-3 py-3 font-mono hidden lg:table-cell">{p.referencia || "—"}</td>
-                                <td className="px-3 py-3 hidden xl:table-cell">{p.factura || "—"}</td>
-                                {!isCajero && (
-                                  <td className="px-3 py-3">
-                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${estadoColors[p.estado] ?? ""}`}>
+                                <td className="px-3 py-3 text-muted-foreground">{p.bancoEmisor || "—"}</td>
+                                <td className="px-3 py-3 text-muted-foreground">{p.bancoReceptor || "—"}</td>
+                                <td className="px-3 py-3">{p.cliente || "—"}</td>
+                                {(isContabilidad || (!isCajero && !isContabilidad)) && <td className="px-3 py-3 font-mono">{p.referencia || "—"}</td>}
+                                {!isCajero && !isContabilidad && <td className="px-3 py-3 hidden xl:table-cell">{p.factura || "—"}</td>}
+                                <td className="px-3 py-3">
+                                  <div className="relative group inline-flex">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border cursor-default ${estadoColors[p.estado] ?? ""}`}>
                                       <Icon className="w-3 h-3"/>{p.estado}
+                                      {p.observaciones && (p.estado === "Rechazado" || p.estado === "Rechazado Megasoft") && (
+                                        <MessageSquare className="w-3 h-3 ml-0.5 opacity-70" />
+                                      )}
                                     </span>
-                                  </td>
-                                )}
+                                    {p.observaciones && (p.estado === "Rechazado" || p.estado === "Rechazado Megasoft") && (
+                                      <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-64 bg-popover border border-border rounded-xl shadow-xl p-3 text-xs pointer-events-none">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Motivo de rechazo</p>
+                                        <p className="text-foreground leading-relaxed">{p.observaciones}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
                                 {isCajero && (
                                   <td className="px-3 py-3">
                                     {p.megasoft
@@ -531,7 +561,7 @@ export default function Conciliacion() {
                                       : <span className="text-muted-foreground">—</span>}
                                   </td>
                                 )}
-                                {!isVendedor && (
+                                {(isSupervisor || isCajero) && (
                                 <td className="px-3 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     {isContable && p.estado === "Pendiente" && <>
@@ -544,7 +574,13 @@ export default function Conciliacion() {
                                         <XCircle className="w-3 h-3"/> Rechazar
                                       </Button>
                                     </>}
-                                    {isSupervisor && user?.rol !== "admin" && p.estado === "Pendiente" && (
+                                    {isVendedor && p.estado === "Pendiente" && (
+                                      <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                                        onClick={() => openEditBs(p)}>
+                                        <Pencil className="w-3 h-3"/> Editar
+                                      </Button>
+                                    )}
+                                    {isContable && !isVendedor && p.estado === "Pendiente" && (
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
                                         onClick={() => openEditBs(p)}>
                                         <Pencil className="w-3 h-3"/> Editar
@@ -639,7 +675,7 @@ export default function Conciliacion() {
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Referencia</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>
-                            {!isVendedor && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
+                            {isSupervisor && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -665,11 +701,22 @@ export default function Conciliacion() {
                                 <td className="px-3 py-3 font-mono hidden lg:table-cell">{p.referencia || "—"}</td>
                                 <td className="px-3 py-3 hidden xl:table-cell">{p.factura || "—"}</td>
                                 <td className="px-3 py-3">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${estadoColors[p.estado] ?? ""}`}>
-                                    <Icon className="w-3 h-3"/>{p.estado}
-                                  </span>
+                                  <div className="relative group inline-flex">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border cursor-default ${estadoColors[p.estado] ?? ""}`}>
+                                      <Icon className="w-3 h-3"/>{p.estado}
+                                      {p.observaciones && p.estado === "Rechazado" && (
+                                        <MessageSquare className="w-3 h-3 ml-0.5 opacity-70" />
+                                      )}
+                                    </span>
+                                    {p.observaciones && p.estado === "Rechazado" && (
+                                      <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-64 bg-popover border border-border rounded-xl shadow-xl p-3 text-xs pointer-events-none">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Motivo de rechazo</p>
+                                        <p className="text-foreground leading-relaxed">{p.observaciones}</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
-                                {!isVendedor && (
+                                {isSupervisor && (
                                 <td className="px-3 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     {isContable && p.estado === "Pendiente" && <>
@@ -682,7 +729,7 @@ export default function Conciliacion() {
                                         <XCircle className="w-3 h-3"/> Rechazar
                                       </Button>
                                     </>}
-                                    {isSupervisor && user?.rol !== "admin" && p.estado === "Pendiente" && (
+                                    {(isVendedor || isContable) && p.estado === "Pendiente" && (
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
                                         onClick={() => openEditDiv(p)}>
                                         <Pencil className="w-3 h-3"/> Editar

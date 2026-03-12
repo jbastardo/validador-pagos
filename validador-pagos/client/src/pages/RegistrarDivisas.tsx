@@ -140,7 +140,7 @@ export default function RegistrarDivisas() {
 
               <FormField control={form.control} name="monto" render={({ field }) => (
                 <FormItem><FormLabel>Monto ($)</FormLabel><FormControl>
-                  <Input placeholder="Ej: 100.00" {...field} data-testid="input-monto-div" />
+                  <Input placeholder="Ej: 100,00" {...field} data-testid="input-monto-div" />
                 </FormControl><FormMessage /></FormItem>
               )} />
 

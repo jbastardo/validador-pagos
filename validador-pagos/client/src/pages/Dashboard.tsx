@@ -36,7 +36,7 @@ export default function Dashboard() {
   const { data: stats, isLoading: sL } = useQuery<Stats>({ queryKey: ["/api/stats"] });
   const { data: pagos, isLoading: pL } = useQuery<Pago[]>({ queryKey: ["/api/pagos"] });
 
-  const fmt = (n: number) => new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2 }).format(n);
+  const fmt = (n: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2 }).format(n);
 
   const porBanco: Record<string, number> = {};
   (pagos ?? []).forEach(p => { const b = p.bancoEmisor.replace(/^\d+\s/, "").substring(0, 14); porBanco[b] = (porBanco[b] || 0) + 1; });
@@ -210,7 +210,7 @@ export default function Dashboard() {
                     <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                       <td className="py-2 px-2">{p.fechaPago}</td>
                       <td className="py-2 px-2"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.tipoPago==="PagoMovil"?"bg-blue-100 text-blue-700":"bg-emerald-100 text-emerald-700"}`}>{p.tipoPago==="PagoMovil"?"📱 Pago Móvil":"🏦 Transferencia"}</span></td>
-                      <td className="py-2 px-2 font-mono font-semibold">{parseFloat(p.monto).toLocaleString("es-VE",{minimumFractionDigits:2})}</td>
+                      <td className="py-2 px-2 font-mono font-semibold">{parseFloat(p.monto).toLocaleString("es-ES",{minimumFractionDigits:2})}</td>
                       <td className="py-2 px-2 hidden md:table-cell text-muted-foreground">{p.bancoEmisor}</td>
                       <td className="py-2 px-2"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${estadoColor[p.estado]??""}`}>{p.estado}</span></td>
                     </tr>

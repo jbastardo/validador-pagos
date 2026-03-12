@@ -111,7 +111,7 @@ export default function RegistrarPago() {
           <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5"/>
           <div>
             <p className="text-sm font-semibold text-red-700">Pago duplicado detectado</p>
-            <p className="text-xs text-red-600 mt-1">Ya existe un pago con referencia <strong>{duplicado.referencia||"—"}</strong> por <strong>Bs. {parseFloat(duplicado.monto||"0").toLocaleString("es-VE",{minimumFractionDigits:2})}</strong> del <strong>{duplicado.fechaPago}</strong>.</p>
+            <p className="text-xs text-red-600 mt-1">Ya existe un pago con referencia <strong>{duplicado.referencia||"—"}</strong> por <strong>Bs. {parseFloat(duplicado.monto||"0").toLocaleString("es-ES",{minimumFractionDigits:2})}</strong> del <strong>{duplicado.fechaPago}</strong>.</p>
           </div>
         </div>
       )}
@@ -155,7 +155,7 @@ export default function RegistrarPago() {
 
               <FormField control={form.control} name="monto" render={({field})=>(
                 <FormItem><FormLabel>Monto (Bs.)</FormLabel><FormControl>
-                  <Input placeholder="Ej: 5000.00" {...field} data-testid="input-monto"/>
+                  <Input placeholder="Ej: 5000,00" {...field} data-testid="input-monto"/>
                 </FormControl><FormMessage/></FormItem>
               )}/>
 
