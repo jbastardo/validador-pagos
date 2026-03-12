@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +75,25 @@ export default function Conciliacion() {
   const [obsDiv,         setObsDiv]         = useState("");
   const [dialogDivOpen,  setDialogDivOpen]  = useState(false);
 
+  // ── Modal edición Bs (supervisor) ──
+  const [editBsOpen,  setEditBsOpen]  = useState(false);
+  const [editBsPago,  setEditBsPago]  = useState<Pago | null>(null);
+  const [editBsFecha, setEditBsFecha] = useState("");
+  const [editBsEmisor,   setEditBsEmisor]   = useState("");
+  const [editBsReceptor, setEditBsReceptor] = useState("");
+  const [editBsMonto,    setEditBsMonto]    = useState("");
+  const [editBsRef,      setEditBsRef]      = useState("");
+  const [editBsCel,      setEditBsCel]      = useState("");
+
+  // ── Modal edición Divisas (supervisor) ──
+  const [editDivOpen,    setEditDivOpen]    = useState(false);
+  const [editDivPago,    setEditDivPago]    = useState<PagoDivisa | null>(null);
+  const [editDivFecha,   setEditDivFecha]   = useState("");
+  const [editDivPagador, setEditDivPagador] = useState("");
+  const [editDivMonto,   setEditDivMonto]   = useState("");
+  const [editDivTipo,    setEditDivTipo]    = useState("");
+  const [editDivRef,     setEditDivRef]     = useState("");
+
   const { data: pagos,   isLoading: loadingBs  } = useQuery<Pago[]>      ({ queryKey: ["/api/pagos"] });
   const { data: divisas, isLoading: loadingDiv } = useQuery<PagoDivisa[]>({ queryKey: ["/api/pagos-divisas"] });
 
@@ -110,6 +129,38 @@ export default function Conciliacion() {
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
   });
 
+  // ── Mutación edición Bs (supervisor) ──
+  const editBsMutation = useMutation({
+    mutationFn: async ({ id, campos }: { id: string; campos: Record<string, string> }) => {
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/editar`, campos);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error al editar");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      setEditBsOpen(false);
+      toast({ title: "Pago actualizado en Google Sheets" });
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al editar", variant: "destructive" }),
+  });
+
+  // ── Mutación edición Divisas (supervisor) ──
+  const editDivMutation = useMutation({
+    mutationFn: async ({ id, campos }: { id: string; campos: Record<string, string> }) => {
+      const res = await apiRequest("PATCH", `/api/pagos-divisas/${id}/editar`, campos);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error al editar");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/pagos-divisas"] });
+      setEditDivOpen(false);
+      toast({ title: "Pago en divisas actualizado en Google Sheets" });
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al editar", variant: "destructive" }),
+  });
+
   // ── Mutación estado Divisas ──
   const updateDivMutation = useMutation({
     mutationFn: async ({ id, estado, obs }: { id: string; estado: string; obs: string }) => {
@@ -131,6 +182,27 @@ export default function Conciliacion() {
     setCajeroFactura(p.factura ?? "");
     setCajeroMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajeroOpen(true);
+  };
+
+  const openEditBs = (p: Pago) => {
+    setEditBsPago(p);
+    setEditBsFecha(p.fechaPago ?? "");
+    setEditBsEmisor(p.bancoEmisor ?? "");
+    setEditBsReceptor(p.bancoReceptor ?? "");
+    setEditBsMonto(p.monto ?? "");
+    setEditBsRef(p.referencia ?? "");
+    setEditBsCel(p.celular ?? "");
+    setEditBsOpen(true);
+  };
+
+  const openEditDiv = (p: PagoDivisa) => {
+    setEditDivPago(p);
+    setEditDivFecha(p.fecha ?? "");
+    setEditDivPagador(p.nombrePagador ?? "");
+    setEditDivMonto(p.monto ?? "");
+    setEditDivTipo(p.tipo ?? "");
+    setEditDivRef(p.referencia ?? "");
+    setEditDivOpen(true);
   };
 
   const fmt = (v: string) => parseFloat(v || "0").toLocaleString("es-VE", { minimumFractionDigits: 2 });
@@ -174,6 +246,7 @@ export default function Conciliacion() {
   const pendientesDiv = (divisas ?? []).filter(p => p.estado === "Pendiente").length;
   const isCajero      = user?.rol === "cajero";
   const isContable    = user?.rol === "admin" || user?.rol === "contabilidad";
+  const isSupervisor  = user?.rol === "supervisor" || user?.rol === "admin";
 
   return (
     <div className="space-y-5">
@@ -313,6 +386,12 @@ export default function Conciliacion() {
                                         <XCircle className="w-3 h-3"/> Rechazar
                                       </Button>
                                     </>}
+                                    {isSupervisor && user?.rol !== "admin" && p.estado === "Pendiente" && (
+                                      <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                                        onClick={() => openEditBs(p)}>
+                                        <Pencil className="w-3 h-3"/> Editar
+                                      </Button>
+                                    )}
                                     {isCajero && p.estado === "Verificado" && (
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-blue-700 hover:bg-blue-50 border-blue-200"
                                         onClick={() => openCajero(p)}>
@@ -413,8 +492,8 @@ export default function Conciliacion() {
                                   </span>
                                 </td>
                                 <td className="px-3 py-3 text-right">
-                                  {isContable && p.estado === "Pendiente" && (
-                                    <div className="flex items-center justify-end gap-1">
+                                  <div className="flex items-center justify-end gap-1">
+                                    {isContable && p.estado === "Pendiente" && <>
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-green-700 hover:bg-green-50 border-green-200"
                                         onClick={() => { setSelectedDiv(p); setNuevoEstadoDiv("Verificado"); setObsDiv(""); setDialogDivOpen(true); }}>
                                         <CheckCircle2 className="w-3 h-3"/> Aprobar
@@ -423,8 +502,14 @@ export default function Conciliacion() {
                                         onClick={() => { setSelectedDiv(p); setNuevoEstadoDiv("Rechazado"); setObsDiv(""); setDialogDivOpen(true); }}>
                                         <XCircle className="w-3 h-3"/> Rechazar
                                       </Button>
-                                    </div>
-                                  )}
+                                    </>}
+                                    {isSupervisor && user?.rol !== "admin" && p.estado === "Pendiente" && (
+                                      <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                                        onClick={() => openEditDiv(p)}>
+                                        <Pencil className="w-3 h-3"/> Editar
+                                      </Button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -506,6 +591,110 @@ export default function Conciliacion() {
               disabled={updateDivMutation.isPending}
               className={nuevoEstadoDiv === "Verificado" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}>
               {updateDivMutation.isPending ? "Guardando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal edición Bs (supervisor) ── */}
+      <Dialog open={editBsOpen} onOpenChange={setEditBsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>✏️ Editar pago en Bs.</DialogTitle></DialogHeader>
+          {editBsPago && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Fecha</Label>
+                  <Input type="date" value={editBsFecha} onChange={e => setEditBsFecha(e.target.value)}/>
+                </div>
+                <div className="space-y-1">
+                  <Label>Monto (Bs.)</Label>
+                  <Input placeholder="0.00" value={editBsMonto} onChange={e => setEditBsMonto(e.target.value)}/>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Banco Emisor</Label>
+                <Input placeholder="Banco emisor" value={editBsEmisor} onChange={e => setEditBsEmisor(e.target.value)}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Banco Receptor</Label>
+                <Select value={editBsReceptor} onValueChange={setEditBsReceptor}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona banco"/></SelectTrigger>
+                  <SelectContent>
+                    {BANCOS_RECEPTOR.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Referencia</Label>
+                <Input placeholder="Número de referencia" value={editBsRef} onChange={e => setEditBsRef(e.target.value)}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Celular</Label>
+                <Input placeholder="04XX-XXXXXXX" value={editBsCel} onChange={e => setEditBsCel(e.target.value)}/>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditBsOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={editBsMutation.isPending}
+              onClick={() => editBsMutation.mutate({
+                id: editBsPago!.id,
+                campos: { fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor, monto: editBsMonto, referencia: editBsRef, celular: editBsCel },
+              })}>
+              {editBsMutation.isPending ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal edición Divisas (supervisor) ── */}
+      <Dialog open={editDivOpen} onOpenChange={setEditDivOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>✏️ Editar pago en Divisas</DialogTitle></DialogHeader>
+          {editDivPago && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Fecha</Label>
+                  <Input type="date" value={editDivFecha} onChange={e => setEditDivFecha(e.target.value)}/>
+                </div>
+                <div className="space-y-1">
+                  <Label>Monto ($)</Label>
+                  <Input placeholder="0.00" value={editDivMonto} onChange={e => setEditDivMonto(e.target.value)}/>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Nombre Pagador</Label>
+                <Input placeholder="Nombre del pagador" value={editDivPagador} onChange={e => setEditDivPagador(e.target.value)}/>
+              </div>
+              <div className="space-y-1">
+                <Label>Tipo de pago</Label>
+                <Select value={editDivTipo} onValueChange={setEditDivTipo}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona tipo"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Zelle">Zelle</SelectItem>
+                    <SelectItem value="Binance">Binance</SelectItem>
+                    <SelectItem value="Banesco Panamá">Banesco Panamá</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Referencia</Label>
+                <Input placeholder="Número de referencia" value={editDivRef} onChange={e => setEditDivRef(e.target.value)}/>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditDivOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={editDivMutation.isPending}
+              onClick={() => editDivMutation.mutate({
+                id: editDivPago!.id,
+                campos: { fecha: editDivFecha, nombrePagador: editDivPagador, monto: editDivMonto, tipo: editDivTipo, referencia: editDivRef },
+              })}>
+              {editDivMutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -185,3 +185,25 @@ export async function updatePagoDivisaEstado(id: string, estado: string, validad
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
   return { ...pago, estado, validadoPor, observaciones };
 }
+
+export async function updatePagoEdicion(id: string, data: { fechaPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; referencia: string; celular: string }): Promise<SheetPago|null> {
+  const pagos = await getPagos();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return null;
+  const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto,
+    data.celular, data.bancoReceptor, data.referencia, pago.rif, pago.factura, pago.estado,
+    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, pago.cliente??"", pago.megasoft??""];
+  await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  return { ...pago, ...data };
+}
+
+export async function updatePagoDivisaEdicion(id: string, data: { fecha: string; nombrePagador: string; monto: string; tipo: string; referencia: string }): Promise<SheetPagoDivisa|null> {
+  const pagos = await getPagosDivisas();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return null;
+  const row = [pago.id, data.fecha, data.nombrePagador, pago.correo, data.monto, data.tipo,
+    data.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones,
+    pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn];
+  await updateRow(TAB_DIVISAS, pago._rowIndex, row);
+  return { ...pago, ...data };
+}

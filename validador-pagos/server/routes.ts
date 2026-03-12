@@ -3,7 +3,8 @@ import type { Server } from "http";
 import {
   getPagos, addPago, updatePagoEstado, updatePagoCajero, checkDuplicado,
   getUsuarios, addUsuario, updateUsuario,
-  getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado,
+  getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
+  updatePagoEdicion,
 } from "./sheets";
 import { z } from "zod";
 
@@ -140,6 +141,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e: any) {
       console.error("Error addPagoDivisa:", e.message);
       res.status(500).json({ message: "Error al guardar pago en divisas" });
+    }
+  });
+
+  // PATCH /api/pagos/:id/editar (supervisor)
+  app.patch("/api/pagos/:id/editar", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular } = req.body;
+      if (!fechaPago || !monto) return res.status(400).json({ message: "Campos requeridos" });
+      const updated = await updatePagoEdicion(id, { fechaPago, bancoEmisor: bancoEmisor ?? "", bancoReceptor: bancoReceptor ?? "", monto, referencia: referencia ?? "", celular: celular ?? "" });
+      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoEdicion:", e.message);
+      res.status(500).json({ message: "Error al editar pago" });
+    }
+  });
+
+  // PATCH /api/pagos-divisas/:id/editar (supervisor)
+  app.patch("/api/pagos-divisas/:id/editar", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { fecha, nombrePagador, monto, tipo, referencia } = req.body;
+      if (!fecha || !monto || !nombrePagador) return res.status(400).json({ message: "Campos requeridos" });
+      const updated = await updatePagoDivisaEdicion(id, { fecha, nombrePagador, monto, tipo: tipo ?? "", referencia: referencia ?? "" });
+      if (!updated) return res.status(404).json({ message: "Pago en divisas no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoDivisaEdicion:", e.message);
+      res.status(500).json({ message: "Error al editar pago en divisas" });
     }
   });
 
