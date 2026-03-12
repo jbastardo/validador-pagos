@@ -18,6 +18,26 @@ let usuariosRuntime = [...USUARIOS];
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
+  // ===== DIAGNÓSTICO (temporal) =====
+  app.get("/api/debug", async (_req, res) => {
+    const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    if (!raw) return res.json({ ok: false, error: "GOOGLE_SERVICE_ACCOUNT_JSON no definida" });
+    try {
+      const parsed = JSON.parse(raw);
+      return res.json({
+        ok: true,
+        type: parsed.type,
+        project_id: parsed.project_id,
+        client_email: parsed.client_email,
+        has_private_key: !!parsed.private_key,
+        GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID ?? "(no definido)",
+        GOOGLE_SHEET_TAB: process.env.GOOGLE_SHEET_TAB ?? "(no definido)",
+      });
+    } catch (e: any) {
+      return res.json({ ok: false, error: "JSON inválido: " + e.message, raw_start: raw.slice(0, 80) });
+    }
+  });
+
   // ===== AUTH =====
   app.post("/api/auth/login", (req, res) => {
     const { email, password } = req.body;
