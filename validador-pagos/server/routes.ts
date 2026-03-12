@@ -22,19 +22,43 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/debug", async (_req, res) => {
     const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
     if (!raw) return res.json({ ok: false, error: "GOOGLE_SERVICE_ACCOUNT_JSON no definida" });
+    let credentials: any;
     try {
-      const parsed = JSON.parse(raw);
-      return res.json({
-        ok: true,
-        type: parsed.type,
-        project_id: parsed.project_id,
-        client_email: parsed.client_email,
-        has_private_key: !!parsed.private_key,
-        GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID ?? "(no definido)",
-        GOOGLE_SHEET_TAB: process.env.GOOGLE_SHEET_TAB ?? "(no definido)",
-      });
+      credentials = JSON.parse(raw);
     } catch (e: any) {
       return res.json({ ok: false, error: "JSON inválido: " + e.message, raw_start: raw.slice(0, 80) });
+    }
+    // Intentar llamada real a Google Sheets
+    try {
+      const { google } = await import("googleapis");
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+      });
+      const sheets = google.sheets({ version: "v4", auth });
+      const sheetId = process.env.GOOGLE_SHEET_ID ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
+      const tab = process.env.GOOGLE_SHEET_TAB ?? "Pagos";
+      const resp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${tab}!A1:Q1`,
+      });
+      return res.json({
+        ok: true,
+        credentials_ok: true,
+        sheet_id: sheetId,
+        tab,
+        client_email: credentials.client_email,
+        headers: resp.data.values?.[0] ?? [],
+      });
+    } catch (e: any) {
+      return res.json({
+        ok: false,
+        credentials_parsed: true,
+        client_email: credentials.client_email,
+        sheet_id: process.env.GOOGLE_SHEET_ID,
+        google_error: e.message,
+        google_code: e.code ?? e.status ?? null,
+      });
     }
   });
 

@@ -1,21 +1,14 @@
 import { google } from "googleapis";
-
 const SHEET_ID   = process.env.GOOGLE_SHEET_ID   ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
 const TAB_NAME   = process.env.GOOGLE_SHEET_TAB  ?? "Pagos";
 const RANGE_READ = `${TAB_NAME}!A:Q`;
-
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("Falta la variable de entorno GOOGLE_SERVICE_ACCOUNT_JSON");
   const credentials = JSON.parse(raw);
-  return new google.auth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+  return new google.auth.GoogleAuth({ credentials, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
 }
-function getSheetsClient() {
-  return google.sheets({ version: "v4", auth: getAuth() });
-}
+function getSheetsClient() { return google.sheets({ version: "v4", auth: getAuth() }); }
 export interface SheetPago {
   id: string; fechaPago: string; tipoPago: string; bancoEmisor: string;
   monto: string; celular: string; bancoReceptor: string; referencia: string;
@@ -87,7 +80,6 @@ export async function checkDuplicado(referencia: string, monto: string, fechaPag
     const dup = pagos.find(p => p.referencia.trim() === referencia.trim() && p.tipoPago === tipoPago);
     if (dup) return dup;
   }
-  if (tipoPago === "PagoMovil") {
+  if (tipoPago === "PagoMovil")
     return pagos.find(p => p.monto === monto && p.fechaPago === fechaPago && p.tipoPago === tipoPago);
-  }
 }
