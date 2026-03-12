@@ -3,7 +3,7 @@ import type { Server } from "http";
 import {
   getPagos, addPago, updatePagoEstado, updatePagoCajero, checkDuplicado,
   getUsuarios, addUsuario, updateUsuario,
-  getPagosDivisas, addPagoDivisa,
+  getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado,
 } from "./sheets";
 import { z } from "zod";
 
@@ -140,6 +140,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e: any) {
       console.error("Error addPagoDivisa:", e.message);
       res.status(500).json({ message: "Error al guardar pago en divisas" });
+    }
+  });
+
+  // PATCH /api/pagos-divisas/:id/estado
+  app.patch("/api/pagos-divisas/:id/estado", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { estado, validadoPor, observaciones } = req.body;
+      if (!estado || !validadoPor) return res.status(400).json({ message: "Campos requeridos" });
+      const updated = await updatePagoDivisaEstado(id, estado, validadoPor, observaciones ?? "");
+      if (!updated) return res.status(404).json({ message: "Pago en divisas no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoDivisaEstado:", e.message);
+      res.status(500).json({ message: "Error al actualizar estado" });
     }
   });
 

@@ -174,3 +174,14 @@ export async function addPagoDivisa(pago: Omit<SheetPagoDivisa, "id"|"_rowIndex"
   await appendRow(TAB_DIVISAS, row);
   return { ...pago, id };
 }
+
+export async function updatePagoDivisaEstado(id: string, estado: string, validadoPor: string, observaciones: string): Promise<SheetPagoDivisa|null> {
+  const pagos = await getPagosDivisas();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return null;
+  const row = [pago.id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo,
+    pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones,
+    estado, validadoPor, pago.vendedor, pago.creadoEn];
+  await updateRow(TAB_DIVISAS, pago._rowIndex, row);
+  return { ...pago, estado, validadoPor, observaciones };
+}
