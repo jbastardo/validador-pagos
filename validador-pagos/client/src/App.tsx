@@ -10,6 +10,7 @@ import RegistrarPago from "@/pages/RegistrarPago";
 import RegistrarDivisas from "@/pages/RegistrarDivisas";
 import Conciliacion from "@/pages/Conciliacion";
 import Usuarios from "@/pages/Usuarios";
+import Extractos from "@/pages/Extractos";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 import PerplexityAttribution from "@/components/PerplexityAttribution";
@@ -25,6 +26,7 @@ function AppRoutes() {
         <Route path="/registrar-divisas" component={RegistrarDivisas} />
         <Route path="/conciliacion" component={Conciliacion} />
         <Route path="/usuarios" component={Usuarios} />
+        <Route path="/extractos" component={Extractos} />
         <Route component={NotFound} />
       </Switch>
       <PerplexityAttribution />

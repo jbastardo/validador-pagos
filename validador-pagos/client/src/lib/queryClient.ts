@@ -28,12 +28,22 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  isFormData?: boolean,
 ): Promise<Response> {
-  const res = await fetch(`${API_BASE}${url}`, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  let headers: Record<string, string> = {};
+  let body: BodyInit | undefined;
+
+  if (data !== undefined) {
+    if (isFormData && data instanceof FormData) {
+      // No poner Content-Type — el browser lo agrega con el boundary correcto
+      body = data as FormData;
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(data);
+    }
+  }
+
+  const res = await fetch(`${API_BASE}${url}`, { method, headers, body });
   // Return response WITHOUT throwing — callers handle errors themselves
   // (throwIfResNotOk is kept for the default queryFn below)
   return res;

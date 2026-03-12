@@ -592,6 +592,11 @@ export default function Conciliacion() {
                                         <MessageSquare className="w-3 h-3 ml-0.5 opacity-70" />
                                       )}
                                     </span>
+                                    {p.validadoPor === "Auto-conciliación" && (
+                                      <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 text-[10px] font-semibold" title="Conciliado automáticamente con extracto bancario">
+                                        ⚡ Auto
+                                      </span>
+                                    )}
                                     {p.observaciones && (p.estado === "Rechazado" || p.estado === "Rechazado Megasoft") && (
                                       <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-64 bg-popover border border-border rounded-xl shadow-xl p-3 text-xs pointer-events-none">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Motivo de rechazo</p>
@@ -754,6 +759,11 @@ export default function Conciliacion() {
                                         <MessageSquare className="w-3 h-3 ml-0.5 opacity-70" />
                                       )}
                                     </span>
+                                    {p.validadoPor === "Auto-conciliación" && (
+                                      <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 text-[10px] font-semibold" title="Conciliado automáticamente con extracto bancario">
+                                        ⚡ Auto
+                                      </span>
+                                    )}
                                     {p.observaciones && p.estado === "Rechazado" && (
                                       <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-64 bg-popover border border-border rounded-xl shadow-xl p-3 text-xs pointer-events-none">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Motivo de rechazo</p>
