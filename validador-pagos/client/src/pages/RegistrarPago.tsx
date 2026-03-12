@@ -42,6 +42,10 @@ const schema = z.object({
   cliente:       z.string().optional(),
   tipoPago:      z.enum(["PagoMovil","Transferencia"]),
   observaciones: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.tipoPago === "Transferencia" && !data.referencia?.trim()) {
+    ctx.addIssue({ code: "custom", path: ["referencia"], message: "La referencia es obligatoria para transferencias" });
+  }
 });
 type FormValues = z.infer<typeof schema>;
 

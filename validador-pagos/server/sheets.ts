@@ -106,6 +106,25 @@ export async function updatePagoCajero(id: string, factura: string, megasoft: st
   return { ...pago, factura, megasoft };
 }
 
+export async function updatePagoCajeroPendiente(
+  id: string, factura: string, cliente: string, megasoft: string, cajeroEmail: string
+): Promise<SheetPago|null> {
+  const pagos = await getPagos();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return null;
+  const autoAprueba = megasoft === "Sí";
+  const nuevoEstado   = autoAprueba ? "Verificado" : pago.estado;
+  const nuevoValidado = autoAprueba ? cajeroEmail   : pago.validadoPor;
+  const row = [
+    pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
+    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif,
+    factura || pago.factura, nuevoEstado, nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn,
+    cliente || (pago.cliente ?? ""), megasoft,
+  ];
+  await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado };
+}
+
 export async function checkDuplicado(referencia: string, monto: string, fechaPago: string, tipoPago: string): Promise<SheetPago|undefined> {
   const pagos = await getPagos();
   if (referencia?.trim()) {

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import {
-  getPagos, addPago, updatePagoEstado, updatePagoCajero, checkDuplicado,
+  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, checkDuplicado,
   getUsuarios, addUsuario, updateUsuario,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
@@ -87,6 +87,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Cajero edita pagos Verificados (factura + megasoft — comportamiento anterior)
   app.patch("/api/pagos/:id/cajero", async (req, res) => {
     try {
       const { id } = req.params;
@@ -104,6 +105,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(updated);
     } catch (e: any) {
       console.error("Error updatePagoCajero:", e.message);
+      res.status(500).json({ message: "Error al actualizar pago" });
+    }
+  });
+
+  // Cajero edita pagos Pendientes (factura, cliente, megasoft). Si megasoft=Sí → auto-aprueba
+  app.patch("/api/pagos/:id/cajero-pendiente", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const schema = z.object({
+        factura:     z.string().optional().default(""),
+        cliente:     z.string().optional().default(""),
+        megasoft:    z.enum(["Sí", "No", ""]).optional().default(""),
+        cajeroEmail: z.string().min(1),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
+      const pagos = await getPagos();
+      const pago = pagos.find(p => p.id === id);
+      if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
+      if (pago.estado !== "Pendiente") return res.status(422).json({ message: "Solo se pueden editar pagos Pendientes con este endpoint" });
+      const updated = await updatePagoCajeroPendiente(
+        id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail
+      );
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoCajeroPendiente:", e.message);
       res.status(500).json({ message: "Error al actualizar pago" });
     }
   });

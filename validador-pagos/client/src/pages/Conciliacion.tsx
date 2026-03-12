@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,13 +19,14 @@ interface Pago {
   monto: string; celular: string; bancoReceptor: string; referencia: string;
   rif: string; factura: string; estado: string; validadoPor: string;
   vendedor: string; observaciones: string; cliente: string; megasoft: string;
+  creadoEn?: string;
 }
 
 interface PagoDivisa {
   id: string; fecha: string; nombrePagador: string; correo: string;
   monto: string; tipo: string; referencia: string; cliente: string;
   rif: string; factura: string; observaciones: string; estado: string;
-  validadoPor: string; vendedor: string;
+  validadoPor: string; vendedor: string; creadoEn?: string;
 }
 
 const BANCOS_RECEPTOR = [
@@ -63,11 +64,18 @@ export default function Conciliacion() {
   const [obs,         setObs]         = useState("");
   const [dialogOpen,  setDialogOpen]  = useState(false);
 
-  // ── Modal cajero ──
+  // ── Modal cajero (Verificado — comportamiento anterior) ──
   const [cajeroPago,    setCajeroPago]    = useState<Pago | null>(null);
   const [cajeroFactura, setCajeroFactura] = useState("");
   const [cajeroMega,    setCajeroMega]    = useState<"Sí" | "No" | "">("");
   const [cajeroOpen,    setCajeroOpen]    = useState(false);
+
+  // ── Modal cajero Pendiente (nuevo) ──
+  const [cajPendPago,    setCajPendPago]    = useState<Pago | null>(null);
+  const [cajPendFactura, setCajPendFactura] = useState("");
+  const [cajPendCliente, setCajPendCliente] = useState("");
+  const [cajPendMega,    setCajPendMega]    = useState<"Sí" | "No" | "">("");
+  const [cajPendOpen,    setCajPendOpen]    = useState(false);
 
   // ── Modal aprobación Divisas ──
   const [selectedDiv,    setSelectedDiv]    = useState<PagoDivisa | null>(null);
@@ -129,6 +137,26 @@ export default function Conciliacion() {
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
   });
 
+  // ── Mutación cajero Pendiente ──
+  const cajPendMutation = useMutation({
+    mutationFn: async ({ id, factura, cliente, megasoft }: { id: string; factura: string; cliente: string; megasoft: string }) => {
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/cajero-pendiente`, { factura, cliente, megasoft, cajeroEmail: user?.email ?? "" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error");
+      return json;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      qc.invalidateQueries({ queryKey: ["/api/stats"] });
+      setCajPendOpen(false);
+      const msg = data?.estado === "Verificado"
+        ? "Pago aprobado automáticamente por Megasoft ✅"
+        : "Datos actualizados en Google Sheets";
+      toast({ title: msg });
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
+  });
+
   // ── Mutación edición Bs (supervisor) ──
   const editBsMutation = useMutation({
     mutationFn: async ({ id, campos }: { id: string; campos: Record<string, string> }) => {
@@ -182,6 +210,22 @@ export default function Conciliacion() {
     setCajeroFactura(p.factura ?? "");
     setCajeroMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajeroOpen(true);
+  };
+
+  const openCajeroPendiente = (p: Pago) => {
+    setCajPendPago(p);
+    setCajPendFactura(p.factura ?? "");
+    setCajPendCliente(p.cliente ?? "");
+    setCajPendMega((p.megasoft as "Sí" | "No" | "") ?? "");
+    setCajPendOpen(true);
+  };
+
+  // Formatea fecha ISO a formato local legible
+  const fmtDateTime = (iso?: string) => {
+    if (!iso) return "";
+    try {
+      return new Date(iso).toLocaleString("es-VE", { dateStyle: "short", timeStyle: "short" });
+    } catch { return iso; }
   };
 
   const openEditBs = (p: Pago) => {
@@ -247,6 +291,41 @@ export default function Conciliacion() {
   const isCajero      = user?.rol === "cajero";
   const isContable    = user?.rol === "admin" || user?.rol === "contabilidad";
   const isSupervisor  = user?.rol === "supervisor" || user?.rol === "admin";
+  // Puede ver info de validación (quien validó + cundo)
+  const canSeeValidacion = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "supervisor";
+
+  // Componente tooltip de auditoría inline
+  const AuditTooltip = ({ vendedor, creadoEn, validadoPor, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; estado?: string }) => {
+    const [show, setShow] = useState(false);
+    const hasValidacion = canSeeValidacion && validadoPor && estado !== "Pendiente";
+    return (
+      <div className="relative inline-flex" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+        <Info className="w-3.5 h-3.5 text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors" />
+        {show && (
+          <div className="absolute z-50 bottom-full mb-1.5 left-1/2 -translate-x-1/2 w-56 bg-popover border border-border rounded-lg shadow-lg p-3 text-xs space-y-1.5 pointer-events-none">
+            <div>
+              <span className="text-muted-foreground">Registrado por:</span>
+              <span className="ml-1 font-medium text-foreground">{vendedor || "—"}</span>
+            </div>
+            {creadoEn && (
+              <div>
+                <span className="text-muted-foreground">Fecha registro:</span>
+                <span className="ml-1 font-medium text-foreground">{fmtDateTime(creadoEn)}</span>
+              </div>
+            )}
+            {hasValidacion && (
+              <>
+                <div className="border-t border-border pt-1.5">
+                  <span className="text-muted-foreground">Validado por:</span>
+                  <span className="ml-1 font-medium text-foreground">{validadoPor}</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -349,7 +428,12 @@ export default function Conciliacion() {
                             const Icon = estadoIcon[p.estado] ?? Clock;
                             return (
                               <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                                <td className="px-3 py-3 font-medium">{p.fechaPago}</td>
+                                <td className="px-3 py-3 font-medium">
+                                  <div className="flex items-center gap-1.5">
+                                    {p.fechaPago}
+                                    <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} estado={p.estado} />
+                                  </div>
+                                </td>
                                 <td className="px-3 py-3">
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.tipoPago === "PagoMovil" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
                                     {p.tipoPago === "PagoMovil" ? "📱 Pago Móvil" : "🏦 Transferencia"}
@@ -390,6 +474,12 @@ export default function Conciliacion() {
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
                                         onClick={() => openEditBs(p)}>
                                         <Pencil className="w-3 h-3"/> Editar
+                                      </Button>
+                                    )}
+                                    {isCajero && p.estado === "Pendiente" && (
+                                      <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-orange-700 hover:bg-orange-50 border-orange-200"
+                                        onClick={() => openCajeroPendiente(p)}>
+                                        <Receipt className="w-3 h-3"/> Caja
                                       </Button>
                                     )}
                                     {isCajero && p.estado === "Verificado" && (
@@ -477,7 +567,12 @@ export default function Conciliacion() {
                               : "bg-violet-100 text-violet-700";
                             return (
                               <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                                <td className="px-3 py-3 font-medium">{p.fecha}</td>
+                                <td className="px-3 py-3 font-medium">
+                                  <div className="flex items-center gap-1.5">
+                                    {p.fecha}
+                                    <AuditTooltip vendedor={p.vendedor} creadoEn={p.creadoEn} validadoPor={p.validadoPor} estado={p.estado} />
+                                  </div>
+                                </td>
                                 <td className="px-3 py-3">
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${tipoColor}`}>{p.tipo}</span>
                                 </td>
@@ -700,7 +795,52 @@ export default function Conciliacion() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Modal cajero ── */}
+      {/* ── Modal cajero Pendiente ── */}
+      <Dialog open={cajPendOpen} onOpenChange={setCajPendOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>📋 Datos de caja — Pendiente</DialogTitle></DialogHeader>
+          {cajPendPago && (
+            <div className="space-y-4 text-sm">
+              <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                <div className="flex justify-between"><span className="text-muted-foreground">Monto:</span><span className="font-mono font-bold">Bs. {fmt(cajPendPago.monto)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Tipo:</span><span className="font-medium">{cajPendPago.tipoPago === "PagoMovil" ? "Pago Móvil" : "Transferencia"}</span></div>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                ⚠️ Si marcas <strong>Megasoft: Sí</strong>, el pago se aprobará automáticamente sin necesidad de revisión contable.
+              </div>
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Input placeholder="Nombre del cliente" value={cajPendCliente} onChange={e => setCajPendCliente(e.target.value)}/>
+              </div>
+              <div className="space-y-2">
+                <Label>Número de Factura</Label>
+                <Input placeholder="FAC-0001" value={cajPendFactura} onChange={e => setCajPendFactura(e.target.value)}/>
+              </div>
+              <div className="space-y-2">
+                <Label>¿Validado con Megasoft?</Label>
+                <Select value={cajPendMega} onValueChange={v => setCajPendMega(v as "Sí" | "No" | "")}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sí">Sí — Aprobado por Megasoft</SelectItem>
+                    <SelectItem value="No">No — Pendiente de revisión</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCajPendOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => cajPendMutation.mutate({ id: cajPendPago!.id, factura: cajPendFactura, cliente: cajPendCliente, megasoft: cajPendMega })}
+              disabled={cajPendMutation.isPending}
+              className={cajPendMega === "Sí" ? "bg-green-600 hover:bg-green-700" : ""}>
+              {cajPendMutation.isPending ? "Guardando..." : cajPendMega === "Sí" ? "Aprobar y Guardar" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal cajero Verificado ── */}
       <Dialog open={cajeroOpen} onOpenChange={setCajeroOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>📋 Datos de caja</DialogTitle></DialogHeader>
