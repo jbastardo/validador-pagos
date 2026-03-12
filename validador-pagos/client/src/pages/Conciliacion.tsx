@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -372,19 +372,43 @@ export default function Conciliacion() {
   // Puede editar pendientes (contabilidad, admin, vendedor)
   const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor";
   // Puede ver info de validación (quien validó + cuándo)
-  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad";
+  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor";
 
-  // Componente tooltip de auditoría — panel fijo, ancho generoso
+  // Componente tooltip de auditoría — se posiciona sobre el ícono usando getBoundingClientRect
   const AuditTooltip = ({ vendedor, creadoEn, validadoPor, validadoEn, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; validadoEn?: string; estado?: string }) => {
     const [show, setShow] = useState(false);
+    const [pos, setPos]   = useState<{ top: number; left: number; above: boolean }>({ top: 0, left: 0, above: true });
+    const iconRef = useRef<HTMLDivElement>(null);
+    const TOOLTIP_H = 180; // altura estimada del panel
+    const TOOLTIP_W = 288; // w-72
+
+    const handleEnter = () => {
+      if (iconRef.current) {
+        const rect = iconRef.current.getBoundingClientRect();
+        const spaceAbove = rect.top;
+        const above = spaceAbove >= TOOLTIP_H + 8;
+        const top  = above ? rect.top - 8  : rect.bottom + 8;
+        // centra horizontalmente, ajusta si se sale por la derecha
+        let left = rect.left + rect.width / 2 - TOOLTIP_W / 2;
+        if (left + TOOLTIP_W > window.innerWidth - 8) left = window.innerWidth - TOOLTIP_W - 8;
+        if (left < 8) left = 8;
+        setPos({ top, left, above });
+      }
+      setShow(true);
+    };
+
     const hasValidacion = canSeeValidacion && validadoPor && estado !== "Pendiente";
     return (
-      <div className="relative inline-flex" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      <div ref={iconRef} className="relative inline-flex" onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}>
         <Info className="w-3.5 h-3.5 text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors" />
         {show && (
           <div
             className="fixed z-[9999] w-72 bg-popover border border-border rounded-xl shadow-xl p-4 text-xs pointer-events-none"
-            style={{ transform: "translateY(-110%)" }}
+            style={{
+              top:  pos.above ? undefined : pos.top,
+              bottom: pos.above ? window.innerHeight - pos.top : undefined,
+              left: pos.left,
+            }}
           >
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Auditoría del registro</p>
             <div className="space-y-2">
