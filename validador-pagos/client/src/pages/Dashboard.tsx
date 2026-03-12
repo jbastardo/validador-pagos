@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins, ShieldOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
@@ -10,6 +10,7 @@ interface Stats {
   total: number; pendientes: number; verificados: number; rechazados: number;
   pagoMovil: number; transferencias: number; montoTotal: number;
   megasoftSi: number; megasoftNo: number; megasoftPendiente: number; montoMegasoftSi: number;
+  rechazadosMegasoft: number;
   totalDivisas: number; pendientesDivisas: number; montoDivisas: number;
 }
 
@@ -28,7 +29,7 @@ function StatCard({ title, value, icon: Icon, color, subtitle }: { title: string
   );
 }
 
-const estadoColor: Record<string, string> = { Pendiente: "bg-amber-100 text-amber-700", Verificado: "bg-green-100 text-green-700", Rechazado: "bg-red-100 text-red-700" };
+const estadoColor: Record<string, string> = { Pendiente: "bg-amber-100 text-amber-700", Verificado: "bg-green-100 text-green-700", Rechazado: "bg-red-100 text-red-700", "Rechazado Megasoft": "bg-orange-100 text-orange-700" };
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -50,11 +51,12 @@ export default function Dashboard() {
       </div>
 
       {sL ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(7)].map((_,i)=><Skeleton key={i} className="h-24 rounded-xl"/>)}</div> : <>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard title="Total Pagos"  value={stats?.total ?? 0}      icon={BarChart3}    color="bg-blue-100 text-blue-600" />
           <StatCard title="Pendientes"   value={stats?.pendientes ?? 0} icon={Clock}        color="bg-amber-100 text-amber-600" />
           <StatCard title="Verificados"  value={stats?.verificados ?? 0}icon={CheckCircle2} color="bg-green-100 text-green-600" />
           <StatCard title="Rechazados"   value={stats?.rechazados ?? 0} icon={XCircle}      color="bg-red-100 text-red-600" />
+          <StatCard title="Rech. Megasoft" value={stats?.rechazadosMegasoft ?? 0} icon={ShieldOff} color="bg-orange-100 text-orange-600" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard title="Monto Total"     value={`Bs. ${fmt(stats?.montoTotal ?? 0)}`} icon={DollarSign}    color="bg-primary/10 text-primary" subtitle="Pagos no rechazados" />
@@ -67,17 +69,31 @@ export default function Dashboard() {
       {!sL && (
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Validación Megasoft</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-green-200 bg-green-50/40 dark:bg-green-950/20">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Validados Megasoft</p>
+                    <p className="text-xs font-medium text-green-700 uppercase tracking-wide">Aprobados Megasoft</p>
                     <p className="text-2xl font-bold text-green-800 mt-1">{stats?.megasoftSi ?? 0}</p>
                     <p className="text-xs text-green-600 mt-0.5 font-medium">Bs. {fmt(stats?.montoMegasoftSi ?? 0)}</p>
                   </div>
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-green-100 text-green-600">
                     <ShieldCheck className="w-5 h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-orange-200 bg-orange-50/40 dark:bg-orange-950/20">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-orange-700 uppercase tracking-wide">Rechazados Megasoft</p>
+                    <p className="text-2xl font-bold text-orange-800 mt-1">{stats?.rechazadosMegasoft ?? 0}</p>
+                    <p className="text-xs text-orange-600 mt-0.5">Cajero marcó No</p>
+                  </div>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-orange-100 text-orange-600">
+                    <ShieldOff className="w-5 h-5" />
                   </div>
                 </div>
               </CardContent>

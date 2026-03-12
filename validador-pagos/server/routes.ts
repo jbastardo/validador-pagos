@@ -73,7 +73,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { id } = req.params;
       const schema = z.object({
-        estado:        z.enum(["Pendiente", "Verificado", "Rechazado"]),
+        estado:        z.enum(["Pendiente", "Verificado", "Rechazado", "Rechazado Megasoft"]),
         validadoPor:   z.string().min(1),
         observaciones: z.string().optional().default(""),
       });
@@ -279,9 +279,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         pendientes:        pagos.filter(p => p.estado === "Pendiente").length,
         verificados:       verificados.length,
         rechazados:        pagos.filter(p => p.estado === "Rechazado").length,
+        rechazadosMegasoft: pagos.filter(p => p.estado === "Rechazado Megasoft").length,
         pagoMovil:         pagos.filter(p => p.tipoPago === "PagoMovil").length,
         transferencias:    pagos.filter(p => p.tipoPago === "Transferencia").length,
-        montoTotal:        pagos.filter(p => p.estado !== "Rechazado").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+        montoTotal:        pagos.filter(p => p.estado !== "Rechazado" && p.estado !== "Rechazado Megasoft").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
         megasoftSi:        verificados.filter(p => p.megasoft === "Sí").length,
         megasoftNo:        verificados.filter(p => p.megasoft === "No").length,
         megasoftPendiente: verificados.filter(p => !p.megasoft || p.megasoft === "").length,

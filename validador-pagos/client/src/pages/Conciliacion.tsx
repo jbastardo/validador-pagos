@@ -36,11 +36,12 @@ const BANCOS_RECEPTOR = [
 ];
 
 const estadoColors: Record<string, string> = {
-  Pendiente:  "bg-amber-100 text-amber-700 border-amber-200",
-  Verificado: "bg-green-100 text-green-700 border-green-200",
-  Rechazado:  "bg-red-100 text-red-700 border-red-200",
+  Pendiente:             "bg-amber-100 text-amber-700 border-amber-200",
+  Verificado:            "bg-green-100 text-green-700 border-green-200",
+  Rechazado:             "bg-red-100 text-red-700 border-red-200",
+  "Rechazado Megasoft":  "bg-orange-100 text-orange-700 border-orange-200",
 };
-const estadoIcon: Record<string, any> = { Pendiente: Clock, Verificado: CheckCircle2, Rechazado: XCircle };
+const estadoIcon: Record<string, any> = { Pendiente: Clock, Verificado: CheckCircle2, Rechazado: XCircle, "Rechazado Megasoft": XCircle };
 
 export default function Conciliacion() {
   const { user } = useAuth();
@@ -159,6 +160,8 @@ export default function Conciliacion() {
       setCajPendOpen(false);
       const msg = data?.estado === "Verificado"
         ? "Pago aprobado automáticamente por Megasoft ✅"
+        : data?.estado === "Rechazado Megasoft"
+        ? "Pago marcado como Rechazado por Megasoft"
         : "Datos actualizados en Google Sheets";
       toast({ title: msg });
     },
@@ -438,6 +441,7 @@ export default function Conciliacion() {
                       <SelectItem value="Pendiente">Pendiente</SelectItem>
                       <SelectItem value="Verificado">Verificado</SelectItem>
                       <SelectItem value="Rechazado">Rechazado</SelectItem>
+                      <SelectItem value="Rechazado Megasoft">Rechazado Megasoft</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -479,11 +483,11 @@ export default function Conciliacion() {
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Fecha</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Tipo</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Monto (Bs.)</th>
+                            {isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Celular</th>}
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden md:table-cell">Banco Receptor</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Cliente</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Referencia</th>
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>
-                            {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Celular</th>}
                             {!isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>}
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Megasoft</th>}
                             {!isVendedor && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
@@ -509,7 +513,7 @@ export default function Conciliacion() {
                                 {isCajero && (
                                   <td className="px-3 py-3 font-mono">{p.celular || "—"}</td>
                                 )}
-                                <td className="px-3 py-3 text-muted-foreground hidden md:table-cell">{p.bancoReceptor}</td>
+                                <td className="px-3 py-3 text-muted-foreground hidden md:table-cell">{p.bancoReceptor || "—"}</td>
                                 <td className="px-3 py-3 hidden lg:table-cell">{p.cliente || "—"}</td>
                                 <td className="px-3 py-3 font-mono hidden lg:table-cell">{p.referencia || "—"}</td>
                                 <td className="px-3 py-3 hidden xl:table-cell">{p.factura || "—"}</td>
@@ -595,6 +599,7 @@ export default function Conciliacion() {
                     <SelectItem value="Pendiente">Pendiente</SelectItem>
                     <SelectItem value="Verificado">Verificado</SelectItem>
                     <SelectItem value="Rechazado">Rechazado</SelectItem>
+                    <SelectItem value="Rechazado Megasoft">Rechazado Megasoft</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filtroTipoDiv} onValueChange={setFiltroTipoDiv}>
@@ -942,16 +947,18 @@ export default function Conciliacion() {
                 <Label>Número de Factura</Label>
                 <Input placeholder="FAC-0001" value={cajeroFactura} onChange={e => setCajeroFactura(e.target.value)}/>
               </div>
-              <div className="space-y-2">
-                <Label>¿Validado con Megasoft?</Label>
-                <Select value={cajeroMega} onValueChange={v => setCajeroMega(v as "Sí" | "No" | "")}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona"/></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sí">Sí</SelectItem>
-                    <SelectItem value="No">No</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {cajeroPago?.estado !== "Verificado" && (
+                <div className="space-y-2">
+                  <Label>¿Validado con Megasoft?</Label>
+                  <Select value={cajeroMega} onValueChange={v => setCajeroMega(v as "Sí" | "No" | "")}>
+                    <SelectTrigger><SelectValue placeholder="Selecciona"/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sí">Sí</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="gap-2">

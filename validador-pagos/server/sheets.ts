@@ -115,8 +115,8 @@ export async function updatePagoCajeroPendiente(
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const autoAprueba = megasoft === "Sí";
-  const nuevoEstado   = autoAprueba ? "Verificado" : pago.estado;
-  const nuevoValidado = autoAprueba ? cajeroEmail   : pago.validadoPor;
+  const nuevoEstado   = autoAprueba ? "Verificado" : megasoft === "No" ? "Rechazado Megasoft" : pago.estado;
+  const nuevoValidado = autoAprueba ? cajeroEmail   : megasoft === "No" ? cajeroEmail : pago.validadoPor;
   const row = [
     pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif,
