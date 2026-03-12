@@ -127,14 +127,26 @@ export async function updatePagoCajeroPendiente(
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado };
 }
 
-export async function checkDuplicado(referencia: string, monto: string, fechaPago: string, tipoPago: string): Promise<SheetPago|undefined> {
+export async function checkDuplicado(referencia: string, monto: string, fechaPago: string, tipoPago: string, bancoEmisor?: string, celular?: string): Promise<SheetPago|undefined> {
   const pagos = await getPagos();
-  if (referencia?.trim()) {
-    const dup = pagos.find(p => p.referencia.trim() === referencia.trim() && p.tipoPago === tipoPago);
-    if (dup) return dup;
+  // Transferencia: duplicado = misma referencia + mismo banco emisor + mismo monto
+  if (tipoPago === "Transferencia" && referencia?.trim()) {
+    return pagos.find(p =>
+      p.tipoPago === "Transferencia" &&
+      p.referencia.trim() === referencia.trim() &&
+      p.bancoEmisor.trim() === (bancoEmisor ?? "").trim() &&
+      p.monto === monto
+    );
   }
-  if (tipoPago === "PagoMovil")
-    return pagos.find(p => p.monto === monto && p.fechaPago === fechaPago && p.tipoPago === tipoPago);
+  // PagoMovil: duplicado = mismo monto + misma fecha + mismo celular
+  if (tipoPago === "PagoMovil") {
+    return pagos.find(p =>
+      p.tipoPago === "PagoMovil" &&
+      p.monto === monto &&
+      p.fechaPago === fechaPago &&
+      p.celular.trim() === (celular ?? "").trim()
+    );
+  }
 }
 
 // ─── USUARIOS ─────────────────────────────────────────────────────────────────
@@ -211,15 +223,16 @@ export async function updatePagoDivisaEstado(id: string, estado: string, validad
   return { ...pago, estado, validadoPor, observaciones };
 }
 
-export async function updatePagoEdicion(id: string, data: { fechaPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; referencia: string; celular: string }): Promise<SheetPago|null> {
+export async function updatePagoEdicion(id: string, data: { fechaPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; referencia: string; celular: string; cliente?: string }): Promise<SheetPago|null> {
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
+  const clienteVal = data.cliente !== undefined ? data.cliente : (pago.cliente ?? "");
   const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto,
     data.celular, data.bancoReceptor, data.referencia, pago.rif, pago.factura, pago.estado,
-    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, pago.cliente??"", pago.megasoft??""];
+    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, pago.megasoft??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
-  return { ...pago, ...data };
+  return { ...pago, ...data, cliente: clienteVal };
 }
 
 export async function updatePagoDivisaEdicion(id: string, data: { fecha: string; nombrePagador: string; monto: string; tipo: string; referencia: string }): Promise<SheetPagoDivisa|null> {

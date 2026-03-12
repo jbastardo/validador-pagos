@@ -56,7 +56,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
       const data = parsed.data;
-      const dup = await checkDuplicado(data.referencia, data.monto, data.fechaPago, data.tipoPago);
+      const dup = await checkDuplicado(data.referencia, data.monto, data.fechaPago, data.tipoPago, data.bancoEmisor, data.celular);
       if (dup) return res.status(409).json({
         message: "Pago duplicado detectado",
         duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
@@ -176,9 +176,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/pagos/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
-      const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular } = req.body;
+      const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular, cliente } = req.body;
       if (!fechaPago || !monto) return res.status(400).json({ message: "Campos requeridos" });
-      const updated = await updatePagoEdicion(id, { fechaPago, bancoEmisor: bancoEmisor ?? "", bancoReceptor: bancoReceptor ?? "", monto, referencia: referencia ?? "", celular: celular ?? "" });
+      const updated = await updatePagoEdicion(id, { fechaPago, bancoEmisor: bancoEmisor ?? "", bancoReceptor: bancoReceptor ?? "", monto, referencia: referencia ?? "", celular: celular ?? "", cliente: cliente ?? undefined });
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
     } catch (e: any) {

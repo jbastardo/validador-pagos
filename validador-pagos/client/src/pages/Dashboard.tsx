@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
-interface Pago { id: string; fechaPago: string; tipoPago: string; bancoEmisor: string; monto: string; estado: string; megasoft?: string; }
+interface Pago { id: string; fechaPago: string; tipoPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; estado: string; megasoft?: string; }
 interface Stats {
   total: number; pendientes: number; verificados: number; rechazados: number;
   pagoMovil: number; transferencias: number; montoTotal: number;
@@ -39,7 +39,7 @@ export default function Dashboard() {
   const fmt = (n: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2 }).format(n);
 
   const porBanco: Record<string, number> = {};
-  (pagos ?? []).forEach(p => { const b = p.bancoEmisor.replace(/^\d+\s/, "").substring(0, 14); porBanco[b] = (porBanco[b] || 0) + 1; });
+  (pagos ?? []).forEach(p => { const b = (p.bancoReceptor || "").replace(/^\d+\s/, "").substring(0, 14); if (b) porBanco[b] = (porBanco[b] || 0) + 1; });
   const bancoData = Object.entries(porBanco).map(([name, count]) => ({ name, count })).sort((a,b)=>b.count-a.count).slice(0,6);
   const pieData = [{ name: "Pago Móvil", value: stats?.pagoMovil ?? 0, color: "#3b82f6" }, { name: "Transferencia", value: stats?.transferencias ?? 0, color: "#10b981" }];
 
@@ -183,7 +183,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Pagos por Banco Emisor</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Pagos por Banco Receptor</CardTitle></CardHeader>
           <CardContent>{pL ? <Skeleton className="h-48"/> : <ResponsiveContainer width="100%" height={200}><BarChart data={bancoData} margin={{top:5,right:5,left:-20,bottom:45}}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="name" tick={{fontSize:10}} angle={-30} textAnchor="end"/><YAxis tick={{fontSize:10}}/><Tooltip formatter={v=>[v,"Pagos"]}/><Bar dataKey="count" fill="hsl(var(--primary))" radius={[4,4,0,0]}/></BarChart></ResponsiveContainer>}</CardContent>
         </Card>
         <Card>

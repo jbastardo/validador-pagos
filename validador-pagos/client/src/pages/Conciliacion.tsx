@@ -49,10 +49,11 @@ export default function Conciliacion() {
   const qc = useQueryClient();
 
   // ── Filtros Bs ──
-  const [busqueda,    setBusqueda]    = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("todos");
-  const [filtroTipo,   setFiltroTipo]   = useState("todos");
-  const [filtroBanco,  setFiltroBanco]  = useState("todos");
+  const [busqueda,       setBusqueda]       = useState("");
+  const [filtroEstado,   setFiltroEstado]   = useState("todos");
+  const [filtroTipo,     setFiltroTipo]     = useState("todos");
+  const [filtroBanco,    setFiltroBanco]    = useState("todos");
+  const [filtroVendedor, setFiltroVendedor] = useState("todos");
 
   // ── Filtros Divisas ──
   const [busqDiv,       setBusqDiv]       = useState("");
@@ -93,6 +94,7 @@ export default function Conciliacion() {
   const [editBsMonto,    setEditBsMonto]    = useState("");
   const [editBsRef,      setEditBsRef]      = useState("");
   const [editBsCel,      setEditBsCel]      = useState("");
+  const [editBsCliente,  setEditBsCliente]  = useState("");
 
   // ── Modal edición Divisas (supervisor) ──
   const [editDivOpen,    setEditDivOpen]    = useState(false);
@@ -305,6 +307,7 @@ export default function Conciliacion() {
     setEditBsMonto(p.monto ?? "");
     setEditBsRef(p.referencia ?? "");
     setEditBsCel(p.celular ?? "");
+    setEditBsCliente(p.cliente ?? "");
     setEditBsOpen(true);
   };
 
@@ -320,14 +323,18 @@ export default function Conciliacion() {
 
   const fmt = (v: string) => parseFloat(v || "0").toLocaleString("es-ES", { minimumFractionDigits: 2 });
 
+  // ── Lista de vendedores únicos para filtro ──
+  const vendedoresUnicos = Array.from(new Set((pagos ?? []).map(p => p.vendedor).filter(Boolean))).sort();
+
   // ── Filtrado Bs ──
   const filtradosBs = (pagos ?? []).filter(p => {
     const q = busqueda.toLowerCase();
     const mq = q === "" || [p.referencia, p.monto, p.bancoEmisor, p.celular, p.rif, p.factura, p.vendedor, p.fechaPago, p.cliente].some(v => v?.toLowerCase().includes(q));
-    const me = filtroEstado === "todos" || p.estado === filtroEstado;
-    const mt = filtroTipo   === "todos" || p.tipoPago === filtroTipo;
-    const mb = filtroBanco  === "todos" || p.bancoReceptor === filtroBanco;
-    return mq && me && mt && mb;
+    const me = filtroEstado   === "todos" || p.estado === filtroEstado;
+    const mt = filtroTipo     === "todos" || p.tipoPago === filtroTipo;
+    const mb = filtroBanco    === "todos" || p.bancoReceptor === filtroBanco;
+    const mv = filtroVendedor === "todos" || p.vendedor === filtroVendedor;
+    return mq && me && mt && mb && mv;
   });
 
   // ── Filtrado Divisas ──
@@ -477,6 +484,13 @@ export default function Conciliacion() {
                     {BANCOS_RECEPTOR.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={filtroVendedor} onValueChange={setFiltroVendedor}>
+                  <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Usuario"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los usuarios</SelectItem>
+                    {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <Button variant="outline" onClick={handleExportBs} className="gap-2 shrink-0">
                   <Download className="w-4 h-4"/> Exportar CSV
                 </Button>
@@ -506,6 +520,7 @@ export default function Conciliacion() {
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Cliente</th>
                             {(isContabilidad || (!isCajero && !isContabilidad)) && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Referencia</th>}
                             {!isCajero && !isContabilidad && <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden xl:table-cell">Factura</th>}
+                            {isCajero && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Factura</th>}
                             <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Estado</th>
                             {isCajero  && <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Megasoft</th>}
                             {(isSupervisor || isCajero) && <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Acciones</th>}
@@ -538,6 +553,7 @@ export default function Conciliacion() {
                                 <td className="px-3 py-3">{p.cliente || "—"}</td>
                                 {(isContabilidad || (!isCajero && !isContabilidad)) && <td className="px-3 py-3 font-mono">{p.referencia || "—"}</td>}
                                 {!isCajero && !isContabilidad && <td className="px-3 py-3 hidden xl:table-cell">{p.factura || "—"}</td>}
+                                {isCajero && <td className="px-3 py-3">{p.factura || "—"}</td>}
                                 <td className="px-3 py-3">
                                   <div className="relative group inline-flex">
                                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border cursor-default ${estadoColors[p.estado] ?? ""}`}>
@@ -564,7 +580,7 @@ export default function Conciliacion() {
                                 {(isSupervisor || isCajero) && (
                                 <td className="px-3 py-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
-                                    {isContable && p.estado === "Pendiente" && <>
+                                    {isContable && (p.estado === "Pendiente" || p.estado === "Rechazado Megasoft") && <>
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-green-700 hover:bg-green-50 border-green-200"
                                         onClick={() => { setSelected(p); setNuevoEstado("Verificado"); setObs(""); setDialogOpen(true); }}>
                                         <CheckCircle2 className="w-3 h-3"/> Aprobar
@@ -580,7 +596,7 @@ export default function Conciliacion() {
                                         <Pencil className="w-3 h-3"/> Editar
                                       </Button>
                                     )}
-                                    {isContable && !isVendedor && p.estado === "Pendiente" && (
+                                    {isContable && !isVendedor && (p.estado === "Pendiente" || p.estado === "Rechazado Megasoft") && (
                                       <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-indigo-700 hover:bg-indigo-50 border-indigo-200"
                                         onClick={() => openEditBs(p)}>
                                         <Pencil className="w-3 h-3"/> Editar
@@ -867,6 +883,10 @@ export default function Conciliacion() {
                 <Label>Celular</Label>
                 <Input placeholder="04XX-XXXXXXX" value={editBsCel} onChange={e => setEditBsCel(e.target.value)}/>
               </div>
+              <div className="space-y-1">
+                <Label>Cliente</Label>
+                <Input placeholder="Nombre del cliente" value={editBsCliente} onChange={e => setEditBsCliente(e.target.value)}/>
+              </div>
             </div>
           )}
           <DialogFooter className="gap-2">
@@ -875,7 +895,7 @@ export default function Conciliacion() {
               disabled={editBsMutation.isPending}
               onClick={() => editBsMutation.mutate({
                 id: editBsPago!.id,
-                campos: { fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor, monto: editBsMonto, referencia: editBsRef, celular: editBsCel },
+                campos: { fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor, monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente },
               })}>
               {editBsMutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
