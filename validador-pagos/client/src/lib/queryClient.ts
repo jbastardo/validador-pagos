@@ -1,15 +1,18 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// In development: use relative URLs (Vite proxies /api/* to Express on port 5000)
-// In production (deployed on pplx.app): dynamically build the proxy path
-// The proxy routes <page-prefix>/port/5000/api/* → Express on port 5000
+// API base URL strategy:
+// - localhost          → "" (Vite proxies /api/* to Express)
+// - pplx.app / perplexity.ai → "/port/5000" prefix (Perplexity proxy)
+// - any other domain (Railway, custom domain) → "" (Express serves frontend + API on same origin)
 function getApiBase(): string {
-  // If running locally (localhost), use relative paths — Vite handles the proxy
   if (typeof window === "undefined" || window.location.hostname === "localhost") return "";
-  // In production the page URL ends with /dist/public/index.html or similar
-  // We need to replace the filename with port/5000
-  const base = window.location.pathname.replace(/\/[^/]*$/, ""); // strip filename
-  return base + "/port/5000";
+  const host = window.location.hostname;
+  if (host.endsWith("pplx.app") || host.endsWith("perplexity.ai")) {
+    const base = window.location.pathname.replace(/\/[^/]*$/, "");
+    return base + "/port/5000";
+  }
+  // Railway / custom domain: Express serves everything on the same origin
+  return "";
 }
 
 const API_BASE = getApiBase();
