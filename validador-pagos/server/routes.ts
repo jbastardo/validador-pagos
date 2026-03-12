@@ -15,7 +15,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!email || !password) return res.status(400).json({ message: "Campos requeridos" });
     try {
       const usuarios = await getUsuarios();
-      const u = usuarios.find(x => x.email === email && x.password === password && x.activo === "true");
+      const u = usuarios.find(x => x.email === email && x.password === password && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(401).json({ message: "Credenciales incorrectas" });
       res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol });
     } catch (e: any) {
