@@ -54,7 +54,7 @@ export interface SheetPago {
   monto: string; celular: string; bancoReceptor: string; referencia: string;
   rif: string; factura: string; estado: string; validadoPor: string;
   vendedor: string; observaciones: string; creadoEn: string;
-  cliente: string; megasoft: string; validadoEn: string; _rowIndex?: number;
+  cliente: string; megasoft: string; validadoEn: string; conciliadoEn?: string; _rowIndex?: number;
 }
 
 export async function getPagos(): Promise<SheetPago[]> {
@@ -66,7 +66,7 @@ export async function getPagos(): Promise<SheetPago[]> {
       monto: row[4]??"", celular: row[5]??"", bancoReceptor: row[6]??"", referencia: row[7]??"",
       rif: row[8]??"", factura: row[9]??"", estado: row[10]??"", validadoPor: row[11]??"",
       vendedor: row[12]??"", observaciones: row[13]??"", creadoEn: row[14]??"",
-      cliente: row[15]??"", megasoft: row[16]??"", validadoEn: row[17]??"", _rowIndex: i + 2,
+      cliente: row[15]??"", megasoft: row[16]??"", validadoEn: row[17]??"", conciliadoEn: row[18]??"", _rowIndex: i + 2,
     }))
     .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
 }

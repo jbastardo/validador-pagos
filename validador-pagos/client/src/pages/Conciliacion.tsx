@@ -20,7 +20,7 @@ interface Pago {
   monto: string; celular: string; bancoReceptor: string; referencia: string;
   rif: string; factura: string; estado: string; validadoPor: string;
   vendedor: string; observaciones: string; cliente: string; megasoft: string;
-  creadoEn?: string; validadoEn?: string;
+  creadoEn?: string; validadoEn?: string; conciliadoEn?: string;
 }
 
 interface PagoDivisa {
@@ -655,6 +655,11 @@ export default function Conciliacion() {
                                         <MessageSquare className="w-3 h-3 ml-0.5 opacity-70" />
                                       )}
                                     </span>
+                                    {p.conciliadoEn && (
+                                      <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-semibold" title={`Conciliado el ${p.conciliadoEn}`}>
+                                        ✓✓ {p.conciliadoEn}
+                                      </span>
+                                    )}
                                     {p.validadoPor === "Auto-conciliación" && (
                                       <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 text-[10px] font-semibold" title="Conciliado automáticamente con extracto bancario">
                                         ⚡ Auto
@@ -822,6 +827,11 @@ export default function Conciliacion() {
                                         <MessageSquare className="w-3 h-3 ml-0.5 opacity-70" />
                                       )}
                                     </span>
+                                    {p.conciliadoEn && (
+                                      <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-semibold" title={`Conciliado el ${p.conciliadoEn}`}>
+                                        ✓✓ {p.conciliadoEn}
+                                      </span>
+                                    )}
                                     {p.validadoPor === "Auto-conciliación" && (
                                       <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200 text-[10px] font-semibold" title="Conciliado automáticamente con extracto bancario">
                                         ⚡ Auto
