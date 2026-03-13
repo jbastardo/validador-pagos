@@ -917,7 +917,12 @@ export default function Conciliacion() {
               </div>
               <div className="space-y-1">
                 <Label>Referencia</Label>
-                <Input placeholder="Número de referencia" value={editBsRef} onChange={e => setEditBsRef(e.target.value)}/>
+                <Input
+                  placeholder="Últimos 10 dígitos"
+                  maxLength={10}
+                  value={editBsRef}
+                  onChange={e => setEditBsRef(e.target.value.replace(/\D/g, "").slice(-10))}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Celular</Label>
@@ -935,7 +940,7 @@ export default function Conciliacion() {
               disabled={editBsMutation.isPending}
               onClick={() => editBsMutation.mutate({
                 id: editBsPago!.id,
-                campos: { fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor, monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente },
+                campos: { fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor, monto: editBsMonto, referencia: editBsRef.replace(/\D/g,"").slice(-10).padStart(10,"0"), celular: editBsCel, cliente: editBsCliente },
               })}>
               {editBsMutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>

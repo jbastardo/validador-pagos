@@ -129,17 +129,21 @@ export async function updatePagoCajeroPendiente(
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: validadoEnCajero };
 }
 
-export async function checkDuplicado(referencia: string, monto: string, fechaPago: string, tipoPago: string, bancoEmisor?: string, celular?: string): Promise<SheetPago|undefined> {
+export async function checkDuplicado(
+  referencia: string, monto: string, fechaPago: string, tipoPago: string,
+  bancoReceptor?: string, celular?: string
+): Promise<SheetPago|undefined> {
   const pagos = await getPagos();
-  // Transferencia: duplicado = misma referencia + mismo banco emisor + mismo monto
+
+  // Transferencia: duplicado = misma referencia + mismo banco RECEPTOR (monto irrelevante)
   if (tipoPago === "Transferencia" && referencia?.trim()) {
     return pagos.find(p =>
       p.tipoPago === "Transferencia" &&
       p.referencia.trim() === referencia.trim() &&
-      p.bancoEmisor.trim() === (bancoEmisor ?? "").trim() &&
-      p.monto === monto
+      p.bancoReceptor.trim() === (bancoReceptor ?? "").trim()
     );
   }
+
   // PagoMovil: duplicado = mismo monto + misma fecha + mismo celular + misma referencia (si tiene)
   if (tipoPago === "PagoMovil") {
     return pagos.find(p => {

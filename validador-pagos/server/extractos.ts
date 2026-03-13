@@ -129,7 +129,7 @@ function normalizeMonto(raw: unknown): string {
   return s.replace(",", ".");
 }
 
-function norm6(raw: unknown): string { return String(raw ?? "").replace(/\D/g, "").slice(-6); }
+function norm6(raw: unknown): string { return String(raw ?? "").replace(/\D/g, "").slice(-10).padStart(10, "0"); }
 function normCelular(raw: unknown): string { return String(raw ?? "").replace(/\D/g, "").replace(/^58/, "0"); }
 
 function detectColumns(headers: string[]): Record<string, number> {
@@ -188,13 +188,16 @@ export async function tryMatch(tipoPago: string, bancoReceptor: string, fechaPag
   const movs = (await getMovimientos(bancoCodigo)).filter(m => m.usado !== "true");
   const montoNum = parseFloat(monto.replace(",", "."));
   const fechaTarget = new Date(fechaPago + "T12:00:00Z");
+  const TOLERANCIA_MONTO = 5; // Bs — diferencias por redondeo bancario
   for (const m of movs) {
     const diffDias = Math.abs((fechaTarget.getTime() - new Date(m.fecha + "T12:00:00Z").getTime()) / 86400000);
     if (diffDias > 1) continue;
-    if (Math.abs(parseFloat(m.monto.replace(",", ".")) - montoNum) > 0.01) continue;
+    if (Math.abs(parseFloat(m.monto.replace(",", ".")) - montoNum) > TOLERANCIA_MONTO) continue;
     if (tipoPago === "Transferencia") {
-      if (referencia && m.referencia && m.referencia === referencia) return m;
-      if (!referencia || !m.referencia) return m;
+      const refPago = referencia.replace(/\D/g, "").slice(-6);
+      const refMov  = m.referencia.replace(/\D/g, "").slice(-6);
+      if (refPago && refMov && refPago === refMov) return m;
+      if (!refPago && !refMov) return m;
     }
     if (tipoPago === "PagoMovil") {
       if (celular && m.celular && celular.replace(/\D/g,"").slice(-9) === m.celular.replace(/\D/g,"").slice(-9)) return m;

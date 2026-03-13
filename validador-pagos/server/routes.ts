@@ -63,7 +63,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
       const data = parsed.data;
-      const dup = await checkDuplicado(data.referencia, data.monto, data.fechaPago, data.tipoPago, data.bancoEmisor, data.celular);
+      const dup = await checkDuplicado(data.referencia, data.monto, data.fechaPago, data.tipoPago, data.bancoReceptor, data.celular);
       if (dup) return res.status(409).json({
         message: "Pago duplicado detectado",
         duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
