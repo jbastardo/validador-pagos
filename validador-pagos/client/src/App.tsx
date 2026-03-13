@@ -19,8 +19,8 @@ function AppRoutes() {
   const { user } = useAuth();
   if (!user) return <Login />;
   return (
-    <Layout>
-      <Router hook={useHashLocation}>
+    <Router hook={useHashLocation}>
+      <Layout>
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/registrar" component={RegistrarPago} />
@@ -30,9 +30,9 @@ function AppRoutes() {
           <Route path="/extractos" component={Extractos} />
           <Route component={NotFound} />
         </Switch>
-      </Router>
-      <PerplexityAttribution />
-    </Layout>
+        <PerplexityAttribution />
+      </Layout>
+    </Router>
   );
 }
 
