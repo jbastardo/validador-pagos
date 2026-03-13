@@ -135,29 +135,35 @@ export async function checkDuplicado(
 ): Promise<SheetPago|undefined> {
   const pagos = await getPagos();
 
-  // Transferencia: duplicado = misma referencia + mismo banco RECEPTOR (monto irrelevante)
-  if (tipoPago === "Transferencia" && referencia?.trim()) {
-    return pagos.find(p =>
-      p.tipoPago === "Transferencia" &&
-      p.referencia.trim() === referencia.trim() &&
-      p.bancoReceptor.trim() === (bancoReceptor ?? "").trim()
-    );
+  // Normaliza: últimos 10 dígitos con padding de ceros
+  const norm10 = (s: string) => s.replace(/\D/g, "").padStart(10, "0").slice(-10);
+
+  // Regla 1 (cross-type): si hay referencia → misma ref normalizada + mismo banco receptor
+  // Cubre Transferencia vs Transferencia, PagoMovil vs PagoMovil, y cross entre ambos tipos
+  if (referencia?.trim()) {
+    const refNorm = norm10(referencia);
+    if (refNorm !== "0000000000") {
+      const dup = pagos.find(p => {
+        const pRefNorm = norm10(p.referencia);
+        return (
+          pRefNorm === refNorm &&
+          pRefNorm !== "0000000000" &&
+          p.bancoReceptor.trim() === (bancoReceptor ?? "").trim()
+        );
+      });
+      if (dup) return dup;
+    }
   }
 
-  // PagoMovil: duplicado = mismo monto + misma fecha + mismo celular + misma referencia (si tiene)
-  if (tipoPago === "PagoMovil") {
-    return pagos.find(p => {
-      const refMatch = referencia?.trim()
-        ? p.referencia.trim() === referencia.trim()
-        : true;
-      return (
-        p.tipoPago === "PagoMovil" &&
-        p.monto === monto &&
-        p.fechaPago === fechaPago &&
-        p.celular.trim() === (celular ?? "").trim() &&
-        refMatch
-      );
-    });
+  // Regla 2: PagoMovil SIN referencia → monto + fecha + celular
+  if (tipoPago === "PagoMovil" && !referencia?.trim()) {
+    return pagos.find(p =>
+      p.tipoPago === "PagoMovil" &&
+      !p.referencia?.trim() &&
+      p.monto === monto &&
+      p.fechaPago === fechaPago &&
+      p.celular.trim() === (celular ?? "").trim()
+    );
   }
 }
 
