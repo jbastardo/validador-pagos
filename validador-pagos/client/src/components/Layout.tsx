@@ -20,9 +20,9 @@ import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero"] },
-  { href: "/registrar", label: "Registrar Pago", icon: PlusCircle, roles: ["admin", "vendedor"] },
+  { href: "/registrar", label: "Pagos en Bs", icon: PlusCircle, roles: ["admin", "vendedor"] },
   { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor"] },
-  { href: "/conciliacion", label: "Conciliación", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor"] },
+  { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor"] },
   // { href: "/extractos", label: "Extractos", icon: FileSpreadsheet, roles: ["admin", "contabilidad"] }, // DESACTIVADO TEMPORALMENTE
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
 ];

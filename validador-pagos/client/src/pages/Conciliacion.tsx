@@ -57,6 +57,8 @@ export default function Conciliacion() {
   const [filtroBanco,    setFiltroBanco]    = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("todos");
   const [filtroFactura,  setFiltroFactura]  = useState("todos");
+  const [fechaDesde,     setFechaDesde]     = useState("");
+  const [fechaHasta,     setFechaHasta]     = useState("");
 
   // Lee parámetros del hash al llegar desde el Dashboard (ej: /#/conciliacion?estado=Pendiente)
   useEffect(() => {
@@ -346,6 +348,14 @@ export default function Conciliacion() {
   const vendedoresUnicos = Array.from(new Set((pagos ?? []).map(p => p.vendedor).filter(Boolean))).sort();
 
   // ── Filtrado Bs ──
+  // Convierte "DD/MM/YYYY" a "YYYY-MM-DD" para comparar con inputs date
+  const toISO = (f: string) => {
+    if (!f) return "";
+    const m = f.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+    return f.substring(0, 10);
+  };
+
   const filtradosBs = (pagos ?? []).filter(p => {
     const q = busqueda.toLowerCase();
     const mq = q === "" || [p.referencia, p.monto, p.bancoEmisor, p.celular, p.rif, p.factura, p.vendedor, p.fechaPago, p.cliente].some(v => v?.toLowerCase().includes(q));
@@ -360,7 +370,10 @@ export default function Conciliacion() {
       :   filtroFactura === "SinCliente"  ? (!p.cliente  || p.cliente.trim()  === "")
       :   filtroFactura === "SinAmbos"    ? ((!p.factura || p.factura.trim() === "") && (!p.cliente || p.cliente.trim() === ""))
       : true);
-    return mq && me && mt && mb && mv && mf;
+    const fISO = toISO(p.fechaPago);
+    const md = !fechaDesde || fISO >= fechaDesde;
+    const mh = !fechaHasta || fISO <= fechaHasta;
+    return mq && me && mt && mb && mv && mf && md && mh;
   });
 
   // ── Filtrado Divisas ──
@@ -369,7 +382,10 @@ export default function Conciliacion() {
     const mq = q === "" || [p.nombrePagador, p.correo, p.monto, p.tipo, p.referencia, p.cliente, p.rif, p.factura, p.fecha].some(v => v?.toLowerCase().includes(q));
     const me = filtroEstDiv  === "todos" || p.estado === filtroEstDiv;
     const mt = filtroTipoDiv === "todos" || p.tipo   === filtroTipoDiv;
-    return mq && me && mt;
+    const fISO = toISO(p.fecha);
+    const md = !fechaDesde || fISO >= fechaDesde;
+    const mh = !fechaHasta || fISO <= fechaHasta;
+    return mq && me && mt && md && mh;
   });
 
   const handleExportBs = () => {
@@ -475,7 +491,7 @@ export default function Conciliacion() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Conciliación de Pagos</h1>
+          <h1 className="text-xl font-bold">Resumen de Pagos</h1>
           <p className="text-sm text-muted-foreground">
             {isCajero ? "Agrega el número de factura y valida con Megasoft" : "Verifica y aprueba los pagos — sincronizado con Google Sheets"}
           </p>
@@ -559,6 +575,17 @@ export default function Conciliacion() {
                     {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Desde</Label>
+                  <Input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="h-9 w-36 text-sm"/>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Hasta</Label>
+                  <Input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} className="h-9 w-36 text-sm"/>
+                </div>
+                {(fechaDesde || fechaHasta) && (
+                  <button onClick={() => { setFechaDesde(""); setFechaHasta(""); }} className="text-xs text-muted-foreground hover:text-foreground underline shrink-0">Limpiar</button>
+                )}
                 <Button variant="outline" onClick={handleExportBs} className="gap-2 shrink-0">
                   <Download className="w-4 h-4"/> Exportar CSV
                 </Button>
