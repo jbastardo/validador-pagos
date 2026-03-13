@@ -313,6 +313,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         megasoftNo:        verificados.filter(p => p.megasoft === "No").length,
         megasoftPendiente: verificados.filter(p => !p.megasoft || p.megasoft === "").length,
         montoMegasoftSi:   verificados.filter(p => p.megasoft === "Sí").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+        sinFactura:        pagos.filter(p => p.estado !== "Rechazado" && p.estado !== "Rechazado Megasoft" && (!p.factura || p.factura.trim() === "")).length,
         // Divisas
         totalDivisas:      divisas.length,
         pendientesDivisas: divisas.filter(p => p.estado === "Pendiente").length,

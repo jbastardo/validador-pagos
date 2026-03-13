@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHashLocation } from "wouter/use-hash-location";
-import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins, ShieldOff, CalendarDays } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins, ShieldOff, CalendarDays, FileX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
-interface Pago { id: string; fechaPago: string; tipoPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; estado: string; megasoft?: string; }
+interface Pago { id: string; fechaPago: string; tipoPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; estado: string; megasoft?: string; factura?: string; cliente?: string; }
 interface Stats {
   total: number; pendientes: number; verificados: number; rechazados: number;
   pagoMovil: number; transferencias: number; montoTotal: number;
   megasoftSi: number; megasoftNo: number; megasoftPendiente: number; montoMegasoftSi: number;
   rechazadosMegasoft: number;
+  sinFactura: number;
   totalDivisas: number; pendientesDivisas: number; montoDivisas: number;
 }
 
@@ -85,6 +86,7 @@ export default function Dashboard() {
       megasoftNo:        verificados.filter(p => p.megasoft === "No").length,
       megasoftPendiente: verificados.filter(p => !p.megasoft || p.megasoft === "").length,
       montoMegasoftSi:   verificados.filter(p => p.megasoft === "Sí").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+      sinFactura:        pagos.filter(p => p.estado !== "Rechazado" && p.estado !== "Rechazado Megasoft" && (!p.factura || p.factura.trim() === "")).length,
       totalDivisas:      rawStats?.totalDivisas ?? 0,
       pendientesDivisas: rawStats?.pendientesDivisas ?? 0,
       montoDivisas:      rawStats?.montoDivisas ?? 0,
@@ -222,6 +224,31 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* ── Sección Sin Factura ── */}
+      {!sL && (stats?.sinFactura ?? 0) > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Datos Pendientes</h2>
+          <Card
+            className="border-rose-200 bg-rose-50/40 dark:bg-rose-950/20 cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-150"
+            onClick={() => irAConciliacion("SinFactura")}
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-rose-700 uppercase tracking-wide">Sin número de factura</p>
+                  <p className="text-2xl font-bold text-rose-800 mt-1">{stats?.sinFactura ?? 0}</p>
+                  <p className="text-xs text-rose-600 mt-0.5">Pagos activos sin factura registrada</p>
+                  <p className="text-xs text-rose-700 mt-1 font-medium">Ver y completar →</p>
+                </div>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-rose-100 text-rose-600">
+                  <FileX className="w-5 h-5" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

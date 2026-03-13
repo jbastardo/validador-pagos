@@ -56,6 +56,7 @@ export default function Conciliacion() {
   const [filtroTipo,     setFiltroTipo]     = useState("todos");
   const [filtroBanco,    setFiltroBanco]    = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("todos");
+  const [filtroFactura,  setFiltroFactura]  = useState("todos");
 
   // Lee parámetros del hash al llegar desde el Dashboard (ej: /#/conciliacion?estado=Pendiente)
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function Conciliacion() {
     if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
     else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
     else if (estado === "PendienteCajero") { setFiltroEstado("PendienteCajero"); }
+    else if (estado === "SinFactura") { setFiltroFactura("SinFactura"); }
     else if (estado && estado !== "todos") { setFiltroEstado(estado); }
   }, [hashLocation]);
 
@@ -353,7 +355,12 @@ export default function Conciliacion() {
     const mt = filtroTipo     === "todos" || p.tipoPago === filtroTipo;
     const mb = filtroBanco    === "todos" || p.bancoReceptor === filtroBanco;
     const mv = filtroVendedor === "todos" || p.vendedor === filtroVendedor;
-    return mq && me && mt && mb && mv;
+    const mf = filtroFactura  === "todos"
+      || (filtroFactura === "SinFactura"  ? (!p.factura  || p.factura.trim()  === "")
+      :   filtroFactura === "SinCliente"  ? (!p.cliente  || p.cliente.trim()  === "")
+      :   filtroFactura === "SinAmbos"    ? ((!p.factura || p.factura.trim() === "") && (!p.cliente || p.cliente.trim() === ""))
+      : true);
+    return mq && me && mt && mb && mv && mf;
   });
 
   // ── Filtrado Divisas ──
@@ -521,6 +528,15 @@ export default function Conciliacion() {
                     </SelectContent>
                   </Select>
                 )}
+                <Select value={filtroFactura} onValueChange={setFiltroFactura}>
+                  <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Factura / Cliente"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los registros</SelectItem>
+                    <SelectItem value="SinFactura">Sin número de factura</SelectItem>
+                    <SelectItem value="SinCliente">Sin nombre de cliente</SelectItem>
+                    <SelectItem value="SinAmbos">Sin factura y sin cliente</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={filtroTipo} onValueChange={setFiltroTipo}>
                   <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Tipo"/></SelectTrigger>
                   <SelectContent>
