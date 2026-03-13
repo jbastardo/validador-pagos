@@ -107,7 +107,8 @@ export async function marcarUsado(movId: string): Promise<void> {
   await updateRow(TAB_EXTRACTOS, m._rowIndex, [m.id, m.banco, m.fecha, m.monto, m.referencia, m.celular, m.descripcion, m.subidoPor, m.subidoEn, "true"]);
 }
 
-// ─── Parser Excel (idéntico a extractos.ts) ────────────────────────────────────
+// ─── Parser Excel ──────────────────────────────────────────────────────────────
+
 function normalizeDate(raw: unknown): string {
   if (raw === null || raw === undefined || raw === "") return "";
   if (typeof raw === "number") {
@@ -118,31 +119,99 @@ function normalizeDate(raw: unknown): string {
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if (m1) return `${m1[3]}-${m1[2].padStart(2,"0")}-${m1[1].padStart(2,"0")}`;
-  return s.slice(0, 10);
+  return "";
 }
 
 function normalizeMonto(raw: unknown): string {
-  if (raw === null || raw === undefined) return "0";
-  if (typeof raw === "number") return raw.toFixed(2);
-  const s = String(raw).trim().replace(/[Bb][Ss]\.?\s*/i, "").trim();
-  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, "").replace(",", ".");
-  return s.replace(",", ".");
+  if (raw === null || raw === undefined || raw === "") return "";
+  if (typeof raw === "number") return Math.abs(raw).toFixed(2);
+  let s = String(raw).trim().replace(/^[+]/, "");
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return Math.abs(parseFloat(s.replace(/\./g, "").replace(",", "."))).toFixed(2);
+  if (/^\d+(,\d+)?$/.test(s)) return Math.abs(parseFloat(s.replace(",", "."))).toFixed(2);
+  if (/^\d{1,3}(,\d{3})*(\.\d+)?$/.test(s)) return Math.abs(parseFloat(s.replace(/,/g, ""))).toFixed(2);
+  const num = parseFloat(s.replace(/[^0-9.-]/g, ""));
+  return isNaN(num) ? "" : Math.abs(num).toFixed(2);
 }
 
-function norm6(raw: unknown): string { return String(raw ?? "").replace(/\D/g, "").slice(-10).padStart(10, "0"); }
-function normCelular(raw: unknown): string { return String(raw ?? "").replace(/\D/g, "").replace(/^58/, "0"); }
+function norm10(raw: unknown): string { return String(raw ?? "").replace(/\D/g, "").slice(-10).padStart(10, "0"); }
+function normCelular(raw: unknown): string {
+  const digits = String(raw ?? "").replace(/\D/g, "").replace(/^58/, "0");
+  const m = digits.match(/(04\d{9})$/);
+  return m ? m[1] : digits.slice(-11);
+}
 
-function detectColumns(headers: string[]): Record<string, number> {
-  const map: Record<string, number> = {};
-  headers.forEach((h, i) => {
-    const v = String(h ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (!map.fecha      && /fecha|date|^fec/.test(v))             map.fecha      = i;
-    if (!map.monto      && /monto|importe|credito|abono|amount|haber/.test(v)) map.monto = i;
-    if (!map.referencia && /referen|^ref\b|nro.*ref|num.*ref|nro.*op/.test(v)) map.referencia = i;
-    if (!map.celular    && /celular|telefon|movil|nro.*tel/.test(v))           map.celular    = i;
-    if (!map.descripcion && /descrip|concepto|detalle|description/.test(v))   map.descripcion = i;
-  });
-  return map;
+// BANESCO: header fila 0 [Fecha(serial), Referencia, Descripción, Monto(float), Balance]
+function parseBanesco(aoa: unknown[][], banco: string, subidoPor: string): ParseResult {
+  const movimientos: Omit<MovimientoExtracto, "_rowIndex">[] = [];
+  let skipped = 0;
+  for (const row of aoa.slice(1)) {
+    const fecha = normalizeDate(row[0]);
+    if (!fecha) { skipped++; continue; }
+    const montoNum = typeof row[3] === "number" ? row[3]
+      : parseFloat(String(row[3] ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
+    if (isNaN(montoNum) || montoNum <= 0) { skipped++; continue; }
+    const desc = String(row[2] ?? "").trim();
+    const esPM = /pago.?movil|banesco.?pago/i.test(desc);
+    let celular = "";
+    const telM = desc.match(/TELF[:\.]+([\d]+)/i);
+    if (telM) celular = normCelular(telM[1]);
+    movimientos.push({ id: randomUUID(), banco, fecha, monto: montoNum.toFixed(2),
+      referencia: esPM ? "" : norm10(row[1]), celular,
+      descripcion: desc.slice(0, 100), subidoPor, subidoEn: new Date().toISOString(), usado: "false" });
+  }
+  return { movimientos, warnings: [], total: movimientos.length, skipped };
+}
+
+// BNC: cabecera institucional filas 0-14, header en fila 15
+// cols: 1=Fecha, 6=TipoOp, 7=Descripción, 12=Referencia, 15=Haber
+function parseBNC(aoa: unknown[][], banco: string, subidoPor: string): ParseResult {
+  const movimientos: Omit<MovimientoExtracto, "_rowIndex">[] = [];
+  let skipped = 0;
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(aoa.length, 25); i++) {
+    if (String(aoa[i][1] ?? "").trim().toLowerCase() === "fecha") { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) return { movimientos, warnings: ["BNC: header no encontrado"], total: 0, skipped: aoa.length };
+  for (const row of aoa.slice(headerIdx + 1)) {
+    const fecha = normalizeDate(row[1]);
+    if (!fecha) { skipped++; continue; }
+    const haberNum = typeof row[15] === "number" ? row[15]
+      : parseFloat(String(row[15] ?? "0").replace(/,/g, "."));
+    if (isNaN(haberNum) || haberNum <= 0) { skipped++; continue; }
+    const tipoOp = String(row[6] ?? "").trim();
+    const desc = String(row[7] ?? "").trim();
+    const esPM = /pago.?movil|abono.?pago/i.test(tipoOp);
+    let celular = "";
+    const telM = desc.match(/TELF[:\.]+([0-9]{7,15})/i);
+    if (telM) celular = normCelular(telM[1]);
+    movimientos.push({ id: randomUUID(), banco, fecha, monto: haberNum.toFixed(2),
+      referencia: esPM ? "" : norm10(row[12]), celular,
+      descripcion: desc.slice(0, 100), subidoPor, subidoEn: new Date().toISOString(), usado: "false" });
+  }
+  return { movimientos, warnings: [], total: movimientos.length, skipped };
+}
+
+// BDV: header fila 0, cols: 1=Ref, 2=Desc, 3=Fecha(DD/MM/YYYY), 4=TipoMov, 5=Crédito
+// Solo filas NC (créditos), monto en formato venezolano "11.100,22"
+function parseBDV(aoa: unknown[][], banco: string, subidoPor: string): ParseResult {
+  const movimientos: Omit<MovimientoExtracto, "_rowIndex">[] = [];
+  let skipped = 0;
+  for (const row of aoa.slice(1)) {
+    if (String(row[4] ?? "").trim().toUpperCase() !== "NC") { skipped++; continue; }
+    const fecha = normalizeDate(row[3]);
+    if (!fecha) { skipped++; continue; }
+    const monto = normalizeMonto(row[5]);
+    if (!monto || parseFloat(monto) <= 0) { skipped++; continue; }
+    const desc = String(row[2] ?? "").trim();
+    const esPM = /pagomovil|pago.?movil/i.test(desc);
+    let celular = "";
+    const telM = desc.match(/(04[0-9]{9})/);
+    if (telM) celular = telM[1];
+    movimientos.push({ id: randomUUID(), banco, fecha, monto,
+      referencia: esPM ? "" : norm10(row[1]), celular,
+      descripcion: desc.slice(0, 100), subidoPor, subidoEn: new Date().toISOString(), usado: "false" });
+  }
+  return { movimientos, warnings: [], total: movimientos.length, skipped };
 }
 
 export interface ParseResult {
@@ -154,32 +223,10 @@ export function parseExtractoExcel(buffer: Buffer, banco: string, subidoPor: str
   const wb = XLSX.read(buffer, { type: "buffer", cellDates: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const aoa: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-  const warnings: string[] = [];
-  const movimientos: Omit<MovimientoExtracto, "_rowIndex">[] = [];
-  let skipped = 0;
-  let headerRowIdx = -1;
-  let colMap: Record<string, number> = {};
-  for (let r = 0; r < Math.min(aoa.length, 20); r++) {
-    const candidate = detectColumns(aoa[r].map(c => String(c ?? "")));
-    if (candidate.fecha !== undefined && candidate.monto !== undefined) { headerRowIdx = r; colMap = candidate; break; }
-  }
-  if (headerRowIdx === -1) {
-    warnings.push("No se detectaron encabezados. Asumiendo A=Fecha, B=Referencia, C=Monto, D=Celular.");
-    colMap = { fecha: 0, referencia: 1, monto: 2, celular: 3, descripcion: 4 }; headerRowIdx = 0;
-  }
-  for (const row of aoa.slice(headerRowIdx + 1)) {
-    const fecha = normalizeDate(row[colMap.fecha] ?? "");
-    const monto = normalizeMonto(row[colMap.monto] ?? "");
-    if (!fecha || isNaN(parseFloat(monto)) || parseFloat(monto) <= 0) { skipped++; continue; }
-    movimientos.push({
-      id: randomUUID(), banco, fecha, monto,
-      referencia: norm6(colMap.referencia !== undefined ? row[colMap.referencia] : ""),
-      celular: normCelular(colMap.celular !== undefined ? row[colMap.celular] : ""),
-      descripcion: String(colMap.descripcion !== undefined ? row[colMap.descripcion] : "").slice(0, 100),
-      subidoPor, subidoEn: new Date().toISOString(), usado: "false",
-    });
-  }
-  return { movimientos, warnings, total: movimientos.length, skipped };
+  if (banco === "0134") return parseBanesco(aoa, banco, subidoPor);
+  if (banco === "0191") return parseBNC(aoa, banco, subidoPor);
+  if (banco === "0102") return parseBDV(aoa, banco, subidoPor);
+  return { movimientos: [], warnings: [`Banco ${banco} sin parser específico`], total: 0, skipped: 0 };
 }
 
 // ─── Auto-conciliación ──────────────────────────────────────────────────────────
