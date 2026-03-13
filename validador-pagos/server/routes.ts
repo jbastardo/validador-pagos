@@ -69,23 +69,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
       });
 
-      // ── Auto-conciliación ──────────────────────────────────────────────────
-      let estadoInicial = "Pendiente";
-      let validadoPorInicial = "";
-      let matchId: string | null = null;
-      try {
-        const mov = await tryMatch(
-          data.tipoPago, data.bancoReceptor, data.fechaPago,
-          data.monto, data.referencia ?? "", data.celular ?? ""
-        );
-        if (mov) {
-          estadoInicial    = "Verificado";
-          validadoPorInicial = "Auto-conciliación";
-          matchId          = mov.id;
-        }
-      } catch (e: any) {
-        console.warn("Auto-conciliación skipped:", e.message);
-      }
+      // ── Auto-conciliación DESACTIVADA TEMPORALMENTE ────────────────────────
+      const estadoInicial = "Pendiente";
+      const validadoPorInicial = "";
+      const matchId: string | null = null;
 
       const nuevo = await addPago({
         ...data,
@@ -377,68 +364,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ===== EXTRACTOS BANCARIOS =====
   const BANCOS_VALIDOS = ["0102", "0134", "0191"];
 
-  // GET /api/extractos/:banco — lista movimientos de un banco
-  app.get("/api/extractos/:banco", async (req, res) => {
-    const { banco } = req.params;
-    if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco inválido" });
-    try {
-      const movs = await getMovimientos(banco);
-      res.json(movs);
-    } catch (e: any) {
-      res.status(500).json({ message: "Error al obtener movimientos" });
-    }
-  });
-
-  // GET /api/extractos-stats — resumen por banco
-  app.get("/api/extractos-stats", async (_req, res) => {
-    try {
-      const stats = await getExtractosStats();
-      res.json(stats);
-    } catch (e: any) {
-      res.status(500).json({ message: "Error al obtener estadísticas de extractos" });
-    }
-  });
-
-  // POST /api/extractos/:banco — sube y parsea un extracto Excel
-  app.post("/api/extractos/:banco", upload.single("archivo"), async (req: any, res) => {
-    const { banco } = req.params;
-    if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco inválido" });
-    if (!req.file) return res.status(400).json({ message: "No se recibió archivo" });
-
-    const subidoPor = req.body.subidoPor ?? "desconocido";
-    try {
-      const result = parseExtractoExcel(req.file.buffer, banco, subidoPor);
-      if (result.movimientos.length === 0) {
-        return res.status(422).json({
-          message: "No se encontraron movimientos válidos en el archivo",
-          warnings: result.warnings,
-          skipped: result.skipped,
-        });
-      }
-      await addMovimientos(result.movimientos);
-      res.status(201).json({
-        message: `${result.movimientos.length} movimientos importados`,
-        total:    result.movimientos.length,
-        skipped:  result.skipped,
-        warnings: result.warnings,
-      });
-    } catch (e: any) {
-      console.error("Error parseExtracto:", e.message);
-      res.status(500).json({ message: "Error al procesar el archivo: " + e.message });
-    }
-  });
-
-  // DELETE /api/extractos/:banco — limpia todos los movimientos de un banco
-  app.delete("/api/extractos/:banco", async (req, res) => {
-    const { banco } = req.params;
-    if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco inválido" });
-    try {
-      const count = await deleteMovimientosBanco(banco);
-      res.json({ message: `${count} movimientos eliminados`, count });
-    } catch (e: any) {
-      res.status(500).json({ message: "Error al limpiar extracto" });
-    }
-  });
+  // ── EXTRACTOS DESACTIVADOS TEMPORALMENTE ─────────────────────────────────────
+  // Re-activar cuando se retome el desarrollo de esta funcionalidad.
+  const EXTRACTOS_DISABLED = { message: "Función de extractos desactivada temporalmente" };
+  app.get("/api/extractos/:banco",      (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  app.get("/api/extractos-stats",       (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  app.post("/api/extractos/:banco",     (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  app.delete("/api/extractos/:banco",   (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return httpServer;
 }
