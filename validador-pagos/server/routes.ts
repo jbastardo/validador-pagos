@@ -113,12 +113,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // Cajero edita pagos Verificados (factura + megasoft — comportamiento anterior)
+  // Cajero edita pagos Verificados (factura + cliente + megasoft)
   app.patch("/api/pagos/:id/cajero", async (req, res) => {
     try {
       const { id } = req.params;
       const schema = z.object({
         factura:  z.string().optional().default(""),
+        cliente:  z.string().optional().default(""),
         megasoft: z.enum(["Sí", "No", ""]).optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
@@ -127,7 +128,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const pago = pagos.find(p => p.id === id);
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
       if (pago.estado !== "Verificado") return res.status(422).json({ message: "Solo se pueden editar pagos Verificados" });
-      const updated = await updatePagoCajero(id, parsed.data.factura, parsed.data.megasoft);
+      const updated = await updatePagoCajero(id, parsed.data.factura, parsed.data.megasoft, parsed.data.cliente);
       res.json(updated);
     } catch (e: any) {
       console.error("Error updatePagoCajero:", e.message);

@@ -98,15 +98,16 @@ export async function updatePagoEstado(id: string, estado: string, validadoPor: 
   return { ...pago, estado, validadoPor, observaciones, validadoEn };
 }
 
-export async function updatePagoCajero(id: string, factura: string, megasoft: string): Promise<SheetPago|null> {
+export async function updatePagoCajero(id: string, factura: string, megasoft: string, cliente?: string): Promise<SheetPago|null> {
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
+  const clienteVal = (cliente !== undefined && cliente !== "") ? cliente : (pago.cliente ?? "");
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
-    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, factura,
-    pago.estado, pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, pago.cliente??"", megasoft, pago.validadoEn??""];
+    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, factura || pago.factura,
+    pago.estado, pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, megasoft, pago.validadoEn??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
-  return { ...pago, factura, megasoft };
+  return { ...pago, factura: factura || pago.factura, megasoft, cliente: clienteVal };
 }
 
 export async function updatePagoCajeroPendiente(

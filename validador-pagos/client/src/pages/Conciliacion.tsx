@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export default function Conciliacion() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const searchStr = useSearch();
 
   // ── Filtros Bs ──
   const [busqueda,       setBusqueda]       = useState("");
@@ -54,6 +56,17 @@ export default function Conciliacion() {
   const [filtroTipo,     setFiltroTipo]     = useState("todos");
   const [filtroBanco,    setFiltroBanco]    = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("todos");
+
+  // Lee parámetros de URL al llegar desde el Dashboard
+  useEffect(() => {
+    if (!searchStr) return;
+    const params = new URLSearchParams(searchStr);
+    const estado = params.get("estado");
+    if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
+    else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
+    else if (estado === "PendienteCajero") { setFiltroEstado("Verificado"); }
+    else if (estado && estado !== "todos") { setFiltroEstado(estado); }
+  }, [searchStr]);
 
   // ── Filtros Divisas ──
   const [busqDiv,       setBusqDiv]       = useState("");
@@ -67,10 +80,11 @@ export default function Conciliacion() {
   const [dialogOpen,  setDialogOpen]  = useState(false);
 
   // ── Modal cajero (Verificado — comportamiento anterior) ──
-  const [cajeroPago,    setCajeroPago]    = useState<Pago | null>(null);
-  const [cajeroFactura, setCajeroFactura] = useState("");
-  const [cajeroMega,    setCajeroMega]    = useState<"Sí" | "No" | "">("");
-  const [cajeroOpen,    setCajeroOpen]    = useState(false);
+  const [cajeroPago,     setCajeroPago]     = useState<Pago | null>(null);
+  const [cajeroFactura,  setCajeroFactura]  = useState("");
+  const [cajeroCliente,  setCajeroCliente]  = useState("");
+  const [cajeroMega,     setCajeroMega]     = useState<"Sí" | "No" | "">("");
+  const [cajeroOpen,     setCajeroOpen]     = useState(false);
 
   // ── Modal cajero Pendiente (nuevo) ──
   const [cajPendPago,    setCajPendPago]    = useState<Pago | null>(null);
@@ -142,8 +156,8 @@ export default function Conciliacion() {
 
   // ── Mutación cajero ──
   const cajeroMutation = useMutation({
-    mutationFn: async ({ id, factura, megasoft }: { id: string; factura: string; megasoft: string }) => {
-      const res = await apiRequest("PATCH", `/api/pagos/${id}/cajero`, { factura, megasoft });
+    mutationFn: async ({ id, factura, cliente, megasoft }: { id: string; factura: string; cliente: string; megasoft: string }) => {
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/cajero`, { factura, cliente, megasoft });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message ?? "Error");
       return json;
@@ -279,6 +293,7 @@ export default function Conciliacion() {
   const openCajero = (p: Pago) => {
     setCajeroPago(p);
     setCajeroFactura(p.factura ?? "");
+    setCajeroCliente(p.cliente ?? "");
     setCajeroMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajeroOpen(true);
   };
@@ -1052,8 +1067,11 @@ export default function Conciliacion() {
             <div className="space-y-4 text-sm">
               <div className="p-3 rounded-lg bg-muted/50 space-y-1">
                 <div className="flex justify-between"><span className="text-muted-foreground">Monto:</span><span className="font-mono font-bold">Bs. {fmt(cajeroPago.monto)}</span></div>
-                {cajeroPago.cliente && <div className="flex justify-between"><span className="text-muted-foreground">Cliente:</span><span className="font-medium">{cajeroPago.cliente}</span></div>}
                 <div className="flex justify-between"><span className="text-muted-foreground">Banco Receptor:</span><span className="font-medium">{cajeroPago.bancoReceptor}</span></div>
+              </div>
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Input placeholder="Nombre del cliente" value={cajeroCliente} onChange={e => setCajeroCliente(e.target.value)}/>
               </div>
               <div className="space-y-2">
                 <Label>Número de Factura</Label>
@@ -1075,7 +1093,7 @@ export default function Conciliacion() {
           )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCajeroOpen(false)}>Cancelar</Button>
-            <Button onClick={() => cajeroMutation.mutate({ id: cajeroPago!.id, factura: cajeroFactura, megasoft: cajeroMega })} disabled={cajeroMutation.isPending}>
+            <Button onClick={() => cajeroMutation.mutate({ id: cajeroPago!.id, factura: cajeroFactura, cliente: cajeroCliente, megasoft: cajeroMega })} disabled={cajeroMutation.isPending}>
               {cajeroMutation.isPending ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
