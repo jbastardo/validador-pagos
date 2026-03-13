@@ -29,7 +29,7 @@ const navItems = [
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const [location] = useLocation();
+  const [location] = useHashLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const allowedNav = navItems.filter(item => user && item.roles.includes(user.rol));

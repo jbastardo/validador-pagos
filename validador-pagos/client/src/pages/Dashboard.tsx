@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLocation } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins, ShieldOff, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,7 +47,7 @@ const estadoColor: Record<string, string> = { Pendiente: "bg-amber-100 text-ambe
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [, navigate] = useLocation();
+  const [, navigate] = useHashLocation();
   const { data: rawStats, isLoading: sL } = useQuery<Stats>({ queryKey: ["/api/stats"] });
   const { data: allPagos, isLoading: pL } = useQuery<Pago[]>({ queryKey: ["/api/pagos"] });
 

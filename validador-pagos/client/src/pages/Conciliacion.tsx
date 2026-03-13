@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,7 @@ export default function Conciliacion() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const searchStr = useSearch();
+  const [hashLocation] = useHashLocation();
 
   // ── Filtros Bs ──
   const [busqueda,       setBusqueda]       = useState("");
@@ -57,16 +57,18 @@ export default function Conciliacion() {
   const [filtroBanco,    setFiltroBanco]    = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("todos");
 
-  // Lee parámetros de URL al llegar desde el Dashboard
+  // Lee parámetros del hash al llegar desde el Dashboard (ej: /#/conciliacion?estado=Pendiente)
   useEffect(() => {
-    if (!searchStr) return;
-    const params = new URLSearchParams(searchStr);
+    const hash = window.location.hash; // e.g. "#/conciliacion?estado=Pendiente"
+    const qIndex = hash.indexOf("?");
+    if (qIndex === -1) return;
+    const params = new URLSearchParams(hash.slice(qIndex + 1));
     const estado = params.get("estado");
     if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
     else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
     else if (estado === "PendienteCajero") { setFiltroEstado("Verificado"); }
     else if (estado && estado !== "todos") { setFiltroEstado(estado); }
-  }, [searchStr]);
+  }, [hashLocation]);
 
   // ── Filtros Divisas ──
   const [busqDiv,       setBusqDiv]       = useState("");
