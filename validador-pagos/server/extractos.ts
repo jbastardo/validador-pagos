@@ -73,7 +73,7 @@ export async function getMovimientos(banco?: string): Promise<MovimientoExtracto
   const rows = await getRows(TAB_EXTRACTOS);
   if (rows.length < 2) return [];
   const all = rows.slice(1).map((row, i): MovimientoExtracto => ({
-    id: row[0]??"", banco: row[1]??"", fecha: row[2]??"", monto: row[3]??"",
+    id: row[0]??"", banco: String(row[1]??"").replace(/\D/g,"").padStart(4,"0"), fecha: row[2]??"", monto: row[3]??"",
     referencia: row[4]??"", celular: row[5]??"", descripcion: row[6]??"",
     subidoPor: row[7]??"", subidoEn: row[8]??"", usado: row[9]??"false",
     _rowIndex: i + 2,
