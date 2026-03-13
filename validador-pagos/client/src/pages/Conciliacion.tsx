@@ -66,7 +66,7 @@ export default function Conciliacion() {
     const estado = params.get("estado");
     if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
     else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
-    else if (estado === "PendienteCajero") { setFiltroEstado("Verificado"); }
+    else if (estado === "PendienteCajero") { setFiltroEstado("PendienteCajero"); }
     else if (estado && estado !== "todos") { setFiltroEstado(estado); }
   }, [hashLocation]);
 
@@ -347,7 +347,9 @@ export default function Conciliacion() {
   const filtradosBs = (pagos ?? []).filter(p => {
     const q = busqueda.toLowerCase();
     const mq = q === "" || [p.referencia, p.monto, p.bancoEmisor, p.celular, p.rif, p.factura, p.vendedor, p.fechaPago, p.cliente].some(v => v?.toLowerCase().includes(q));
-    const me = filtroEstado   === "todos" || p.estado === filtroEstado;
+    const me = filtroEstado === "todos"
+      || (filtroEstado === "PendienteCajero" ? (p.estado === "Verificado" && (!p.megasoft || p.megasoft === ""))
+      : p.estado === filtroEstado);
     const mt = filtroTipo     === "todos" || p.tipoPago === filtroTipo;
     const mb = filtroBanco    === "todos" || p.bancoReceptor === filtroBanco;
     const mv = filtroVendedor === "todos" || p.vendedor === filtroVendedor;
@@ -513,6 +515,7 @@ export default function Conciliacion() {
                       <SelectItem value="todos">Todos</SelectItem>
                       <SelectItem value="Pendiente">Pendiente</SelectItem>
                       <SelectItem value="Verificado">Verificado</SelectItem>
+                      <SelectItem value="PendienteCajero">Sin validar Megasoft</SelectItem>
                       <SelectItem value="Rechazado">Rechazado</SelectItem>
                       <SelectItem value="Rechazado Megasoft">Rechazado Megasoft</SelectItem>
                     </SelectContent>

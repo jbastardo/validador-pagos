@@ -210,9 +210,9 @@ export default function Dashboard() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Pendiente cajero</p>
+                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Sin validar Megasoft</p>
                     <p className="text-2xl font-bold text-amber-800 mt-1">{stats?.megasoftPendiente ?? 0}</p>
-                    <p className="text-xs text-amber-600 mt-0.5">Verificados sin revisar</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Verificados sin confirmar en Megasoft</p>
                     <p className="text-xs text-amber-700 mt-1 font-medium">Ver operaciones →</p>
                   </div>
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600">
