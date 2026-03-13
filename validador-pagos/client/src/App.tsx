@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Router } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -20,15 +20,17 @@ function AppRoutes() {
   if (!user) return <Login />;
   return (
     <Layout>
-      <Switch hook={useHashLocation}>
-        <Route path="/" component={Dashboard} />
-        <Route path="/registrar" component={RegistrarPago} />
-        <Route path="/registrar-divisas" component={RegistrarDivisas} />
-        <Route path="/conciliacion" component={Conciliacion} />
-        <Route path="/usuarios" component={Usuarios} />
-        <Route path="/extractos" component={Extractos} />
-        <Route component={NotFound} />
-      </Switch>
+      <Router hook={useHashLocation}>
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/registrar" component={RegistrarPago} />
+          <Route path="/registrar-divisas" component={RegistrarDivisas} />
+          <Route path="/conciliacion" component={Conciliacion} />
+          <Route path="/usuarios" component={Usuarios} />
+          <Route path="/extractos" component={Extractos} />
+          <Route component={NotFound} />
+        </Switch>
+      </Router>
       <PerplexityAttribution />
     </Layout>
   );
