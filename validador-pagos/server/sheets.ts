@@ -131,18 +131,23 @@ export async function updatePagoCajeroPendiente(
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: validadoEnCajero };
 }
 
-export async function updatePagoFacturaCliente(id: string, factura: string, cliente: string, megasoft?: string): Promise<SheetPago|null> {
+export async function updatePagoFacturaCliente(id: string, factura: string, cliente: string, megasoft?: string, cajeroEmail?: string): Promise<SheetPago|null> {
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const newFactura = factura || pago.factura;
   const newCliente = cliente || (pago.cliente ?? "");
   const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
+  // Si megasoft = "Sí" → auto-validar como "Verificado"
+  const autoAprueba = newMegasoft === "Sí";
+  const nuevoEstado     = autoAprueba ? "Verificado"               : pago.estado;
+  const nuevoValidado   = autoAprueba ? (cajeroEmail || "Cajero") + " (Megasoft)" : pago.validadoPor;
+  const nuevoValidadoEn = autoAprueba ? new Date().toISOString()   : (pago.validadoEn ?? "");
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
-    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura, pago.estado,
-    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, pago.validadoEn??""];
+    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura, nuevoEstado,
+    nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, nuevoValidadoEn];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
-  return { ...pago, factura: newFactura, cliente: newCliente, megasoft: newMegasoft };
+  return { ...pago, factura: newFactura, cliente: newCliente, megasoft: newMegasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
 
 export async function checkDuplicado(

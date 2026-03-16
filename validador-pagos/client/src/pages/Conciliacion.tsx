@@ -209,16 +209,19 @@ export default function Conciliacion() {
   // ── Mutación cajero factura/cliente (cualquier estado) ──
   const cajFCMutation = useMutation({
     mutationFn: async ({ id, factura, cliente, megasoft }: { id: string; factura: string; cliente: string; megasoft: string }) => {
-      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente, megasoft });
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente, megasoft, cajeroEmail: user?.email ?? "" });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message ?? "Error");
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/pagos"] });
       qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setCajFCOpen(false);
-      toast({ title: "Factura/cliente actualizado en Google Sheets" });
+      const msg = data?.estado === "Verificado"
+        ? "Pago validado automáticamente por Megasoft ✅"
+        : "Factura/cliente actualizado en Google Sheets";
+      toast({ title: msg });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
   });

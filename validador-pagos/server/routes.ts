@@ -163,17 +163,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Cajero edita factura, cliente y megasoft en CUALQUIER estado (sin restricción de estado)
+  // Si megasoft="Sí" → auto-valida como "Verificado" con el cajero como validador
   app.patch("/api/pagos/:id/factura-cliente", async (req, res) => {
     try {
       const { id } = req.params;
       const schema = z.object({
-        factura:  z.string().optional().default(""),
-        cliente:  z.string().optional().default(""),
-        megasoft: z.enum(["Sí", "No", ""]).optional().default(""),
+        factura:     z.string().optional().default(""),
+        cliente:     z.string().optional().default(""),
+        megasoft:    z.enum(["Sí", "No", ""]).optional().default(""),
+        cajeroEmail: z.string().optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
-      const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft);
+      const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail);
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
     } catch (e: any) {
