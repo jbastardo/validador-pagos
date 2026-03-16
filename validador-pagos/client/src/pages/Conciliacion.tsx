@@ -898,7 +898,7 @@ export default function Conciliacion() {
               <Input value={cajPendCliente} onChange={e => setCajPendCliente(e.target.value)} placeholder="Nombre completo" className="mt-1"/>
             </div>
             <div>
-              <Label className="text-sm font-medium">¿Aparece en Megasoft?</Label>
+              <Label className="text-sm font-medium">¿Validado por Megasoft?</Label>
               <Select value={cajPendMega} onValueChange={v => setCajPendMega(v as "Sí" | "No")}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona"/></SelectTrigger>
                 <SelectContent>
@@ -937,7 +937,7 @@ export default function Conciliacion() {
               <Input value={cajeroCliente} onChange={e => setCajeroCliente(e.target.value)} placeholder="Nombre completo" className="mt-1"/>
             </div>
             <div>
-              <Label className="text-sm font-medium">¿Aparece en Megasoft?</Label>
+              <Label className="text-sm font-medium">¿Validado por Megasoft?</Label>
               <Select value={cajeroMega} onValueChange={v => setCajeroMega(v as "Sí" | "No")}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona"/></SelectTrigger>
                 <SelectContent>

@@ -151,7 +151,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const pagos = await getPagos();
       const pago = pagos.find(p => p.id === id);
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
-      if (pago.estado !== "Pendiente") return res.status(422).json({ message: "Solo se pueden editar pagos Pendientes con este endpoint" });
+
       const updated = await updatePagoCajeroPendiente(
         id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail
       );
