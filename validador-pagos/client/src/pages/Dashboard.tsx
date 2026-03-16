@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { BANCOS_RECEPTOR, extractBancoCode } from "@shared/schema";
 
 interface Pago { id: string; fechaPago: string; tipoPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; estado: string; megasoft?: string; factura?: string; cliente?: string; }
 interface Stats {
@@ -75,7 +76,7 @@ export default function Dashboard() {
   };
 
   const porBanco: Record<string, number> = {};
-  pagos.forEach(p => { const b = (p.bancoReceptor || "").replace(/^\d+\s/, "").substring(0, 14); if (b) porBanco[b] = (porBanco[b] || 0) + 1; });
+  pagos.forEach(p => { const code = extractBancoCode(p.bancoReceptor); const label = BANCOS_RECEPTOR.find(b => extractBancoCode(b) === code) || p.bancoReceptor; if (code) porBanco[label] = (porBanco[label] || 0) + 1; });
   const bancoData = Object.entries(porBanco).map(([name, count]) => ({ name, count })).sort((a,b)=>b.count-a.count).slice(0,6);
   const pieData = [{ name: "Pago Móvil", value: stats?.pagoMovil ?? 0, color: "#3b82f6" }, { name: "Transferencia", value: stats?.transferencias ?? 0, color: "#10b981" }];
 

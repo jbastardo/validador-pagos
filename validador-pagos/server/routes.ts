@@ -13,6 +13,7 @@ import {
   marcarUsado, tryMatch, getExtractosStats,
 } from "./extractos";
 import { z } from "zod";
+import { BANCOS_RECEPTOR_META } from "../shared/schema";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -386,7 +387,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ===== EXTRACTOS BANCARIOS =====
-  const BANCOS_VALIDOS = ["0102", "0134", "0191"];
+  const BANCOS_VALIDOS = BANCOS_RECEPTOR_META.map(b => b.codigo);
 
   // ── EXTRACTOS DESACTIVADOS TEMPORALMENTE ─────────────────────────────────────
   // Re-activar cuando se retome el desarrollo de esta funcionalidad.

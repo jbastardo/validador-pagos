@@ -12,23 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-
-const BANCOS_EMISOR = [
-  "0102 Banco de Venezuela","0104 Venezolano de Crédito","0105 Banco Mercantil",
-  "0108 Banco Provincial","0114 Banco del Caribe (Bancaribe)","0115 Banco Exterior",
-  "0116 Banco Occidental de Descuento","0128 Banco Caroni","0134 Banesco",
-  "0137 Banco Sofitasa","0138 Banco Plaza","0146 Bangente","0149 Banco del Pueblo Soberano",
-  "0151 Banco Fondo Común (BFC)","0156 100% Banco","0157 DELSUR Banco Universal",
-  "0163 Banco del Tesoro","0166 Banco Agrícola de Venezuela","0168 Bancrecer",
-  "0169 Mi Banco","0171 Banco Activo","0172 Bancamiga","0174 Banplus",
-  "0175 Bicentenario Banco Universal","0177 Banfanb","0191 BNC (Banco Nacional de Crédito)",
-];
-
-const BANCOS_RECEPTOR = [
-  "0102 Banco de Venezuela",
-  "0134 Banesco",
-  "0191 BNC (Banco Nacional de Crédito)",
-];
+import { BANCOS_EMISOR, BANCOS_RECEPTOR } from "@shared/schema";
 
 const schema = z.object({
   fechaPago:     z.string().min(1, "Fecha requerida"),

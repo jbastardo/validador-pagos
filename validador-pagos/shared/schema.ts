@@ -51,3 +51,49 @@ export const insertUsuarioSchema = createInsertSchema(usuarios).omit({
 
 export type InsertUsuario = z.infer<typeof insertUsuarioSchema>;
 export type Usuario = typeof usuarios.$inferSelect;
+
+// ─── BANCOS (fuente única de verdad) ─────────────────────────────────────────
+export const BANCOS_EMISOR = [
+  "0102 Banco de Venezuela",
+  "0104 Venezolano de Crédito",
+  "0105 Banco Mercantil",
+  "0108 Banco Provincial",
+  "0114 Bancaribe",
+  "0115 Banco Exterior",
+  "0116 Banco Occidental de Descuento",
+  "0128 Banco Caroní",
+  "0134 Banesco",
+  "0137 Banco Sofitasa",
+  "0138 Banco Plaza",
+  "0146 Bangente",
+  "0149 Banco del Pueblo Soberano",
+  "0151 BFC Banco Fondo Común",
+  "0156 100% Banco",
+  "0157 DELSUR Banco Universal",
+  "0163 Banco del Tesoro",
+  "0166 Banco Agrícola de Venezuela",
+  "0168 Bancrecer",
+  "0169 Mi Banco",
+  "0171 Banco Activo",
+  "0172 Bancamiga",
+  "0174 Banplus",
+  "0175 Bicentenario Banco Universal",
+  "0177 Banfanb",
+  "0191 BNC (Banco Nacional de Crédito)",
+];
+
+export const BANCOS_RECEPTOR = [
+  "0102 Banco de Venezuela",
+  "0134 Banesco",
+  "0191 BNC (Banco Nacional de Crédito)",
+];
+
+export const BANCOS_RECEPTOR_META = [
+  { codigo: "0102", nombre: "Banco de Venezuela", color: "blue" },
+  { codigo: "0134", nombre: "Banesco",            color: "violet" },
+  { codigo: "0191", nombre: "BNC",                color: "emerald" },
+];
+
+export function extractBancoCode(s: string): string {
+  return (s || "").trim().substring(0, 4);
+}

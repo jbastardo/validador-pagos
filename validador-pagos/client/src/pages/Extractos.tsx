@@ -6,12 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
-
-const BANCOS = [
-  { codigo: "0102", nombre: "Banco de Venezuela", color: "blue" },
-  { codigo: "0134", nombre: "Banesco",            color: "violet" },
-  { codigo: "0191", nombre: "BNC",                color: "emerald" },
-];
+import { BANCOS_RECEPTOR_META as BANCOS } from "@shared/schema";
 
 interface Movimiento {
   id: string; banco: string; fecha: string; monto: string;

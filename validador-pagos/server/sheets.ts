@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { extractBancoCode } from "../shared/schema";
 
 const SHEET_ID   = process.env.GOOGLE_SHEET_ID ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
 const TAB_PAGOS   = process.env.GOOGLE_SHEET_TAB ?? "Hoja 1";
@@ -169,7 +170,7 @@ export async function checkDuplicado(
         return (
           pRefNorm === refNorm &&
           pRefNorm !== "0000000000" &&
-          p.bancoReceptor.trim() === (bancoReceptor ?? "").trim()
+          extractBancoCode(p.bancoReceptor) === extractBancoCode(bancoReceptor ?? "")
         );
       });
       if (dup) return dup;

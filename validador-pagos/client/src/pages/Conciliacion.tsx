@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
+import { BANCOS_RECEPTOR, extractBancoCode } from "@shared/schema";
 
 interface Pago {
   id: string; fechaPago: string; tipoPago: string; bancoEmisor: string;
@@ -29,12 +30,6 @@ interface PagoDivisa {
   rif: string; factura: string; observaciones: string; estado: string;
   validadoPor: string; vendedor: string; creadoEn?: string; validadoEn?: string;
 }
-
-const BANCOS_RECEPTOR = [
-  "0102 Banco de Venezuela",
-  "0134 Banesco",
-  "0191 BNC (Banco Nacional de Crédito)",
-];
 
 const estadoColors: Record<string, string> = {
   Pendiente:             "bg-amber-100 text-amber-700 border-amber-200",
@@ -399,7 +394,7 @@ export default function Conciliacion() {
       || (filtroEstado === "PendienteCajero" ? (p.estado === "Verificado" && (!p.megasoft || p.megasoft === ""))
       : p.estado === filtroEstado);
     const mt = filtroTipo     === "todos" || p.tipoPago === filtroTipo;
-    const mb = filtroBanco    === "todos" || p.bancoReceptor === filtroBanco;
+    const mb = filtroBanco    === "todos" || extractBancoCode(p.bancoReceptor) === extractBancoCode(filtroBanco);
     const mv = filtroVendedor === "todos" || p.vendedor === filtroVendedor;
     const mf = filtroFactura  === "todos"
       || (filtroFactura === "SinFactura"  ? (!p.factura  || p.factura.trim()  === "")
