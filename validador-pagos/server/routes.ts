@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import multer from "multer";
 import {
-  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, checkDuplicado,
+  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado,
   deletePago, deletePagoDivisa, deleteUsuario,
   getUsuarios, addUsuario, updateUsuario,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
@@ -159,6 +159,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e: any) {
       console.error("Error updatePagoCajeroPendiente:", e.message);
       res.status(500).json({ message: "Error al actualizar pago" });
+    }
+  });
+
+  // Cajero edita factura y cliente en CUALQUIER estado (sin restricción de estado)
+  app.patch("/api/pagos/:id/factura-cliente", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const schema = z.object({
+        factura: z.string().optional().default(""),
+        cliente: z.string().optional().default(""),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
+      const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente);
+      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoFacturaCliente:", e.message);
+      res.status(500).json({ message: "Error al actualizar factura/cliente" });
     }
   });
 

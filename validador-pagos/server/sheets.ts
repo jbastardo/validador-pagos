@@ -117,9 +117,10 @@ export async function updatePagoCajeroPendiente(
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const autoAprueba = megasoft === "Sí";
-  const nuevoEstado   = autoAprueba ? "Verificado" : megasoft === "No" ? "Rechazado Megasoft" : pago.estado;
-  const nuevoValidado = autoAprueba ? cajeroEmail   : megasoft === "No" ? cajeroEmail : pago.validadoPor;
-  const validadoEnCajero = autoAprueba || megasoft === "No" ? new Date().toISOString() : (pago.validadoEn ?? "");
+  // Si cajero dice NO → pago queda Pendiente para que el contable lo valide
+  const nuevoEstado   = autoAprueba ? "Verificado" : pago.estado;
+  const nuevoValidado = autoAprueba ? cajeroEmail   : pago.validadoPor;
+  const validadoEnCajero = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
   const row = [
     pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif,
@@ -128,6 +129,19 @@ export async function updatePagoCajeroPendiente(
   ];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: validadoEnCajero };
+}
+
+export async function updatePagoFacturaCliente(id: string, factura: string, cliente: string): Promise<SheetPago|null> {
+  const pagos = await getPagos();
+  const pago = pagos.find(p => p.id === id);
+  if (!pago || !pago._rowIndex) return null;
+  const newFactura = factura || pago.factura;
+  const newCliente = cliente || (pago.cliente ?? "");
+  const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
+    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura, pago.estado,
+    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, pago.megasoft??"", pago.validadoEn??""];
+  await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  return { ...pago, factura: newFactura, cliente: newCliente };
 }
 
 export async function checkDuplicado(

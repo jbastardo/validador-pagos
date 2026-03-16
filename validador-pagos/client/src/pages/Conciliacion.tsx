@@ -100,6 +100,12 @@ export default function Conciliacion() {
   const [cajPendMega,    setCajPendMega]    = useState<"Sí" | "No" | "">("");
   const [cajPendOpen,    setCajPendOpen]    = useState(false);
 
+  // ── Modal cajero editar factura/cliente (cualquier estado) ──
+  const [cajFCPago,    setCajFCPago]    = useState<Pago | null>(null);
+  const [cajFCFactura, setCajFCFactura] = useState("");
+  const [cajFCCliente, setCajFCCliente] = useState("");
+  const [cajFCOpen,    setCajFCOpen]    = useState(false);
+
   // ── Modal aprobación Divisas ──
   const [selectedDiv,    setSelectedDiv]    = useState<PagoDivisa | null>(null);
   const [nuevoEstadoDiv, setNuevoEstadoDiv] = useState("");
@@ -195,6 +201,22 @@ export default function Conciliacion() {
         ? "Pago marcado como Rechazado por Megasoft"
         : "Datos actualizados en Google Sheets";
       toast({ title: msg });
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
+  });
+
+  // ── Mutación cajero factura/cliente (cualquier estado) ──
+  const cajFCMutation = useMutation({
+    mutationFn: async ({ id, factura, cliente }: { id: string; factura: string; cliente: string }) => {
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      setCajFCOpen(false);
+      toast({ title: "Factura/cliente actualizado en Google Sheets" });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
   });
@@ -313,6 +335,13 @@ export default function Conciliacion() {
     setCajPendOpen(true);
   };
 
+  const openCajeroFC = (p: Pago) => {
+    setCajFCPago(p);
+    setCajFCFactura(p.factura ?? "");
+    setCajFCCliente(p.cliente ?? "");
+    setCajFCOpen(true);
+  };
+
   // Formatea fecha ISO a formato local legible
   const fmtDateTime = (iso?: string) => {
     if (!iso) return "";
@@ -359,7 +388,7 @@ export default function Conciliacion() {
 
   const filtradosBs = (pagos ?? []).filter(p => {
     const q = busqueda.toLowerCase();
-    const mq = q === "" || [p.referencia, p.monto, p.bancoEmisor, p.celular, p.rif, p.factura, p.vendedor, p.fechaPago, p.cliente].some(v => v?.toLowerCase().includes(q));
+    const mq = q === "" || [p.referencia, p.monto, p.bancoEmisor, p.bancoReceptor, p.celular, p.rif, p.factura, p.vendedor, p.fechaPago, p.cliente].some(v => v?.toLowerCase().includes(q));
     const me = filtroEstado === "todos"
       || (filtroEstado === "PendienteCajero" ? (p.estado === "Verificado" && (!p.megasoft || p.megasoft === ""))
       : p.estado === filtroEstado);
@@ -536,19 +565,17 @@ export default function Conciliacion() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
                   <Input placeholder="Buscar por ref., monto, banco, cliente..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="pl-9"/>
                 </div>
-                {!isCajero && (
-                  <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                    <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Estado"/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="Pendiente">Pendiente</SelectItem>
-                      <SelectItem value="Verificado">Verificado</SelectItem>
-                      <SelectItem value="PendienteCajero">Sin validar Megasoft</SelectItem>
-                      <SelectItem value="Rechazado">Rechazado</SelectItem>
-                      <SelectItem value="Rechazado Megasoft">Rechazado Megasoft</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+                  <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Estado"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="Pendiente">Pendiente</SelectItem>
+                    <SelectItem value="Verificado">Verificado</SelectItem>
+                    <SelectItem value="PendienteCajero">Sin validar Megasoft</SelectItem>
+                    <SelectItem value="Rechazado">Rechazado</SelectItem>
+                    <SelectItem value="Rechazado Megasoft">Rechazado Megasoft</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={filtroFactura} onValueChange={setFiltroFactura}>
                   <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Factura / Cliente"/></SelectTrigger>
                   <SelectContent>
@@ -616,8 +643,7 @@ export default function Conciliacion() {
               const esPendiente         = p.estado === "Pendiente";
               const esVerificado        = p.estado === "Verificado";
               const esPendienteMegasoft = esVerificado && (!p.megasoft || p.megasoft.trim() === "");
-              // Cajero solo ve pagos pendientes de megasoft
-              if (isCajero && !esPendienteMegasoft) return null;
+              const faltaFacturaOCliente = (!p.factura || p.factura.trim() === "") || (!p.cliente || p.cliente.trim() === "");
               return (
                 <Card key={p.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="pt-4 pb-4">
@@ -650,18 +676,24 @@ export default function Conciliacion() {
                           <div><span className="text-xs text-muted-foreground">Banco Emisor</span><p className="font-medium">{p.bancoEmisor}</p></div>
                           <div><span className="text-xs text-muted-foreground">Banco Receptor</span><p className="font-medium">{p.bancoReceptor}</p></div>
                           <div><span className="text-xs text-muted-foreground">Referencia</span><p className="font-medium font-mono">{p.referencia}</p></div>
-                          {p.celular && <div><span className="text-xs text-muted-foreground">Celular</span><p className="font-medium">{p.celular}</p></div>}
+                          <div><span className="text-xs text-muted-foreground">Celular</span><p className="font-medium">{p.celular || "—"}</p></div>
                           {p.rif && <div><span className="text-xs text-muted-foreground">RIF</span><p className="font-medium">{p.rif}</p></div>}
-                          {p.factura && <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura}</p></div>}
-                          {p.cliente && <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente}</p></div>}
+                          <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura || "—"}</p></div>
+                          <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente || "—"}</p></div>
                           {p.observaciones && <div className="col-span-2"><span className="text-xs text-muted-foreground">Observaciones</span><p className="font-medium text-xs">{p.observaciones}</p></div>}
                         </div>
                       </div>
                       <div className="flex flex-row sm:flex-col gap-2 shrink-0">
-                        {/* ── Botón cajero Pendiente ── */}
+                        {/* ── Botón cajero Pendiente (validar megasoft) ── */}
                         {isCajero && esPendienteMegasoft && (
                           <Button size="sm" variant="outline" onClick={() => openCajeroPendiente(p)} className="gap-1.5 text-xs">
-                            <Receipt className="w-3.5 h-3.5"/> Ingresar Factura
+                            <Receipt className="w-3.5 h-3.5"/> Validar Megasoft
+                          </Button>
+                        )}
+                        {/* ── Botón cajero: editar factura/cliente en cualquier estado ── */}
+                        {isCajero && faltaFacturaOCliente && !esPendienteMegasoft && (
+                          <Button size="sm" variant="outline" onClick={() => openCajeroFC(p)} className="gap-1.5 text-xs">
+                            <Pencil className="w-3.5 h-3.5"/> Editar Factura
                           </Button>
                         )}
                         {/* ── Botón editar (supervisor, solo pendientes) ── */}
@@ -715,17 +747,15 @@ export default function Conciliacion() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
                   <Input placeholder="Buscar por nombre, ref., monto..." value={busqDiv} onChange={e => setBusqDiv(e.target.value)} className="pl-9"/>
                 </div>
-                {!isCajero && (
-                  <Select value={filtroEstDiv} onValueChange={setFiltroEstDiv}>
-                    <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Estado"/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="Pendiente">Pendiente</SelectItem>
-                      <SelectItem value="Verificado">Verificado</SelectItem>
-                      <SelectItem value="Rechazado">Rechazado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={filtroEstDiv} onValueChange={setFiltroEstDiv}>
+                  <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Estado"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="Pendiente">Pendiente</SelectItem>
+                    <SelectItem value="Verificado">Verificado</SelectItem>
+                    <SelectItem value="Rechazado">Rechazado</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={filtroTipoDiv} onValueChange={setFiltroTipoDiv}>
                   <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Tipo"/></SelectTrigger>
                   <SelectContent>
@@ -872,10 +902,13 @@ export default function Conciliacion() {
               <Select value={cajPendMega} onValueChange={v => setCajPendMega(v as "Sí" | "No")}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona"/></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Sí">Sí</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
+                  <SelectItem value="Sí">Sí — Aprobar pago</SelectItem>
+                  <SelectItem value="No">No — Dejar pendiente para contabilidad</SelectItem>
                 </SelectContent>
               </Select>
+              {cajPendMega === "No" && (
+                <p className="text-xs text-muted-foreground mt-1">El pago quedará pendiente de validación para que contabilidad lo revise.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -884,7 +917,7 @@ export default function Conciliacion() {
               onClick={() => cajPendPago && cajPendMutation.mutate({ id: cajPendPago.id, factura: cajPendFactura, cliente: cajPendCliente, megasoft: cajPendMega })}
               disabled={!cajPendMega || cajPendMutation.isPending}
             >
-              {cajPendMutation.isPending ? "Guardando..." : "Confirmar"}
+              {cajPendMutation.isPending ? "Guardando..." : cajPendMega === "Sí" ? "Aprobar" : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -921,6 +954,32 @@ export default function Conciliacion() {
               disabled={!cajeroMega || cajeroMutation.isPending}
             >
               {cajeroMutation.isPending ? "Guardando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══════════════ MODAL CAJERO FACTURA/CLIENTE ══════════════ */}
+      <Dialog open={cajFCOpen} onOpenChange={setCajFCOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Factura / Cliente</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-sm font-medium">Número de Factura</Label>
+              <Input value={cajFCFactura} onChange={e => setCajFCFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Nombre del Cliente</Label>
+              <Input value={cajFCCliente} onChange={e => setCajFCCliente(e.target.value)} placeholder="Nombre completo" className="mt-1"/>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCajFCOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => cajFCPago && cajFCMutation.mutate({ id: cajFCPago.id, factura: cajFCFactura, cliente: cajFCCliente })}
+              disabled={cajFCMutation.isPending}
+            >
+              {cajFCMutation.isPending ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
