@@ -21,7 +21,7 @@ const BANCOS_EMISOR = [
   "0151 Banco Fondo Común (BFC)","0156 100% Banco","0157 DELSUR Banco Universal",
   "0163 Banco del Tesoro","0166 Banco Agrícola de Venezuela","0168 Bancrecer",
   "0169 Mi Banco","0171 Banco Activo","0172 Bancamiga","0174 Banplus",
-  "0175 Bicentenario Banco Universal","0177 Banfanb",
+  "0175 Bicentenario Banco Universal","0177 Banfanb","0191 BNC (Banco Nacional de Crédito)",
 ];
 
 const BANCOS_RECEPTOR = [

@@ -104,6 +104,7 @@ export default function Conciliacion() {
   const [cajFCPago,    setCajFCPago]    = useState<Pago | null>(null);
   const [cajFCFactura, setCajFCFactura] = useState("");
   const [cajFCCliente, setCajFCCliente] = useState("");
+  const [cajFCMega,    setCajFCMega]    = useState<"Sí" | "No" | "">("");
   const [cajFCOpen,    setCajFCOpen]    = useState(false);
 
   // ── Modal aprobación Divisas ──
@@ -207,14 +208,15 @@ export default function Conciliacion() {
 
   // ── Mutación cajero factura/cliente (cualquier estado) ──
   const cajFCMutation = useMutation({
-    mutationFn: async ({ id, factura, cliente }: { id: string; factura: string; cliente: string }) => {
-      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente });
+    mutationFn: async ({ id, factura, cliente, megasoft }: { id: string; factura: string; cliente: string; megasoft: string }) => {
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente, megasoft });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message ?? "Error");
       return json;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setCajFCOpen(false);
       toast({ title: "Factura/cliente actualizado en Google Sheets" });
     },
@@ -339,6 +341,7 @@ export default function Conciliacion() {
     setCajFCPago(p);
     setCajFCFactura(p.factura ?? "");
     setCajFCCliente(p.cliente ?? "");
+    setCajFCMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajFCOpen(true);
   };
 
@@ -690,10 +693,10 @@ export default function Conciliacion() {
                             <Receipt className="w-3.5 h-3.5"/> Validar Megasoft
                           </Button>
                         )}
-                        {/* ── Botón cajero: editar factura/cliente en cualquier estado ── */}
-                        {isCajero && faltaFacturaOCliente && !esPendienteMegasoft && (
+                        {/* ── Botón cajero: editar factura/cliente/megasoft en cualquier estado ── */}
+                        {isCajero && !esPendienteMegasoft && (
                           <Button size="sm" variant="outline" onClick={() => openCajeroFC(p)} className="gap-1.5 text-xs">
-                            <Pencil className="w-3.5 h-3.5"/> Editar Factura
+                            <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
                         )}
                         {/* ── Botón editar (supervisor, solo pendientes) ── */}
@@ -959,7 +962,7 @@ export default function Conciliacion() {
         </DialogContent>
       </Dialog>
 
-      {/* ══════════════ MODAL CAJERO FACTURA/CLIENTE ══════════════ */}
+      {/* ══════════════ MODAL CAJERO FACTURA/CLIENTE/MEGASOFT ══════════════ */}
       <Dialog open={cajFCOpen} onOpenChange={setCajFCOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar Factura / Cliente</DialogTitle></DialogHeader>
@@ -972,11 +975,21 @@ export default function Conciliacion() {
               <Label className="text-sm font-medium">Nombre del Cliente</Label>
               <Input value={cajFCCliente} onChange={e => setCajFCCliente(e.target.value)} placeholder="Nombre completo" className="mt-1"/>
             </div>
+            <div>
+              <Label className="text-sm font-medium">¿Validado por Megasoft?</Label>
+              <Select value={cajFCMega} onValueChange={v => setCajFCMega(v as "Sí" | "No")}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona"/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sí">Sí</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCajFCOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => cajFCPago && cajFCMutation.mutate({ id: cajFCPago.id, factura: cajFCFactura, cliente: cajFCCliente })}
+              onClick={() => cajFCPago && cajFCMutation.mutate({ id: cajFCPago.id, factura: cajFCFactura, cliente: cajFCCliente, megasoft: cajFCMega })}
               disabled={cajFCMutation.isPending}
             >
               {cajFCMutation.isPending ? "Guardando..." : "Guardar"}

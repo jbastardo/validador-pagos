@@ -131,17 +131,18 @@ export async function updatePagoCajeroPendiente(
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: validadoEnCajero };
 }
 
-export async function updatePagoFacturaCliente(id: string, factura: string, cliente: string): Promise<SheetPago|null> {
+export async function updatePagoFacturaCliente(id: string, factura: string, cliente: string, megasoft?: string): Promise<SheetPago|null> {
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const newFactura = factura || pago.factura;
   const newCliente = cliente || (pago.cliente ?? "");
+  const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura, pago.estado,
-    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, pago.megasoft??"", pago.validadoEn??""];
+    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, pago.validadoEn??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
-  return { ...pago, factura: newFactura, cliente: newCliente };
+  return { ...pago, factura: newFactura, cliente: newCliente, megasoft: newMegasoft };
 }
 
 export async function checkDuplicado(
