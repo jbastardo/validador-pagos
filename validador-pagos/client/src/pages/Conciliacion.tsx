@@ -20,7 +20,7 @@ interface Pago {
   monto: string; celular: string; bancoReceptor: string; referencia: string;
   rif: string; factura: string; estado: string; validadoPor: string;
   vendedor: string; observaciones: string; cliente: string; megasoft: string;
-  creadoEn?: string; validadoEn?: string; conciliadoEn?: string;
+  creadoEn?: string; validadoEn?: string; conciliadoEn?: string; conciliadoPor?: string;
 }
 
 interface PagoDivisa {
@@ -457,7 +457,7 @@ export default function Conciliacion() {
   const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor";
 
   // Componente tooltip de auditoría — se posiciona sobre el ícono usando getBoundingClientRect
-  const AuditTooltip = ({ vendedor, creadoEn, validadoPor, validadoEn, estado }: { vendedor?: string; creadoEn?: string; validadoPor?: string; validadoEn?: string; estado?: string }) => {
+  const AuditTooltip = ({ vendedor, creadoEn, validadoPor, validadoEn, estado, conciliadoEn, conciliadoPor }: { vendedor?: string; creadoEn?: string; validadoPor?: string; validadoEn?: string; estado?: string; conciliadoEn?: string; conciliadoPor?: string }) => {
     const [show, setShow] = useState(false);
     const [pos, setPos]   = useState<{ top: number; left: number; above: boolean }>({ top: 0, left: 0, above: true });
     const iconRef = useRef<HTMLDivElement>(null);
@@ -519,6 +519,18 @@ export default function Conciliacion() {
                     )}
                   </div>
                 </>
+              )}
+              {conciliadoEn && conciliadoEn.trim() !== "" && (
+                <div className="border-t border-border pt-2 mt-1 space-y-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-muted-foreground">Conciliado por</span>
+                    <span className="font-medium text-teal-700 break-all">{conciliadoPor || "—"}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-muted-foreground">Fecha y hora de conciliación</span>
+                    <span className="font-medium text-foreground">{fmtDateTime(conciliadoEn)}</span>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -673,6 +685,8 @@ export default function Conciliacion() {
                               validadoPor={p.validadoPor}
                               validadoEn={p.validadoEn}
                               estado={p.estado}
+                              conciliadoEn={p.conciliadoEn}
+                              conciliadoPor={p.conciliadoPor}
                             />
                           )}
                         </div>

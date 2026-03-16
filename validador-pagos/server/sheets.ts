@@ -54,7 +54,7 @@ export interface SheetPago {
   monto: string; celular: string; bancoReceptor: string; referencia: string;
   rif: string; factura: string; estado: string; validadoPor: string;
   vendedor: string; observaciones: string; creadoEn: string;
-  cliente: string; megasoft: string; validadoEn: string; conciliadoEn?: string; _rowIndex?: number;
+  cliente: string; megasoft: string; validadoEn: string; conciliadoEn?: string; conciliadoPor?: string; _rowIndex?: number;
 }
 
 export async function getPagos(): Promise<SheetPago[]> {
@@ -66,7 +66,7 @@ export async function getPagos(): Promise<SheetPago[]> {
       monto: row[4]??"", celular: row[5]??"", bancoReceptor: row[6]??"", referencia: row[7]??"",
       rif: row[8]??"", factura: row[9]??"", estado: row[10]??"", validadoPor: row[11]??"",
       vendedor: row[12]??"", observaciones: row[13]??"", creadoEn: row[14]??"",
-      cliente: row[15]??"", megasoft: row[16]??"", validadoEn: row[17]??"", conciliadoEn: row[18]??"", _rowIndex: i + 2,
+      cliente: row[15]??"", megasoft: row[16]??"", validadoEn: row[17]??"", conciliadoEn: row[18]??"", conciliadoPor: row[19]??"", _rowIndex: i + 2,
     }))
     .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
 }
@@ -93,7 +93,7 @@ export async function updatePagoEstado(id: string, estado: string, validadoPor: 
   const validadoEn = new Date().toISOString();
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, pago.factura,
-    estado, validadoPor, pago.vendedor, observaciones, pago.creadoEn, pago.cliente??"", pago.megasoft??"", validadoEn];
+    estado, validadoPor, pago.vendedor, observaciones, pago.creadoEn, pago.cliente??"", pago.megasoft??"", validadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, estado, validadoPor, observaciones, validadoEn };
 }
@@ -105,7 +105,7 @@ export async function updatePagoCajero(id: string, factura: string, megasoft: st
   const clienteVal = (cliente !== undefined && cliente !== "") ? cliente : (pago.cliente ?? "");
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, factura || pago.factura,
-    pago.estado, pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, megasoft, pago.validadoEn??""];
+    pago.estado, pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, megasoft, pago.validadoEn??"", pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, factura: factura || pago.factura, megasoft, cliente: clienteVal };
 }
@@ -125,7 +125,7 @@ export async function updatePagoCajeroPendiente(
     pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif,
     factura || pago.factura, nuevoEstado, nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn,
-    cliente || (pago.cliente ?? ""), megasoft, validadoEnCajero,
+    cliente || (pago.cliente ?? ""), megasoft, validadoEnCajero, pago.conciliadoEn??"", pago.conciliadoPor??"",
   ];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: validadoEnCajero };
@@ -145,7 +145,7 @@ export async function updatePagoFacturaCliente(id: string, factura: string, clie
   const nuevoValidadoEn = autoAprueba ? new Date().toISOString()   : (pago.validadoEn ?? "");
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura, nuevoEstado,
-    nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, nuevoValidadoEn];
+    nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, factura: newFactura, cliente: newCliente, megasoft: newMegasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
@@ -270,7 +270,7 @@ export async function updatePagoEdicion(id: string, data: { fechaPago: string; b
   const clienteVal = data.cliente !== undefined ? data.cliente : (pago.cliente ?? "");
   const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto,
     data.celular, data.bancoReceptor, data.referencia, pago.rif, pago.factura, pago.estado,
-    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, pago.megasoft??"", pago.validadoEn??""];
+    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, pago.megasoft??"", pago.validadoEn??"", pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, ...data, cliente: clienteVal };
 }
