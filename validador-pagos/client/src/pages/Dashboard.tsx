@@ -84,25 +84,25 @@ export default function Dashboard() {
       {/* ── Header compacto con filtro ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-lg font-bold leading-tight">Dashboard</h1>
-          <p className="text-xs text-muted-foreground">{user?.nombre} · {new Date().toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" })}</p>
+          <h1 className="text-xl font-bold leading-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">{user?.nombre} · {new Date().toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" })}</p>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <CalendarDays className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <div className="flex items-center gap-1">
-            <Label className="text-[10px] text-muted-foreground">Desde</Label>
-            <Input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="h-6 text-[11px] w-32 px-1.5"/>
+            <Label className="text-[12px] text-muted-foreground">Desde</Label>
+            <Input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="h-6 text-[13px] w-32 px-1.5"/>
           </div>
           <div className="flex items-center gap-1">
-            <Label className="text-[10px] text-muted-foreground">Hasta</Label>
-            <Input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} className="h-6 text-[11px] w-32 px-1.5"/>
+            <Label className="text-[12px] text-muted-foreground">Hasta</Label>
+            <Input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} className="h-6 text-[13px] w-32 px-1.5"/>
           </div>
           {hayFiltro && (
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5" onClick={() => { setFechaDesde(""); setFechaHasta(""); }}>
+            <Button variant="ghost" size="sm" className="h-6 text-[12px] px-1.5" onClick={() => { setFechaDesde(""); setFechaHasta(""); }}>
               Limpiar
             </Button>
           )}
-          {hayFiltro && <span className="text-[10px] text-primary font-medium">{pagos.length}/{allPagos?.length ?? 0}</span>}
+          {hayFiltro && <span className="text-[12px] text-primary font-medium">{pagos.length}/{allPagos?.length ?? 0}</span>}
         </div>
       </div>
 
@@ -117,8 +117,8 @@ export default function Dashboard() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-wide opacity-80">Total Operaciones</p>
-                <p className="text-3xl font-extrabold leading-none mt-1">{stats?.total ?? 0}</p>
+                <p className="text-[12px] font-medium uppercase tracking-wide opacity-80">Total Operaciones</p>
+                <p className="text-4xl font-extrabold leading-none mt-1">{stats?.total ?? 0}</p>
               </div>
               <BarChart3 className="w-7 h-7 opacity-40" />
             </div>
@@ -129,8 +129,8 @@ export default function Dashboard() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-wide opacity-80">Pendientes</p>
-                <p className="text-3xl font-extrabold leading-none mt-1">{stats?.pendientes ?? 0}</p>
+                <p className="text-[12px] font-medium uppercase tracking-wide opacity-80">Pendientes</p>
+                <p className="text-4xl font-extrabold leading-none mt-1">{stats?.pendientes ?? 0}</p>
               </div>
               <Clock className="w-7 h-7 opacity-40" />
             </div>
@@ -141,23 +141,23 @@ export default function Dashboard() {
             CAJA / MONTO — segunda prioridad
             ══════════════════════════════════════════════════════════ */}
         <div className="rounded-lg border bg-card p-2.5">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Caja</p>
+          <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Caja</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-primary/5 rounded-md px-2.5 py-1.5">
-              <p className="text-[10px] text-muted-foreground">Monto Total</p>
-              <p className="text-sm font-bold">Bs. {fmt(stats?.montoTotal ?? 0)}</p>
+              <p className="text-[12px] text-muted-foreground">Monto Total</p>
+              <p className="text-base font-bold">Bs. {fmt(stats?.montoTotal ?? 0)}</p>
             </div>
             <button onClick={() => irAConciliacion("Verificado")} className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 text-left hover:bg-green-100 transition-colors">
-              <p className="text-[10px] text-green-600">Verificados</p>
-              <p className="text-sm font-bold text-green-700">{stats?.verificados ?? 0}</p>
+              <p className="text-[12px] text-green-600">Verificados</p>
+              <p className="text-base font-bold text-green-700">{stats?.verificados ?? 0}</p>
             </button>
             <button onClick={() => irAConciliacion("PagoMovil")} className="bg-blue-50 dark:bg-blue-950/20 rounded-md px-2.5 py-1.5 text-left hover:bg-blue-100 transition-colors">
-              <p className="text-[10px] text-blue-600">Pago Móvil</p>
-              <p className="text-sm font-bold text-blue-700">{stats?.pagoMovil ?? 0}</p>
+              <p className="text-[12px] text-blue-600">Pago Móvil</p>
+              <p className="text-base font-bold text-blue-700">{stats?.pagoMovil ?? 0}</p>
             </button>
             <button onClick={() => irAConciliacion("Transferencia")} className="bg-emerald-50 dark:bg-emerald-950/20 rounded-md px-2.5 py-1.5 text-left hover:bg-emerald-100 transition-colors">
-              <p className="text-[10px] text-emerald-600">Transferencias</p>
-              <p className="text-sm font-bold text-emerald-700">{stats?.transferencias ?? 0}</p>
+              <p className="text-[12px] text-emerald-600">Transferencias</p>
+              <p className="text-base font-bold text-emerald-700">{stats?.transferencias ?? 0}</p>
             </button>
           </div>
         </div>
@@ -166,18 +166,18 @@ export default function Dashboard() {
             ESTADOS SECUNDARIOS — fila compacta
             ══════════════════════════════════════════════════════════ */}
         <div className="flex flex-wrap gap-1.5">
-          <button onClick={() => irAConciliacion("Rechazado")} className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs hover:bg-red-50 transition-colors">
+          <button onClick={() => irAConciliacion("Rechazado")} className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm hover:bg-red-50 transition-colors">
             <XCircle className="w-3.5 h-3.5 text-red-500" />
             <span className="text-muted-foreground">Rechazados</span>
             <span className="font-bold text-red-600">{stats?.rechazados ?? 0}</span>
           </button>
-          <button onClick={() => irAConciliacion("Rechazado Megasoft")} className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs hover:bg-orange-50 transition-colors">
+          <button onClick={() => irAConciliacion("Rechazado Megasoft")} className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm hover:bg-orange-50 transition-colors">
             <ShieldOff className="w-3.5 h-3.5 text-orange-500" />
             <span className="text-muted-foreground">Rech. Megasoft</span>
             <span className="font-bold text-orange-600">{stats?.rechazadosMegasoft ?? 0}</span>
           </button>
           {(stats?.sinFactura ?? 0) > 0 && (
-            <button onClick={() => irAConciliacion("SinFactura")} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-xs hover:bg-rose-100 transition-colors">
+            <button onClick={() => irAConciliacion("SinFactura")} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-sm hover:bg-rose-100 transition-colors">
               <FileX className="w-3.5 h-3.5 text-rose-500" />
               <span className="text-rose-600">Sin factura</span>
               <span className="font-bold text-rose-700">{stats?.sinFactura}</span>
@@ -189,31 +189,31 @@ export default function Dashboard() {
             MEGASOFT — compacto en 1 card
             ══════════════════════════════════════════════════════════ */}
         <div className="rounded-lg border bg-card p-2.5">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Validación Megasoft</p>
+          <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Validación Megasoft</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 border border-green-200/50">
               <div className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-green-600" />
-                <p className="text-[10px] text-green-600">Aprobados</p>
+                <p className="text-[12px] text-green-600">Aprobados</p>
               </div>
-              <p className="text-sm font-bold text-green-700">{stats?.megasoftSi ?? 0}</p>
-              <p className="text-[10px] text-green-500">Bs. {fmt(stats?.montoMegasoftSi ?? 0)}</p>
+              <p className="text-base font-bold text-green-700">{stats?.megasoftSi ?? 0}</p>
+              <p className="text-[12px] text-green-500">Bs. {fmt(stats?.montoMegasoftSi ?? 0)}</p>
             </div>
             <div className="bg-orange-50 dark:bg-orange-950/20 rounded-md px-2.5 py-1.5 border border-orange-200/50">
               <div className="flex items-center gap-1">
                 <ShieldOff className="w-3 h-3 text-orange-600" />
-                <p className="text-[10px] text-orange-600">Rechazados</p>
+                <p className="text-[12px] text-orange-600">Rechazados</p>
               </div>
-              <p className="text-sm font-bold text-orange-700">{stats?.rechazadosMegasoft ?? 0}</p>
-              <p className="text-[10px] text-orange-500">Cajero marcó No</p>
+              <p className="text-base font-bold text-orange-700">{stats?.rechazadosMegasoft ?? 0}</p>
+              <p className="text-[12px] text-orange-500">Cajero marcó No</p>
             </div>
             <div className="bg-red-50 dark:bg-red-950/20 rounded-md px-2.5 py-1.5 border border-red-200/50">
               <div className="flex items-center gap-1">
                 <ShieldX className="w-3 h-3 text-red-600" />
-                <p className="text-[10px] text-red-600">No validados</p>
+                <p className="text-[12px] text-red-600">No validados</p>
               </div>
-              <p className="text-sm font-bold text-red-700">{stats?.megasoftNo ?? 0}</p>
-              <p className="text-[10px] text-red-500">Valid. por contabilidad</p>
+              <p className="text-base font-bold text-red-700">{stats?.megasoftNo ?? 0}</p>
+              <p className="text-[12px] text-red-500">Valid. por contabilidad</p>
             </div>
             <button
               onClick={() => irAConciliacion("PendienteCajero")}
@@ -221,10 +221,10 @@ export default function Dashboard() {
             >
               <div className="flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3 text-amber-600" />
-                <p className="text-[10px] text-amber-600">Sin validar</p>
+                <p className="text-[12px] text-amber-600">Sin validar</p>
               </div>
-              <p className="text-sm font-bold text-amber-700">{stats?.megasoftPendiente ?? 0}</p>
-              <p className="text-[10px] text-amber-600 font-medium">Ver →</p>
+              <p className="text-base font-bold text-amber-700">{stats?.megasoftPendiente ?? 0}</p>
+              <p className="text-[12px] text-amber-600 font-medium">Ver →</p>
             </button>
           </div>
         </div>
@@ -233,28 +233,28 @@ export default function Dashboard() {
             DIVISAS — fila compacta
             ══════════════════════════════════════════════════════════ */}
         <div className="rounded-lg border bg-card p-2.5">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Divisas</p>
+          <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Divisas</p>
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-violet-50 dark:bg-violet-950/20 rounded-md px-2.5 py-1.5">
               <div className="flex items-center gap-1">
                 <Coins className="w-3 h-3 text-violet-600" />
-                <p className="text-[10px] text-violet-600">Total</p>
+                <p className="text-[12px] text-violet-600">Total</p>
               </div>
-              <p className="text-sm font-bold text-violet-700">{stats?.totalDivisas ?? 0}</p>
+              <p className="text-base font-bold text-violet-700">{stats?.totalDivisas ?? 0}</p>
             </div>
             <div className="bg-amber-50 dark:bg-amber-950/20 rounded-md px-2.5 py-1.5">
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3 text-amber-600" />
-                <p className="text-[10px] text-amber-600">Pendientes</p>
+                <p className="text-[12px] text-amber-600">Pendientes</p>
               </div>
-              <p className="text-sm font-bold text-amber-700">{stats?.pendientesDivisas ?? 0}</p>
+              <p className="text-base font-bold text-amber-700">{stats?.pendientesDivisas ?? 0}</p>
             </div>
             <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-md px-2.5 py-1.5">
               <div className="flex items-center gap-1">
                 <DollarSign className="w-3 h-3 text-emerald-600" />
-                <p className="text-[10px] text-emerald-600">Monto</p>
+                <p className="text-[12px] text-emerald-600">Monto</p>
               </div>
-              <p className="text-sm font-bold text-emerald-700">${fmt(stats?.montoDivisas ?? 0)}</p>
+              <p className="text-base font-bold text-emerald-700">${fmt(stats?.montoDivisas ?? 0)}</p>
             </div>
           </div>
         </div>
@@ -266,7 +266,7 @@ export default function Dashboard() {
       <div>
         <button
           onClick={() => setShowCharts(!showCharts)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
         >
           {showCharts ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           <span className="font-medium">{showCharts ? "Ocultar gráficos" : "Ver gráficos"}</span>
@@ -274,12 +274,12 @@ export default function Dashboard() {
         {showCharts && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card className="shadow-none">
-              <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-semibold">Pagos por Banco Receptor</CardTitle></CardHeader>
-              <CardContent className="px-3 pb-3">{pL ? <Skeleton className="h-36"/> : <ResponsiveContainer width="100%" height={160}><BarChart data={bancoData} margin={{top:5,right:5,left:-20,bottom:45}}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="name" tick={{fontSize:9}} angle={-30} textAnchor="end"/><YAxis tick={{fontSize:9}}/><Tooltip formatter={v=>[v,"Pagos"]}/><Bar dataKey="count" fill="#0A4083" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer>}</CardContent>
+              <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-sm font-semibold">Pagos por Banco Receptor</CardTitle></CardHeader>
+              <CardContent className="px-3 pb-3">{pL ? <Skeleton className="h-36"/> : <ResponsiveContainer width="100%" height={160}><BarChart data={bancoData} margin={{top:5,right:5,left:-20,bottom:45}}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="name" tick={{fontSize:11}} angle={-30} textAnchor="end"/><YAxis tick={{fontSize:11}}/><Tooltip formatter={v=>[v,"Pagos"]}/><Bar dataKey="count" fill="#0A4083" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer>}</CardContent>
             </Card>
             <Card className="shadow-none">
-              <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-semibold">Tipo de Pago</CardTitle></CardHeader>
-              <CardContent className="px-3 pb-3">{sL ? <Skeleton className="h-36"/> : <ResponsiveContainer width="100%" height={160}><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={4} dataKey="value">{pieData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Legend formatter={v=><span className="text-[10px]">{v}</span>}/><Tooltip formatter={v=>[v,"Pagos"]}/></PieChart></ResponsiveContainer>}</CardContent>
+              <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-sm font-semibold">Tipo de Pago</CardTitle></CardHeader>
+              <CardContent className="px-3 pb-3">{sL ? <Skeleton className="h-36"/> : <ResponsiveContainer width="100%" height={160}><PieChart><Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={4} dataKey="value">{pieData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie><Legend formatter={v=><span className="text-[12px]">{v}</span>}/><Tooltip formatter={v=>[v,"Pagos"]}/></PieChart></ResponsiveContainer>}</CardContent>
             </Card>
           </div>
         )}
@@ -289,11 +289,11 @@ export default function Dashboard() {
           TABLA — compacta
           ══════════════════════════════════════════════════════════ */}
       <Card className="shadow-none">
-        <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-xs font-semibold">Últimos Registros{hayFiltro ? ` (filtrados)` : ""}</CardTitle></CardHeader>
+        <CardHeader className="pb-1 pt-3 px-3"><CardTitle className="text-sm font-semibold">Últimos Registros{hayFiltro ? ` (filtrados)` : ""}</CardTitle></CardHeader>
         <CardContent className="px-3 pb-3">
           {pL ? <div className="space-y-1.5">{[...Array(3)].map((_,i)=><Skeleton key={i} className="h-8"/>)}</div> : (
             <div className="overflow-x-auto">
-              <table className="w-full text-[11px]">
+              <table className="w-full text-[13px]">
                 <thead><tr className="border-b border-border">
                   <th className="text-left py-1.5 px-1.5 text-muted-foreground font-medium">Fecha</th>
                   <th className="text-left py-1.5 px-1.5 text-muted-foreground font-medium">Tipo</th>
@@ -305,13 +305,13 @@ export default function Dashboard() {
                   {pagos.slice(0,5).map(p=>(
                     <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                       <td className="py-1 px-1.5">{p.fechaPago}</td>
-                      <td className="py-1 px-1.5"><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${p.tipoPago==="PagoMovil"?"bg-blue-100 text-blue-700":"bg-emerald-100 text-emerald-700"}`}>{p.tipoPago==="PagoMovil"?"Móvil":"Transf."}</span></td>
+                      <td className="py-1 px-1.5"><span className={`px-1.5 py-0.5 rounded text-[12px] font-medium ${p.tipoPago==="PagoMovil"?"bg-blue-100 text-blue-700":"bg-emerald-100 text-emerald-700"}`}>{p.tipoPago==="PagoMovil"?"Móvil":"Transf."}</span></td>
                       <td className="py-1 px-1.5 font-mono font-semibold">{parseFloat(p.monto).toLocaleString("es-ES",{minimumFractionDigits:2})}</td>
                       <td className="py-1 px-1.5 hidden md:table-cell text-muted-foreground">{p.bancoEmisor}</td>
-                      <td className="py-1 px-1.5"><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${estadoColor[p.estado]??""}`}>{p.estado}</span></td>
+                      <td className="py-1 px-1.5"><span className={`px-1.5 py-0.5 rounded text-[12px] font-medium ${estadoColor[p.estado]??""}`}>{p.estado}</span></td>
                     </tr>
                   ))}
-                  {pagos.length===0&&<tr><td colSpan={5} className="text-center py-4 text-muted-foreground text-xs">No hay pagos{hayFiltro ? " en el rango seleccionado" : " registrados"}</td></tr>}
+                  {pagos.length===0&&<tr><td colSpan={5} className="text-center py-4 text-muted-foreground text-sm">No hay pagos{hayFiltro ? " en el rango seleccionado" : " registrados"}</td></tr>}
                 </tbody>
               </table>
             </div>
