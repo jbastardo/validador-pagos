@@ -88,6 +88,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         marcarUsado(matchId).catch(e => console.warn("marcarUsado error:", e.message));
       }
 
+      // Notificar al conciliador para auto-validación contra extractos bancarios
+      // Requiere variable de entorno CONCILIADOR_URL apuntando a la URL del conciliador (ej: https://conciliador-app.up.railway.app)
+      const CONCILIADOR_URL = process.env.CONCILIADOR_URL || "";
+      if (CONCILIADOR_URL) {
+        fetch(`${CONCILIADOR_URL}/api/auto-validar-pago`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            banco: data.bancoReceptor,
+            referencia: data.referencia,
+            monto: data.monto,
+            fecha: data.fechaPago,
+          }),
+        }).catch(err => console.warn("[webhook conciliador] Error:", err.message));
+      }
+
       res.status(201).json({ ...nuevo, autoConciliado: !!matchId });
     } catch (e: any) {
       console.error("Error addPago:", e.message);
