@@ -336,9 +336,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ===== STATS =====
-  app.get("/api/stats", async (_req, res) => {
+  function toISO(d: string): string {
+    if (!d) return "";
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10);
+    const parts = d.split("/");
+    if (parts.length !== 3) return d;
+    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+  }
+
+  app.get("/api/stats", async (req, res) => {
     try {
-      const [pagos, divisas] = await Promise.all([getPagos(), getPagosDivisas()]);
+      let [pagos, divisas] = await Promise.all([getPagos(), getPagosDivisas()]);
+      const { fechaDesde, fechaHasta } = req.query as Record<string, string>;
+      if (fechaDesde) {
+        pagos = pagos.filter(p => toISO(p.fechaPago) >= fechaDesde);
+        divisas = divisas.filter(p => toISO(p.fecha) >= fechaDesde);
+      }
+      if (fechaHasta) {
+        pagos = pagos.filter(p => toISO(p.fechaPago) <= fechaHasta);
+        divisas = divisas.filter(p => toISO(p.fecha) <= fechaHasta);
+      }
       const verificados = pagos.filter(p => p.estado === "Verificado");
       res.json({
         total:             pagos.length,

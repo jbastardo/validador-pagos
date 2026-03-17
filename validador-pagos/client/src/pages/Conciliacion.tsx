@@ -816,9 +816,8 @@ export default function Conciliacion() {
                   <SelectContent>
                     <SelectItem value="todos">Todos los tipos</SelectItem>
                     <SelectItem value="Zelle">Zelle</SelectItem>
-                    <SelectItem value="PayPal">PayPal</SelectItem>
-                    <SelectItem value="Efectivo">Efectivo</SelectItem>
-                    <SelectItem value="Transferencia">Transferencia</SelectItem>
+                    <SelectItem value="Binance">Binance</SelectItem>
+                    <SelectItem value="Banesco Panamá">Banesco Panamá</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -1146,9 +1145,8 @@ export default function Conciliacion() {
                 <SelectTrigger className="mt-1"><SelectValue/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Zelle">Zelle</SelectItem>
-                  <SelectItem value="PayPal">PayPal</SelectItem>
-                  <SelectItem value="Efectivo">Efectivo</SelectItem>
-                  <SelectItem value="Transferencia">Transferencia</SelectItem>
+                  <SelectItem value="Binance">Binance</SelectItem>
+                  <SelectItem value="Banesco Panamá">Banesco Panamá</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -18,7 +19,12 @@ interface Stats {
 export default function Dashboard() {
   const { user } = useAuth();
   const [, navigate] = useHashLocation();
-  const { data: stats, isLoading: sL } = useQuery<Stats>({ queryKey: ["/api/stats"] });
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const queryKey = fechaDesde || fechaHasta
+    ? [`/api/stats?${new URLSearchParams({ ...(fechaDesde && { fechaDesde }), ...(fechaHasta && { fechaHasta }) }).toString()}`]
+    : ["/api/stats"];
+  const { data: stats, isLoading: sL } = useQuery<Stats>({ queryKey });
 
   // ⚠️ WARNING: wouter pone query params en window.location.search, no en el hash.
   // Conciliacion.tsx debe leer de window.location.search para obtener los filtros.
@@ -34,6 +40,20 @@ export default function Dashboard() {
       <div>
         <h1 className="text-xl font-bold leading-tight">Dashboard</h1>
         <p className="text-sm text-muted-foreground">{user?.nombre} · {new Date().toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" })}</p>
+      </div>
+
+      {/* ── Selector de fechas ── */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-muted-foreground">Desde</label>
+          <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+            className="h-8 rounded-md border bg-background px-2 text-sm" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-muted-foreground">Hasta</label>
+          <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+            className="h-8 rounded-md border bg-background px-2 text-sm" />
+        </div>
       </div>
 
       {sL ? <Skeleton className="h-16 rounded-lg"/> : <>
