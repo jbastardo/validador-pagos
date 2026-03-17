@@ -7,7 +7,6 @@ import { DollarSign, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,7 +22,7 @@ const schema = z.object({
   tipo:          z.string().min(1, "Tipo de pago requerido"),
   referencia:    z.string().optional(),
   cliente:       z.string().optional(),
-  rif:           z.string().optional(),
+  rif:           z.string().min(1, "CI / RIF es obligatorio"),
   factura:       z.string().optional(),
   observaciones: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -144,17 +143,6 @@ export default function RegistrarDivisas() {
                 </FormControl><FormMessage /></FormItem>
               )} />
 
-              <FormField control={form.control} name="tipo" render={({ field }) => (
-                <FormItem><FormLabel>Tipo de Pago</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona el tipo" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {TIPOS_DIVISA.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select><FormMessage />
-                </FormItem>
-              )} />
-
               <FormField control={form.control} name="referencia" render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -174,8 +162,8 @@ export default function RegistrarDivisas() {
               )} />
 
               <FormField control={form.control} name="rif" render={({ field }) => (
-                <FormItem><FormLabel>RIF (opcional)</FormLabel><FormControl>
-                  <Input placeholder="J-123456789" {...field} data-testid="input-rif-div" />
+                <FormItem><FormLabel>CI / RIF <span className="text-red-500">*</span></FormLabel><FormControl>
+                  <Input placeholder="J-12345678-9 o V-12345678-9" {...field} data-testid="input-rif-div" />
                 </FormControl><FormMessage /></FormItem>
               )} />
 

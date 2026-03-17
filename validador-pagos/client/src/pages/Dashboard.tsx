@@ -18,7 +18,9 @@ interface Stats {
   megasoftSi: number; megasoftNo: number; megasoftPendiente: number; montoMegasoftSi: number;
   rechazadosMegasoft: number;
   sinFactura: number;
+  montoPendientesBs: number;
   totalDivisas: number; pendientesDivisas: number; montoDivisas: number;
+  montoPendientesDivisas: number;
 }
 
 const estadoColor: Record<string, string> = { Pendiente: "bg-amber-100 text-amber-700", Verificado: "bg-green-100 text-green-700", Rechazado: "bg-red-100 text-red-700", "Rechazado Megasoft": "bg-orange-100 text-orange-700" };
@@ -63,9 +65,11 @@ export default function Dashboard() {
       megasoftPendiente: verificados.filter(p => !p.megasoft || p.megasoft === "").length,
       montoMegasoftSi:   verificados.filter(p => p.megasoft === "Sí").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
       sinFactura:        pagos.filter(p => p.estado !== "Rechazado" && p.estado !== "Rechazado Megasoft" && (!p.factura || p.factura.trim() === "")).length,
+      montoPendientesBs: pagos.filter(p => p.estado === "Pendiente").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
       totalDivisas:      rawStats?.totalDivisas ?? 0,
       pendientesDivisas: rawStats?.pendientesDivisas ?? 0,
       montoDivisas:      rawStats?.montoDivisas ?? 0,
+      montoPendientesDivisas: rawStats?.montoPendientesDivisas ?? 0,
     };
   }, [hayFiltro, rawStats, pagos, allPagos]);
 
@@ -132,6 +136,8 @@ export default function Dashboard() {
               <div>
                 <p className="text-[12px] font-medium uppercase tracking-wide opacity-80">Pendientes</p>
                 <p className="text-4xl font-extrabold leading-none mt-1">{stats?.pendientes ?? 0}</p>
+                <p className="text-[11px] opacity-90 mt-1">Bs. {fmt(stats?.montoPendientesBs ?? 0)}</p>
+                <p className="text-[11px] opacity-90">${fmt(stats?.montoPendientesDivisas ?? 0)}</p>
               </div>
               <Clock className="w-7 h-7 opacity-40" />
             </div>
@@ -172,11 +178,6 @@ export default function Dashboard() {
             <span className="text-muted-foreground">Rechazados</span>
             <span className="font-bold text-red-600">{stats?.rechazados ?? 0}</span>
           </button>
-          <button onClick={() => irAConciliacion("Rechazado Megasoft")} className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm hover:bg-orange-50 transition-colors">
-            <ShieldOff className="w-3.5 h-3.5 text-orange-500" />
-            <span className="text-muted-foreground">Rech. Megasoft</span>
-            <span className="font-bold text-orange-600">{stats?.rechazadosMegasoft ?? 0}</span>
-          </button>
           {(stats?.sinFactura ?? 0) > 0 && (
             <button onClick={() => irAConciliacion("SinFactura")} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-sm hover:bg-rose-100 transition-colors">
               <FileX className="w-3.5 h-3.5 text-rose-500" />
@@ -191,30 +192,21 @@ export default function Dashboard() {
             ══════════════════════════════════════════════════════════ */}
         <div className="rounded-lg border bg-card p-2.5">
           <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Validación Megasoft</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 border border-green-200/50">
               <div className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-green-600" />
-                <p className="text-[12px] text-green-600">Aprobados</p>
+                <p className="text-[12px] text-green-600">Aprobados por Megasoft</p>
               </div>
               <p className="text-base font-bold text-green-700">{stats?.megasoftSi ?? 0}</p>
               <p className="text-[12px] text-green-500">Bs. {fmt(stats?.montoMegasoftSi ?? 0)}</p>
             </div>
-            <div className="bg-orange-50 dark:bg-orange-950/20 rounded-md px-2.5 py-1.5 border border-orange-200/50">
+            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-md px-2.5 py-1.5 border border-blue-200/50">
               <div className="flex items-center gap-1">
-                <ShieldOff className="w-3 h-3 text-orange-600" />
-                <p className="text-[12px] text-orange-600">Rechazados</p>
+                <ShieldX className="w-3 h-3 text-blue-600" />
+                <p className="text-[12px] text-blue-600">Transferidos a contabilidad</p>
               </div>
-              <p className="text-base font-bold text-orange-700">{stats?.rechazadosMegasoft ?? 0}</p>
-              <p className="text-[12px] text-orange-500">Cajero marcó No</p>
-            </div>
-            <div className="bg-red-50 dark:bg-red-950/20 rounded-md px-2.5 py-1.5 border border-red-200/50">
-              <div className="flex items-center gap-1">
-                <ShieldX className="w-3 h-3 text-red-600" />
-                <p className="text-[12px] text-red-600">No validados</p>
-              </div>
-              <p className="text-base font-bold text-red-700">{stats?.megasoftNo ?? 0}</p>
-              <p className="text-[12px] text-red-500">Valid. por contabilidad</p>
+              <p className="text-base font-bold text-blue-700">{stats?.megasoftNo ?? 0}</p>
             </div>
             <button
               onClick={() => irAConciliacion("PendienteCajero")}

@@ -56,7 +56,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         celular:       z.string().optional().default(""),
         bancoReceptor: z.string().min(1),
         referencia:    z.string().optional().default(""),
-        rif:           z.string().min(1, "RIF es obligatorio").regex(rifRegex, "Formato de RIF inválido"),
+        rif:           z.string().min(1, "CI / RIF es obligatorio").regex(rifRegex, "Formato de CI / RIF inválido"),
         factura:       z.string().optional().default(""),
         cliente:       z.string().optional().default(""),
         vendedor:      z.string().min(1),
@@ -207,7 +207,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         tipo:          z.string().min(1),
         referencia:    z.string().optional().default(""),
         cliente:       z.string().optional().default(""),
-        rif:           z.string().optional().default(""),
+        rif:           z.string().min(1, "CI / RIF es obligatorio"),
         factura:       z.string().optional().default(""),
         observaciones: z.string().optional().default(""),
         vendedor:      z.string().min(1),
@@ -338,10 +338,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         megasoftPendiente: verificados.filter(p => !p.megasoft || p.megasoft === "").length,
         montoMegasoftSi:   verificados.filter(p => p.megasoft === "Sí").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
         sinFactura:        pagos.filter(p => p.estado !== "Rechazado" && p.estado !== "Rechazado Megasoft" && (!p.factura || p.factura.trim() === "")).length,
+        montoPendientesBs: pagos.filter(p => p.estado === "Pendiente").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
         // Divisas
         totalDivisas:      divisas.length,
         pendientesDivisas: divisas.filter(p => p.estado === "Pendiente").length,
         montoDivisas:      divisas.filter(p => p.estado !== "Rechazado").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
+        montoPendientesDivisas: divisas.filter(p => p.estado === "Pendiente").reduce((s, p) => s + parseFloat(p.monto || "0"), 0),
       });
     } catch (e: any) {
       res.status(500).json({ message: "Error al obtener estadísticas" });

@@ -424,7 +424,7 @@ export default function Conciliacion() {
   });
 
   const handleExportBs = () => {
-    const h = ["ID","Fecha","Tipo","Banco Emisor","Monto","Celular","Banco Receptor","Referencia","RIF","Factura","Estado","Validado Por","Vendedor","Observaciones","Cliente","Megasoft"];
+    const h = ["ID","Fecha","Tipo","Banco Emisor","Monto","Celular","Banco Receptor","Referencia","CI / RIF","Factura","Estado","Validado Por","Vendedor","Observaciones","Cliente","Megasoft"];
     const rows = filtradosBs.map(p => [p.id,p.fechaPago,p.tipoPago,p.bancoEmisor,p.monto,p.celular,p.bancoReceptor,p.referencia,p.rif,p.factura,p.estado,p.validadoPor,p.vendedor,p.observaciones,p.cliente,p.megasoft]);
     const csv = [h,...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
@@ -432,7 +432,7 @@ export default function Conciliacion() {
   };
 
   const handleExportDiv = () => {
-    const h = ["ID","Fecha","Nombre Pagador","Correo","Monto","Tipo","Referencia","Cliente","RIF","Factura","Observaciones","Estado","Validado Por","Vendedor"];
+    const h = ["ID","Fecha","Nombre Pagador","Correo","Monto","Tipo","Referencia","Cliente","CI / RIF","Factura","Observaciones","Estado","Validado Por","Vendedor"];
     const rows = filtradosDiv.map(p => [p.id,p.fecha,p.nombrePagador,p.correo,p.monto,p.tipo,p.referencia,p.cliente,p.rif,p.factura,p.observaciones,p.estado,p.validadoPor,p.vendedor]);
     const csv = [h,...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
@@ -692,7 +692,7 @@ export default function Conciliacion() {
                           <div><span className="text-xs text-muted-foreground">Banco Receptor</span><p className="font-medium">{p.bancoReceptor}</p></div>
                           <div><span className="text-xs text-muted-foreground">Referencia</span><p className="font-medium font-mono">{p.referencia}</p></div>
                           <div><span className="text-xs text-muted-foreground">Celular</span><p className="font-medium">{p.celular || "—"}</p></div>
-                          <div><span className="text-xs text-muted-foreground">RIF</span><p className="font-medium">{p.rif || "—"}</p></div>
+                          <div><span className="text-xs text-muted-foreground">CI / RIF</span><p className="font-medium">{p.rif || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente || "—"}</p></div>
                           {p.observaciones && <div className="col-span-2"><span className="text-xs text-muted-foreground">Observaciones</span><p className="font-medium text-xs">{p.observaciones}</p></div>}
@@ -827,11 +827,11 @@ export default function Conciliacion() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-1 text-sm">
                           <div><span className="text-xs text-muted-foreground">Fecha</span><p className="font-medium">{p.fecha}</p></div>
                           <div><span className="text-xs text-muted-foreground">Nombre Pagador</span><p className="font-medium">{p.nombrePagador}</p></div>
-                          <div><span className="text-xs text-muted-foreground">Monto</span><p className="font-semibold text-violet-700">{p.tipo === "Zelle" || p.tipo === "PayPal" ? `$${fmt(p.monto)}` : `${fmt(p.monto)} EUR`}</p></div>
+                          <div><span className="text-xs text-muted-foreground">Monto</span><p className="font-semibold text-violet-700">{`$${fmt(p.monto)}`}</p></div>
                           <div><span className="text-xs text-muted-foreground">Referencia</span><p className="font-medium font-mono">{p.referencia}</p></div>
                           {p.correo  && <div><span className="text-xs text-muted-foreground">Correo</span><p className="font-medium text-xs">{p.correo}</p></div>}
                           {p.cliente && <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente}</p></div>}
-                          {p.rif     && <div><span className="text-xs text-muted-foreground">RIF</span><p className="font-medium">{p.rif}</p></div>}
+                          {p.rif     && <div><span className="text-xs text-muted-foreground">CI / RIF</span><p className="font-medium">{p.rif}</p></div>}
                           {p.factura && <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura}</p></div>}
                           {p.observaciones && <div className="col-span-2"><span className="text-xs text-muted-foreground">Observaciones</span><p className="font-medium text-xs">{p.observaciones}</p></div>}
                         </div>
@@ -877,7 +877,7 @@ export default function Conciliacion() {
           <div className="space-y-4 py-2">
             {selected?.rif && (
               <div className="px-3 py-2 bg-muted/50 rounded-lg">
-                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <Label className="text-xs text-muted-foreground">CI / RIF</Label>
                 <p className="text-sm font-medium">{selected.rif}</p>
               </div>
             )}
@@ -912,7 +912,7 @@ export default function Conciliacion() {
           <div className="space-y-4 py-2">
             {cajPendPago?.rif && (
               <div className="px-3 py-2 bg-muted/50 rounded-lg">
-                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <Label className="text-xs text-muted-foreground">CI / RIF</Label>
                 <p className="text-sm font-medium">{cajPendPago.rif}</p>
               </div>
             )}
@@ -957,7 +957,7 @@ export default function Conciliacion() {
           <div className="space-y-4 py-2">
             {cajeroPago?.rif && (
               <div className="px-3 py-2 bg-muted/50 rounded-lg">
-                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <Label className="text-xs text-muted-foreground">CI / RIF</Label>
                 <p className="text-sm font-medium">{cajeroPago.rif}</p>
               </div>
             )}
@@ -999,7 +999,7 @@ export default function Conciliacion() {
           <div className="space-y-4 py-2">
             {cajFCPago?.rif && (
               <div className="px-3 py-2 bg-muted/50 rounded-lg">
-                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <Label className="text-xs text-muted-foreground">CI / RIF</Label>
                 <p className="text-sm font-medium">{cajFCPago.rif}</p>
               </div>
             )}

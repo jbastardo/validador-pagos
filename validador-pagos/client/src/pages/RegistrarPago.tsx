@@ -22,7 +22,7 @@ const schema = z.object({
   celular:       z.string().optional(),
   bancoReceptor: z.string().min(1, "Banco receptor requerido"),
   referencia:    z.string().optional(),
-  rif:           z.string().min(1, "RIF es obligatorio").regex(rifRegex, "Formato inválido. Ej: J-12345678-9 o V-123456789"),
+  rif:           z.string().min(1, "CI / RIF es obligatorio").regex(rifRegex, "Formato inválido. Ej: J-12345678-9 o V-123456789"),
   factura:       z.string().optional(),
   cliente:       z.string().optional(),
   tipoPago:      z.enum(["PagoMovil","Transferencia"]),
@@ -165,8 +165,8 @@ export default function RegistrarPago() {
               )}/>}
 
               <FormField control={form.control} name="rif" render={({field})=>(
-                <FormItem><FormLabel>RIF del Pagador <span className="text-red-500">*</span></FormLabel><FormControl>
-                  <Input placeholder="J-12345678-9" {...field} data-testid="input-rif"/>
+                <FormItem><FormLabel>CI / RIF <span className="text-red-500">*</span></FormLabel><FormControl>
+                  <Input placeholder="J-12345678-9 o V-12345678-9" {...field} data-testid="input-rif"/>
                 </FormControl><FormMessage/></FormItem>
               )}/>
 
