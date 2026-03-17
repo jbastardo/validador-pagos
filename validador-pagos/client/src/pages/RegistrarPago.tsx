@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { BANCOS_EMISOR, BANCOS_RECEPTOR } from "@shared/schema";
 
+const rifRegex = /^[JVEPGjvepg]-?\d{8}-?\d$/;
 const schema = z.object({
   fechaPago:     z.string().min(1, "Fecha requerida"),
   bancoEmisor:   z.string().min(1, "Banco emisor requerido"),
@@ -21,7 +22,7 @@ const schema = z.object({
   celular:       z.string().optional(),
   bancoReceptor: z.string().min(1, "Banco receptor requerido"),
   referencia:    z.string().optional(),
-  rif:           z.string().optional(),
+  rif:           z.string().min(1, "RIF es obligatorio").regex(rifRegex, "Formato inválido. Ej: J-12345678-9 o V-123456789"),
   factura:       z.string().optional(),
   cliente:       z.string().optional(),
   tipoPago:      z.enum(["PagoMovil","Transferencia"]),
@@ -163,15 +164,15 @@ export default function RegistrarPago() {
                 </FormControl><FormMessage/></FormItem>
               )}/>}
 
-              <FormField control={form.control} name="cliente" render={({field})=>(
-                <FormItem><FormLabel>Cliente</FormLabel><FormControl>
-                  <Input placeholder="Nombre del cliente" {...field} data-testid="input-cliente"/>
+              <FormField control={form.control} name="rif" render={({field})=>(
+                <FormItem><FormLabel>RIF del Pagador <span className="text-red-500">*</span></FormLabel><FormControl>
+                  <Input placeholder="J-12345678-9" {...field} data-testid="input-rif"/>
                 </FormControl><FormMessage/></FormItem>
               )}/>
 
-              <FormField control={form.control} name="rif" render={({field})=>(
-                <FormItem><FormLabel>RIF del Pagador (opcional)</FormLabel><FormControl>
-                  <Input placeholder="J-123456789" {...field} data-testid="input-rif"/>
+              <FormField control={form.control} name="cliente" render={({field})=>(
+                <FormItem><FormLabel>Cliente</FormLabel><FormControl>
+                  <Input placeholder="Nombre del cliente" {...field} data-testid="input-cliente"/>
                 </FormControl><FormMessage/></FormItem>
               )}/>
 

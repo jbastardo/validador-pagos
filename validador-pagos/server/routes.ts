@@ -47,6 +47,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/pagos", async (req, res) => {
     try {
+      const rifRegex = /^[JVEPGjvepg]-?\d{8}-?\d$/;
       const schema = z.object({
         fechaPago:     z.string().min(1),
         tipoPago:      z.enum(["PagoMovil", "Transferencia"]),
@@ -55,7 +56,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         celular:       z.string().optional().default(""),
         bancoReceptor: z.string().min(1),
         referencia:    z.string().optional().default(""),
-        rif:           z.string().optional().default(""),
+        rif:           z.string().min(1, "RIF es obligatorio").regex(rifRegex, "Formato de RIF inválido"),
         factura:       z.string().optional().default(""),
         cliente:       z.string().optional().default(""),
         vendedor:      z.string().min(1),

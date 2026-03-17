@@ -692,7 +692,7 @@ export default function Conciliacion() {
                           <div><span className="text-xs text-muted-foreground">Banco Receptor</span><p className="font-medium">{p.bancoReceptor}</p></div>
                           <div><span className="text-xs text-muted-foreground">Referencia</span><p className="font-medium font-mono">{p.referencia}</p></div>
                           <div><span className="text-xs text-muted-foreground">Celular</span><p className="font-medium">{p.celular || "—"}</p></div>
-                          {p.rif && <div><span className="text-xs text-muted-foreground">RIF</span><p className="font-medium">{p.rif}</p></div>}
+                          <div><span className="text-xs text-muted-foreground">RIF</span><p className="font-medium">{p.rif || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente || "—"}</p></div>
                           {p.observaciones && <div className="col-span-2"><span className="text-xs text-muted-foreground">Observaciones</span><p className="font-medium text-xs">{p.observaciones}</p></div>}
@@ -875,6 +875,12 @@ export default function Conciliacion() {
         <DialogContent>
           <DialogHeader><DialogTitle>Validar pago en Bs.</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            {selected?.rif && (
+              <div className="px-3 py-2 bg-muted/50 rounded-lg">
+                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <p className="text-sm font-medium">{selected.rif}</p>
+              </div>
+            )}
             <div>
               <Label className="text-sm font-medium">Nuevo estado</Label>
               <Select value={nuevoEstado} onValueChange={setNuevoEstado}>
@@ -904,6 +910,12 @@ export default function Conciliacion() {
         <DialogContent>
           <DialogHeader><DialogTitle>Ingresar Factura y Validar Megasoft</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            {cajPendPago?.rif && (
+              <div className="px-3 py-2 bg-muted/50 rounded-lg">
+                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <p className="text-sm font-medium">{cajPendPago.rif}</p>
+              </div>
+            )}
             <div>
               <Label className="text-sm font-medium">Número de Factura</Label>
               <Input value={cajPendFactura} onChange={e => setCajPendFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
@@ -943,6 +955,12 @@ export default function Conciliacion() {
         <DialogContent>
           <DialogHeader><DialogTitle>Ver / Actualizar Factura</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            {cajeroPago?.rif && (
+              <div className="px-3 py-2 bg-muted/50 rounded-lg">
+                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <p className="text-sm font-medium">{cajeroPago.rif}</p>
+              </div>
+            )}
             <div>
               <Label className="text-sm font-medium">Número de Factura</Label>
               <Input value={cajeroFactura} onChange={e => setCajeroFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
@@ -979,6 +997,12 @@ export default function Conciliacion() {
         <DialogContent>
           <DialogHeader><DialogTitle>Editar Factura / Cliente</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            {cajFCPago?.rif && (
+              <div className="px-3 py-2 bg-muted/50 rounded-lg">
+                <Label className="text-xs text-muted-foreground">RIF del Pagador</Label>
+                <p className="text-sm font-medium">{cajFCPago.rif}</p>
+              </div>
+            )}
             <div>
               <Label className="text-sm font-medium">Número de Factura</Label>
               <Input value={cajFCFactura} onChange={e => setCajFCFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
