@@ -128,6 +128,7 @@ export default function Conciliacion() {
   const [cajFCFactura, setCajFCFactura] = useState("");
   const [cajFCCliente, setCajFCCliente] = useState("");
   const [cajFCMega,    setCajFCMega]    = useState<"Sí" | "No" | "">("");
+  const [cajFCRif,     setCajFCRif]     = useState("");
   const [cajFCOpen,    setCajFCOpen]    = useState(false);
 
   // ── Modal aprobación Divisas ──
@@ -231,8 +232,8 @@ export default function Conciliacion() {
 
   // ── Mutación cajero factura/cliente (cualquier estado) ──
   const cajFCMutation = useMutation({
-    mutationFn: async ({ id, factura, cliente, megasoft }: { id: string; factura: string; cliente: string; megasoft: string }) => {
-      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente, megasoft, cajeroEmail: user?.email ?? "" });
+    mutationFn: async ({ id, factura, cliente, megasoft, rif }: { id: string; factura: string; cliente: string; megasoft: string; rif: string }) => {
+      const res = await apiRequest("PATCH", `/api/pagos/${id}/factura-cliente`, { factura, cliente, megasoft, rif, cajeroEmail: user?.email ?? "" });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message ?? "Error");
       return json;
@@ -367,6 +368,7 @@ export default function Conciliacion() {
     setCajFCPago(p);
     setCajFCFactura(p.factura ?? "");
     setCajFCCliente(p.cliente ?? "");
+    setCajFCRif(p.rif ?? "");
     setCajFCMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajFCOpen(true);
   };
@@ -743,6 +745,12 @@ export default function Conciliacion() {
                             <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
                         )}
+                        {/* ── Botón admin: editar factura/cliente/rif en cualquier estado ── */}
+                        {isAdmin && (
+                          <Button size="sm" variant="outline" onClick={() => openCajeroFC(p)} className="gap-1.5 text-xs">
+                            <Pencil className="w-3.5 h-3.5"/> Editar
+                          </Button>
+                        )}
                         {/* ── Botón editar (supervisor, solo pendientes) ── */}
                         {isSupervisor && esPendiente && (
                           <Button size="sm" variant="outline" onClick={() => openEditBs(p)} className="gap-1.5 text-xs">
@@ -1027,14 +1035,12 @@ export default function Conciliacion() {
       {/* ══════════════ MODAL CAJERO FACTURA/CLIENTE/MEGASOFT ══════════════ */}
       <Dialog open={cajFCOpen} onOpenChange={setCajFCOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Editar Factura / Cliente</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Editar Factura / Cliente / RIF</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            {cajFCPago?.rif && (
-              <div className="px-3 py-2 bg-muted/50 rounded-lg">
-                <Label className="text-xs text-muted-foreground">CI / RIF</Label>
-                <p className="text-sm font-medium">{cajFCPago.rif}</p>
-              </div>
-            )}
+            <div>
+              <Label className="text-sm font-medium">CI / RIF</Label>
+              <Input value={cajFCRif} onChange={e => setCajFCRif(e.target.value)} placeholder="Ej: V-12345678" className="mt-1"/>
+            </div>
             <div>
               <Label className="text-sm font-medium">Número de Factura</Label>
               <Input value={cajFCFactura} onChange={e => setCajFCFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
@@ -1057,7 +1063,7 @@ export default function Conciliacion() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCajFCOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => cajFCPago && cajFCMutation.mutate({ id: cajFCPago.id, factura: cajFCFactura, cliente: cajFCCliente, megasoft: cajFCMega })}
+              onClick={() => cajFCPago && cajFCMutation.mutate({ id: cajFCPago.id, factura: cajFCFactura, cliente: cajFCCliente, megasoft: cajFCMega, rif: cajFCRif })}
               disabled={cajFCMutation.isPending}
             >
               {cajFCMutation.isPending ? "Guardando..." : "Guardar"}

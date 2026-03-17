@@ -189,10 +189,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         cliente:     z.string().optional().default(""),
         megasoft:    z.enum(["Sí", "No", ""]).optional().default(""),
         cajeroEmail: z.string().optional().default(""),
+        rif:         z.string().optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
-      const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail);
+      const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail, parsed.data.rif);
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
     } catch (e: any) {
