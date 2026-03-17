@@ -63,9 +63,15 @@ export default function Conciliacion() {
     return () => window.removeEventListener("hashchange", handler);
   }, []);
 
-  // React to full hash changes (including query param changes)
+  // ⚠️ WARNING: CRITICAL CODE — Lectura de filtros desde el hash del Dashboard ⚠️
+  // El Dashboard navega con window.location.hash = "#/conciliacion?estado=Pendiente"
+  // Los params van DENTRO del hash, no en window.location.search (wouter los separa mal).
+  // fullHash = window.location.hash, e.g. "#/conciliacion?estado=Pendiente"
   useEffect(() => {
-    // Reset all filters first so old filters don't persist between dashboard clicks
+    const qIndex = fullHash.indexOf("?");
+    if (qIndex === -1) return; // Sin params → no tocar filtros (el usuario puede estar filtrando manualmente)
+
+    // Reset filtros antes de aplicar los del URL
     setFiltroEstado("todos");
     setFiltroTipo("todos");
     setFiltroBanco("todos");
@@ -75,8 +81,6 @@ export default function Conciliacion() {
     setFechaDesde("");
     setFechaHasta("");
 
-    const qIndex = fullHash.indexOf("?");
-    if (qIndex === -1) return;
     const params = new URLSearchParams(fullHash.slice(qIndex + 1));
     const estado = params.get("estado");
     const tab = params.get("tab");

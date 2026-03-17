@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useHashLocation } from "wouter/use-hash-location";
-import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, Coins, FileX } from "lucide-react";
+import { BarChart3, Clock, XCircle, DollarSign, ShieldCheck, ShieldX, Coins, FileX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Stats {
@@ -17,8 +16,12 @@ interface Stats {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [, navigate] = useHashLocation();
   const { data: stats, isLoading: sL } = useQuery<Stats>({ queryKey: ["/api/stats"] });
+
+  // Navegar poniendo los params DENTRO del hash (wouter los pone en search, lo cual rompe la lectura en Conciliacion)
+  const irA = (filtro: string) => {
+    window.location.hash = `#/conciliacion?estado=${encodeURIComponent(filtro)}`;
+  };
 
   const fmt = (n: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2 }).format(n);
 
@@ -47,7 +50,7 @@ export default function Dashboard() {
             </div>
           </div>
           <button
-            onClick={() => navigate("/conciliacion?estado=Pendiente")}
+            onClick={() => irA("Pendiente")}
             className="rounded-lg bg-amber-500 text-white p-3 text-left hover:bg-amber-500/90 active:scale-[0.99] transition-all"
           >
             <div className="flex items-center justify-between">
@@ -97,7 +100,7 @@ export default function Dashboard() {
             <span className="font-bold text-red-600">{stats?.rechazados ?? 0}</span>
           </div>
           {(stats?.sinFactura ?? 0) > 0 && (
-            <button onClick={() => navigate("/conciliacion?estado=SinFactura")} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-sm hover:bg-rose-100 transition-colors">
+            <button onClick={() => irA("SinFactura")} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50/50 px-2.5 py-1 text-sm hover:bg-rose-100 transition-colors">
               <FileX className="w-3.5 h-3.5 text-rose-500" />
               <span className="text-rose-600">Sin factura</span>
               <span className="font-bold text-rose-700">{stats?.sinFactura}</span>
