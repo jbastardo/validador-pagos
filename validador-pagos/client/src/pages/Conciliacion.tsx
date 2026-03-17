@@ -44,6 +44,7 @@ export default function Conciliacion() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [hashLocation] = useHashLocation();
+  const [activeTab, setActiveTab] = useState("bs");
 
   // ── Filtros Bs ──
   const [busqueda,          setBusqueda]          = useState("");
@@ -63,11 +64,23 @@ export default function Conciliacion() {
     if (qIndex === -1) return;
     const params = new URLSearchParams(hash.slice(qIndex + 1));
     const estado = params.get("estado");
-    if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
-    else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
-    else if (estado === "PendienteCajero") { setFiltroEstado("PendienteCajero"); }
-    else if (estado === "SinFactura") { setFiltroFactura("SinFactura"); }
-    else if (estado && estado !== "todos") { setFiltroEstado(estado); }
+    const desde = params.get("desde");
+    const hasta = params.get("hasta");
+    const tab = params.get("tab");
+    if (desde) setFechaDesde(desde);
+    if (hasta) setFechaHasta(hasta);
+    if (tab === "divisas") {
+      setActiveTab("divisas");
+      if (estado && estado !== "todos") setFiltroEstDiv(estado);
+    } else {
+      if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
+      else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
+      else if (estado === "PendienteCajero") { setFiltroEstado("PendienteCajero"); }
+      else if (estado === "SinFactura") { setFiltroFactura("SinFactura"); }
+      else if (estado === "MegasoftSi") { setFiltroEstado("MegasoftSi"); }
+      else if (estado === "MegasoftNo") { setFiltroEstado("MegasoftNo"); }
+      else if (estado && estado !== "todos") { setFiltroEstado(estado); }
+    }
   }, [hashLocation]);
 
   // ── Filtros Divisas ──
@@ -392,6 +405,8 @@ export default function Conciliacion() {
     const mq = q === "" || [p.referencia, p.monto, p.bancoEmisor, p.bancoReceptor, p.celular, p.rif, p.factura, p.vendedor, p.fechaPago, p.cliente].some(v => v?.toLowerCase().includes(q));
     const me = filtroEstado === "todos"
       || (filtroEstado === "PendienteCajero" ? (p.estado === "Verificado" && (!p.megasoft || p.megasoft === ""))
+      : filtroEstado === "MegasoftSi" ? (p.estado === "Verificado" && p.megasoft === "Sí")
+      : filtroEstado === "MegasoftNo" ? (p.estado === "Verificado" && p.megasoft === "No")
       : p.estado === filtroEstado);
     const mt = filtroTipo     === "todos" || p.tipoPago === filtroTipo;
     const mb = filtroBanco    === "todos" || extractBancoCode(p.bancoReceptor) === extractBancoCode(filtroBanco);
@@ -557,7 +572,7 @@ export default function Conciliacion() {
         </div>
       </div>
 
-      <Tabs defaultValue="bs">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-2">
           <TabsTrigger value="bs">
             Pagos en Bs.
@@ -585,6 +600,8 @@ export default function Conciliacion() {
                     <SelectItem value="Pendiente">Pendiente</SelectItem>
                     <SelectItem value="Verificado">Verificado</SelectItem>
                     <SelectItem value="PendienteCajero">Sin validar Megasoft</SelectItem>
+                    <SelectItem value="MegasoftSi">Aprobados Megasoft</SelectItem>
+                    <SelectItem value="MegasoftNo">Transferidos contabilidad</SelectItem>
                     <SelectItem value="Rechazado">Rechazado</SelectItem>
                     <SelectItem value="Rechazado Megasoft">Rechazado Megasoft</SelectItem>
                   </SelectContent>

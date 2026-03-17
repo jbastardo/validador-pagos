@@ -193,21 +193,21 @@ export default function Dashboard() {
         <div className="rounded-lg border bg-card p-2.5">
           <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Validación Megasoft</p>
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 border border-green-200/50">
+            <button onClick={() => irAConciliacion("MegasoftSi")} className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 border border-green-200/50 text-left hover:bg-green-100 transition-colors">
               <div className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-green-600" />
                 <p className="text-[12px] text-green-600">Aprobados por Megasoft</p>
               </div>
               <p className="text-base font-bold text-green-700">{stats?.megasoftSi ?? 0}</p>
               <p className="text-[12px] text-green-500">Bs. {fmt(stats?.montoMegasoftSi ?? 0)}</p>
-            </div>
-            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-md px-2.5 py-1.5 border border-blue-200/50">
+            </button>
+            <button onClick={() => irAConciliacion("MegasoftNo")} className="bg-blue-50 dark:bg-blue-950/20 rounded-md px-2.5 py-1.5 border border-blue-200/50 text-left hover:bg-blue-100 transition-colors">
               <div className="flex items-center gap-1">
                 <ShieldX className="w-3 h-3 text-blue-600" />
                 <p className="text-[12px] text-blue-600">Transferidos a contabilidad</p>
               </div>
               <p className="text-base font-bold text-blue-700">{stats?.megasoftNo ?? 0}</p>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -217,20 +217,20 @@ export default function Dashboard() {
         <div className="rounded-lg border bg-card p-2.5">
           <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Divisas</p>
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-violet-50 dark:bg-violet-950/20 rounded-md px-2.5 py-1.5">
+            <button onClick={() => navigate("/conciliacion?tab=divisas")} className="bg-violet-50 dark:bg-violet-950/20 rounded-md px-2.5 py-1.5 text-left hover:bg-violet-100 transition-colors">
               <div className="flex items-center gap-1">
                 <Coins className="w-3 h-3 text-violet-600" />
                 <p className="text-[12px] text-violet-600">Total</p>
               </div>
               <p className="text-base font-bold text-violet-700">{stats?.totalDivisas ?? 0}</p>
-            </div>
-            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-md px-2.5 py-1.5">
+            </button>
+            <button onClick={() => navigate("/conciliacion?tab=divisas&estado=Pendiente")} className="bg-amber-50 dark:bg-amber-950/20 rounded-md px-2.5 py-1.5 text-left hover:bg-amber-100 transition-colors">
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3 text-amber-600" />
                 <p className="text-[12px] text-amber-600">Pendientes</p>
               </div>
               <p className="text-base font-bold text-amber-700">{stats?.pendientesDivisas ?? 0}</p>
-            </div>
+            </button>
             <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-md px-2.5 py-1.5">
               <div className="flex items-center gap-1">
                 <DollarSign className="w-3 h-3 text-emerald-600" />
