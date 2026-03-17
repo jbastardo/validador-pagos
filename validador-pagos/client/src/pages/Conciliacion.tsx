@@ -55,21 +55,16 @@ export default function Conciliacion() {
   const [fechaDesde,        setFechaDesde]        = useState("");
   const [fechaHasta,        setFechaHasta]        = useState("");
 
-  // Track the full hash (including query params) to detect navigation from Dashboard
-  const [fullHash, setFullHash] = useState(window.location.hash);
+  // ⚠️ WARNING: CRITICAL CODE — Lectura de filtros desde URL (Dashboard navigation) ⚠️
+  // wouter's navigate("/conciliacion?estado=Pendiente") pone los params en
+  // window.location.search (NO dentro del hash). Leemos de ahí al montar.
+  // Se ejecuta una sola vez al montar porque cada navegación desde el Dashboard
+  // causa un remount completo del componente (ruta diferente → / a /conciliacion).
   useEffect(() => {
-    const handler = () => setFullHash(window.location.hash);
-    window.addEventListener("hashchange", handler);
-    return () => window.removeEventListener("hashchange", handler);
-  }, []);
-
-  // ⚠️ WARNING: CRITICAL CODE — Lectura de filtros desde el hash del Dashboard ⚠️
-  // El Dashboard navega con window.location.hash = "#/conciliacion?estado=Pendiente"
-  // Los params van DENTRO del hash, no en window.location.search (wouter los separa mal).
-  // fullHash = window.location.hash, e.g. "#/conciliacion?estado=Pendiente"
-  useEffect(() => {
-    const qIndex = fullHash.indexOf("?");
-    if (qIndex === -1) return; // Sin params → no tocar filtros (el usuario puede estar filtrando manualmente)
+    const params = new URLSearchParams(window.location.search);
+    const estado = params.get("estado");
+    const tab = params.get("tab");
+    if (!estado && !tab) return; // Sin params → no tocar filtros
 
     // Reset filtros antes de aplicar los del URL
     setFiltroEstado("todos");
@@ -81,9 +76,6 @@ export default function Conciliacion() {
     setFechaDesde("");
     setFechaHasta("");
 
-    const params = new URLSearchParams(fullHash.slice(qIndex + 1));
-    const estado = params.get("estado");
-    const tab = params.get("tab");
     if (tab === "divisas") {
       setActiveTab("divisas");
       if (estado && estado !== "todos") setFiltroEstDiv(estado);
@@ -98,7 +90,13 @@ export default function Conciliacion() {
       else if (estado === "MegasoftSi") setFiltroEstado("MegasoftSi");
       else if (estado === "MegasoftNo") setFiltroEstado("MegasoftNo");
     }
-  }, [fullHash]);
+
+    // Limpiar los search params del URL para que no persistan en recargas
+    if (window.history.replaceState) {
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState(null, "", cleanUrl);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filtros Divisas ──
   const [busqDiv,       setBusqDiv]       = useState("");

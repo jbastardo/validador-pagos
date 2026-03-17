@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHashLocation } from "wouter/use-hash-location";
 import { BarChart3, Clock, XCircle, DollarSign, ShieldCheck, ShieldX, Coins, FileX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,11 +17,13 @@ interface Stats {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [, navigate] = useHashLocation();
   const { data: stats, isLoading: sL } = useQuery<Stats>({ queryKey: ["/api/stats"] });
 
-  // Navegar poniendo los params DENTRO del hash (wouter los pone en search, lo cual rompe la lectura en Conciliacion)
+  // ⚠️ WARNING: wouter pone query params en window.location.search, no en el hash.
+  // Conciliacion.tsx debe leer de window.location.search para obtener los filtros.
   const irA = (filtro: string) => {
-    window.location.hash = `#/conciliacion?estado=${encodeURIComponent(filtro)}`;
+    navigate(`/conciliacion?estado=${encodeURIComponent(filtro)}`);
   };
 
   const fmt = (n: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2 }).format(n);
