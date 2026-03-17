@@ -163,7 +163,7 @@ export default function RegistrarDivisas() {
 
               <FormField control={form.control} name="rif" render={({ field }) => (
                 <FormItem><FormLabel>CI / RIF <span className="text-red-500">*</span></FormLabel><FormControl>
-                  <Input placeholder="J-12345678-9 o V-12345678-9" {...field} data-testid="input-rif-div" />
+                  <Input placeholder="CI / RIF" {...field} data-testid="input-rif-div" />
                 </FormControl><FormMessage /></FormItem>
               )} />
 

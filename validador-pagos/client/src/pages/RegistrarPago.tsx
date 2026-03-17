@@ -14,7 +14,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { BANCOS_EMISOR, BANCOS_RECEPTOR } from "@shared/schema";
 
-const rifRegex = /^[JVEPGjvepg]-?\d{8}-?\d$/;
 const schema = z.object({
   fechaPago:     z.string().min(1, "Fecha requerida"),
   bancoEmisor:   z.string().min(1, "Banco emisor requerido"),
@@ -22,7 +21,7 @@ const schema = z.object({
   celular:       z.string().optional(),
   bancoReceptor: z.string().min(1, "Banco receptor requerido"),
   referencia:    z.string().optional(),
-  rif:           z.string().min(1, "CI / RIF es obligatorio").regex(rifRegex, "Formato inválido. Ej: J-12345678-9 o V-123456789"),
+  rif:           z.string().min(1, "CI / RIF es obligatorio"),
   factura:       z.string().optional(),
   cliente:       z.string().optional(),
   tipoPago:      z.enum(["PagoMovil","Transferencia"]),
@@ -166,7 +165,7 @@ export default function RegistrarPago() {
 
               <FormField control={form.control} name="rif" render={({field})=>(
                 <FormItem><FormLabel>CI / RIF <span className="text-red-500">*</span></FormLabel><FormControl>
-                  <Input placeholder="J-12345678-9 o V-12345678-9" {...field} data-testid="input-rif"/>
+                  <Input placeholder="CI / RIF" {...field} data-testid="input-rif"/>
                 </FormControl><FormMessage/></FormItem>
               )}/>
 
