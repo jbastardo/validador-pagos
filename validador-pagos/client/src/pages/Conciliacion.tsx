@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useHashLocation } from "wouter/use-hash-location";
 import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +42,6 @@ export default function Conciliacion() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [hashLocation] = useHashLocation();
   const [activeTab, setActiveTab] = useState("bs");
 
   // ── Filtros Bs ──
@@ -57,31 +55,46 @@ export default function Conciliacion() {
   const [fechaDesde,        setFechaDesde]        = useState("");
   const [fechaHasta,        setFechaHasta]        = useState("");
 
-  // Lee parámetros del hash al llegar desde el Dashboard (ej: /#/conciliacion?estado=Pendiente)
+  // Track the full hash (including query params) to detect navigation from Dashboard
+  const [fullHash, setFullHash] = useState(window.location.hash);
   useEffect(() => {
-    const hash = window.location.hash; // e.g. "#/conciliacion?estado=Pendiente"
-    const qIndex = hash.indexOf("?");
+    const handler = () => setFullHash(window.location.hash);
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+
+  // React to full hash changes (including query param changes)
+  useEffect(() => {
+    // Reset all filters first so old filters don't persist between dashboard clicks
+    setFiltroEstado("todos");
+    setFiltroTipo("todos");
+    setFiltroBanco("todos");
+    setFiltroVendedor("todos");
+    setFiltroFactura("todos");
+    setFiltroConciliado("todos");
+    setFechaDesde("");
+    setFechaHasta("");
+
+    const qIndex = fullHash.indexOf("?");
     if (qIndex === -1) return;
-    const params = new URLSearchParams(hash.slice(qIndex + 1));
+    const params = new URLSearchParams(fullHash.slice(qIndex + 1));
     const estado = params.get("estado");
-    const desde = params.get("desde");
-    const hasta = params.get("hasta");
     const tab = params.get("tab");
-    if (desde) setFechaDesde(desde);
-    if (hasta) setFechaHasta(hasta);
     if (tab === "divisas") {
       setActiveTab("divisas");
       if (estado && estado !== "todos") setFiltroEstDiv(estado);
     } else {
-      if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); setFiltroEstado("todos"); }
-      else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); setFiltroEstado("todos"); }
-      else if (estado === "PendienteCajero") { setFiltroEstado("PendienteCajero"); }
-      else if (estado === "SinFactura") { setFiltroFactura("SinFactura"); }
-      else if (estado === "MegasoftSi") { setFiltroEstado("MegasoftSi"); }
-      else if (estado === "MegasoftNo") { setFiltroEstado("MegasoftNo"); }
-      else if (estado && estado !== "todos") { setFiltroEstado(estado); }
+      if (estado === "Pendiente") setFiltroEstado("Pendiente");
+      else if (estado === "SinFactura") setFiltroFactura("SinFactura");
+      else if (estado === "Verificado") setFiltroEstado("Verificado");
+      else if (estado === "Rechazado") setFiltroEstado("Rechazado");
+      else if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); }
+      else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); }
+      else if (estado === "PendienteCajero") setFiltroEstado("PendienteCajero");
+      else if (estado === "MegasoftSi") setFiltroEstado("MegasoftSi");
+      else if (estado === "MegasoftNo") setFiltroEstado("MegasoftNo");
     }
-  }, [hashLocation]);
+  }, [fullHash]);
 
   // ── Filtros Divisas ──
   const [busqDiv,       setBusqDiv]       = useState("");
