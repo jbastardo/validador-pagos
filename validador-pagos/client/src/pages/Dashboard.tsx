@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHashLocation } from "wouter/use-hash-location";
-import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, ShieldAlert, Coins, ShieldOff, CalendarDays, FileX, ChevronDown, ChevronUp } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock, XCircle, Smartphone, ArrowRightLeft, DollarSign, ShieldCheck, ShieldX, Coins, ShieldOff, CalendarDays, FileX, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -192,7 +192,7 @@ export default function Dashboard() {
             ══════════════════════════════════════════════════════════ */}
         <div className="rounded-lg border bg-card p-2.5">
           <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Validación Megasoft</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 border border-green-200/50">
               <div className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-green-600" />
@@ -208,17 +208,6 @@ export default function Dashboard() {
               </div>
               <p className="text-base font-bold text-blue-700">{stats?.megasoftNo ?? 0}</p>
             </div>
-            <button
-              onClick={() => irAConciliacion("PendienteCajero")}
-              className="bg-amber-50 dark:bg-amber-950/20 rounded-md px-2.5 py-1.5 border border-amber-200/50 text-left hover:bg-amber-100 transition-colors"
-            >
-              <div className="flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3 text-amber-600" />
-                <p className="text-[12px] text-amber-600">Sin validar</p>
-              </div>
-              <p className="text-base font-bold text-amber-700">{stats?.megasoftPendiente ?? 0}</p>
-              <p className="text-[12px] text-amber-600 font-medium">Ver →</p>
-            </button>
           </div>
         </div>
 
