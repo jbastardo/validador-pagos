@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { BANCOS_RECEPTOR, extractBancoCode } from "@shared/schema";
+import { getCajaFromInvoice } from "@/lib/utils";
 
 interface Pago {
   id: string; fechaPago: string; tipoPago: string; bancoEmisor: string;
@@ -51,6 +52,7 @@ export default function Conciliacion() {
   const [filtroBanco,       setFiltroBanco]       = useState("todos");
   const [filtroVendedor,    setFiltroVendedor]    = useState("todos");
   const [filtroFactura,     setFiltroFactura]     = useState("todos");
+  const [filtroCaja,        setFiltroCaja]        = useState("todos");
   const [filtroConciliado,  setFiltroConciliado]  = useState("todos");
   const [fechaDesde,        setFechaDesde]        = useState("");
   const [fechaHasta,        setFechaHasta]        = useState("");
@@ -72,6 +74,7 @@ export default function Conciliacion() {
     setFiltroBanco("todos");
     setFiltroVendedor("todos");
     setFiltroFactura("todos");
+    setFiltroCaja("todos");
     setFiltroConciliado("todos");
     setFechaDesde("");
     setFechaHasta("");
@@ -99,9 +102,10 @@ export default function Conciliacion() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filtros Divisas ──
-  const [busqDiv,       setBusqDiv]       = useState("");
-  const [filtroEstDiv,  setFiltroEstDiv]  = useState("todos");
-  const [filtroTipoDiv, setFiltroTipoDiv] = useState("todos");
+  const [busqDiv,        setBusqDiv]        = useState("");
+  const [filtroEstDiv,   setFiltroEstDiv]   = useState("todos");
+  const [filtroTipoDiv,  setFiltroTipoDiv]  = useState("todos");
+  const [filtroCajaDiv,  setFiltroCajaDiv]  = useState("todos");
 
   // ── Modal aprobación Bs ──
   const [selected,    setSelected]    = useState<Pago | null>(null);
@@ -448,10 +452,11 @@ export default function Conciliacion() {
       || (filtroConciliado === "conciliadas"    ? (!!p.conciliadoEn && p.conciliadoEn.trim() !== "")
       :   filtroConciliado === "no-conciliadas" ? (!p.conciliadoEn  || p.conciliadoEn.trim() === "")
       : true);
+    const mcj = filtroCaja === "todos" || getCajaFromInvoice(p.factura) === filtroCaja;
     const fISO = toISO(p.fechaPago);
     const md = !fechaDesde || fISO >= fechaDesde;
     const mh = !fechaHasta || fISO <= fechaHasta;
-    return mq && me && mt && mb && mv && mf && mc && md && mh;
+    return mq && me && mt && mb && mv && mf && mc && mcj && md && mh;
   });
 
   // ── Filtrado Divisas ──
@@ -460,23 +465,24 @@ export default function Conciliacion() {
     const mq = q === "" || [p.nombrePagador, p.correo, p.monto, p.tipo, p.referencia, p.cliente, p.rif, p.factura, p.fecha].some(v => v?.toLowerCase().includes(q));
     const me = filtroEstDiv  === "todos" || p.estado === filtroEstDiv;
     const mt = filtroTipoDiv === "todos" || p.tipo   === filtroTipoDiv;
+    const mcj = filtroCajaDiv === "todos" || getCajaFromInvoice(p.factura) === filtroCajaDiv;
     const fISO = toISO(p.fecha);
     const md = !fechaDesde || fISO >= fechaDesde;
     const mh = !fechaHasta || fISO <= fechaHasta;
-    return mq && me && mt && md && mh;
+    return mq && me && mt && mcj && md && mh;
   });
 
   const handleExportBs = () => {
-    const h = ["ID","Fecha","Tipo","Banco Emisor","Monto","Celular","Banco Receptor","Referencia","CI / RIF","Factura","Estado","Validado Por","Vendedor","Observaciones","Cliente","Megasoft"];
-    const rows = filtradosBs.map(p => [p.id,p.fechaPago,p.tipoPago,p.bancoEmisor,p.monto,p.celular,p.bancoReceptor,p.referencia,p.rif,p.factura,p.estado,p.validadoPor,p.vendedor,p.observaciones,p.cliente,p.megasoft]);
+    const h = ["ID","Fecha","Tipo","Banco Emisor","Monto","Celular","Banco Receptor","Referencia","CI / RIF","Factura","Caja","Estado","Validado Por","Vendedor","Observaciones","Cliente","Megasoft"];
+    const rows = filtradosBs.map(p => [p.id,p.fechaPago,p.tipoPago,p.bancoEmisor,p.monto,p.celular,p.bancoReceptor,p.referencia,p.rif,p.factura,getCajaFromInvoice(p.factura),p.estado,p.validadoPor,p.vendedor,p.observaciones,p.cliente,p.megasoft]);
     const csv = [h,...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
     a.download = `conciliacion_bs_${new Date().toISOString().split("T")[0]}.csv`; a.click();
   };
 
   const handleExportDiv = () => {
-    const h = ["ID","Fecha","Nombre Pagador","Correo","Monto","Tipo","Referencia","Cliente","CI / RIF","Factura","Observaciones","Estado","Validado Por","Vendedor"];
-    const rows = filtradosDiv.map(p => [p.id,p.fecha,p.nombrePagador,p.correo,p.monto,p.tipo,p.referencia,p.cliente,p.rif,p.factura,p.observaciones,p.estado,p.validadoPor,p.vendedor]);
+    const h = ["ID","Fecha","Nombre Pagador","Correo","Monto","Tipo","Referencia","Cliente","CI / RIF","Factura","Caja","Observaciones","Estado","Validado Por","Vendedor"];
+    const rows = filtradosDiv.map(p => [p.id,p.fecha,p.nombrePagador,p.correo,p.monto,p.tipo,p.referencia,p.cliente,p.rif,p.factura,getCajaFromInvoice(p.factura),p.observaciones,p.estado,p.validadoPor,p.vendedor]);
     const csv = [h,...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }));
     a.download = `conciliacion_divisas_${new Date().toISOString().split("T")[0]}.csv`; a.click();
@@ -665,6 +671,14 @@ export default function Conciliacion() {
                     {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={filtroCaja} onValueChange={setFiltroCaja}>
+                  <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Caja"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas las cajas</SelectItem>
+                    <SelectItem value="CAJA 01">CAJA 01</SelectItem>
+                    <SelectItem value="CAJA 02">CAJA 02</SelectItem>
+                  </SelectContent>
+                </Select>
                 {isAdmin && (
                   <Select value={filtroConciliado} onValueChange={setFiltroConciliado}>
                     <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Conciliación"/></SelectTrigger>
@@ -739,6 +753,7 @@ export default function Conciliacion() {
                           <div><span className="text-xs text-muted-foreground">Celular</span><p className="font-medium">{p.celular || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">CI / RIF</span><p className="font-medium">{p.rif || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura || "—"}</p></div>
+                          <div><span className="text-xs text-muted-foreground">Caja</span><p className="font-medium">{getCajaFromInvoice(p.factura) || "—"}</p></div>
                           <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente || "—"}</p></div>
                           {p.observaciones && <div className="col-span-2"><span className="text-xs text-muted-foreground">Observaciones</span><p className="font-medium text-xs">{p.observaciones}</p></div>}
                         </div>
@@ -825,6 +840,14 @@ export default function Conciliacion() {
                     <SelectItem value="Banesco Panamá">Banesco Panamá</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={filtroCajaDiv} onValueChange={setFiltroCajaDiv}>
+                  <SelectTrigger className="w-full md:w-36"><SelectValue placeholder="Caja"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas las cajas</SelectItem>
+                    <SelectItem value="CAJA 01">CAJA 01</SelectItem>
+                    <SelectItem value="CAJA 02">CAJA 02</SelectItem>
+                  </SelectContent>
+                </Select>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Desde</Label>
                   <Input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="w-36 text-xs"/>
@@ -877,6 +900,7 @@ export default function Conciliacion() {
                           {p.cliente && <div><span className="text-xs text-muted-foreground">Cliente</span><p className="font-medium">{p.cliente}</p></div>}
                           {p.rif     && <div><span className="text-xs text-muted-foreground">CI / RIF</span><p className="font-medium">{p.rif}</p></div>}
                           {p.factura && <div><span className="text-xs text-muted-foreground">Factura</span><p className="font-medium">{p.factura}</p></div>}
+                          {getCajaFromInvoice(p.factura) && <div><span className="text-xs text-muted-foreground">Caja</span><p className="font-medium">{getCajaFromInvoice(p.factura)}</p></div>}
                           {p.observaciones && <div className="col-span-2"><span className="text-xs text-muted-foreground">Observaciones</span><p className="font-medium text-xs">{p.observaciones}</p></div>}
                         </div>
                       </div>
