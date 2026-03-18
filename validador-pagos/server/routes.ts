@@ -238,13 +238,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // PATCH /api/pagos/:id/editar (supervisor)
+  // PATCH /api/pagos/:id/editar (supervisor / admin)
   app.patch("/api/pagos/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
-      const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular, cliente } = req.body;
+      const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular, cliente, observaciones, rif, factura, megasoft, cajeroEmail } = req.body;
       if (!fechaPago || !monto) return res.status(400).json({ message: "Campos requeridos" });
-      const updated = await updatePagoEdicion(id, { fechaPago, bancoEmisor: bancoEmisor ?? "", bancoReceptor: bancoReceptor ?? "", monto, referencia: referencia ?? "", celular: celular ?? "", cliente: cliente ?? undefined });
+      const updated = await updatePagoEdicion(id, {
+        fechaPago, bancoEmisor: bancoEmisor ?? "", bancoReceptor: bancoReceptor ?? "", monto,
+        referencia: referencia ?? "", celular: celular ?? "", cliente: cliente ?? undefined,
+        observaciones: observaciones ?? undefined, rif: rif ?? undefined,
+        factura: factura ?? undefined, megasoft: megasoft ?? undefined, cajeroEmail: cajeroEmail ?? undefined,
+      });
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
     } catch (e: any) {
@@ -253,13 +258,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // PATCH /api/pagos-divisas/:id/editar (supervisor)
+  // PATCH /api/pagos-divisas/:id/editar (supervisor / admin)
   app.patch("/api/pagos-divisas/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
-      const { fecha, nombrePagador, monto, tipo, referencia } = req.body;
+      const { fecha, nombrePagador, monto, tipo, referencia, observaciones } = req.body;
       if (!fecha || !monto || !nombrePagador) return res.status(400).json({ message: "Campos requeridos" });
-      const updated = await updatePagoDivisaEdicion(id, { fecha, nombrePagador, monto, tipo: tipo ?? "", referencia: referencia ?? "" });
+      const updated = await updatePagoDivisaEdicion(id, { fecha, nombrePagador, monto, tipo: tipo ?? "", referencia: referencia ?? "", observaciones: observaciones ?? undefined });
       if (!updated) return res.status(404).json({ message: "Pago en divisas no encontrado" });
       res.json(updated);
     } catch (e: any) {

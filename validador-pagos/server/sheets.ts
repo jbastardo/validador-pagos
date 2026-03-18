@@ -264,27 +264,37 @@ export async function updatePagoDivisaEstado(id: string, estado: string, validad
   return { ...pago, estado, validadoPor, observaciones, validadoEn };
 }
 
-export async function updatePagoEdicion(id: string, data: { fechaPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; referencia: string; celular: string; cliente?: string }): Promise<SheetPago|null> {
+export async function updatePagoEdicion(id: string, data: { fechaPago: string; bancoEmisor: string; bancoReceptor: string; monto: string; referencia: string; celular: string; cliente?: string; observaciones?: string; rif?: string; factura?: string; megasoft?: string; cajeroEmail?: string }): Promise<SheetPago|null> {
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const clienteVal = data.cliente !== undefined ? data.cliente : (pago.cliente ?? "");
+  const obsVal = data.observaciones !== undefined ? data.observaciones : (pago.observaciones ?? "");
+  const rifVal = data.rif !== undefined ? data.rif : (pago.rif ?? "");
+  const facturaVal = data.factura !== undefined ? data.factura : (pago.factura ?? "");
+  const megasoftVal = (data.megasoft !== undefined && data.megasoft !== "") ? data.megasoft : (pago.megasoft ?? "");
+  // Si megasoft = "Sí" → auto-validar como "Verificado"
+  const autoAprueba = megasoftVal === "Sí" && pago.megasoft !== "Sí";
+  const nuevoEstado     = autoAprueba ? "Verificado"               : pago.estado;
+  const nuevoValidado   = autoAprueba ? (data.cajeroEmail || "Admin") + " (Megasoft)" : pago.validadoPor;
+  const nuevoValidadoEn = autoAprueba ? new Date().toISOString()   : (pago.validadoEn ?? "");
   const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto,
-    data.celular, data.bancoReceptor, data.referencia, pago.rif, pago.factura, pago.estado,
-    pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, pago.megasoft??"", pago.validadoEn??"", pago.conciliadoEn??"", pago.conciliadoPor??""];
+    data.celular, data.bancoReceptor, data.referencia, rifVal, facturaVal, nuevoEstado,
+    nuevoValidado, pago.vendedor, obsVal, pago.creadoEn, clienteVal, megasoftVal, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
-  return { ...pago, ...data, cliente: clienteVal };
+  return { ...pago, ...data, cliente: clienteVal, observaciones: obsVal, rif: rifVal, factura: facturaVal, megasoft: megasoftVal, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
 
-export async function updatePagoDivisaEdicion(id: string, data: { fecha: string; nombrePagador: string; monto: string; tipo: string; referencia: string }): Promise<SheetPagoDivisa|null> {
+export async function updatePagoDivisaEdicion(id: string, data: { fecha: string; nombrePagador: string; monto: string; tipo: string; referencia: string; observaciones?: string }): Promise<SheetPagoDivisa|null> {
   const pagos = await getPagosDivisas();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
+  const obsVal = data.observaciones !== undefined ? data.observaciones : (pago.observaciones ?? "");
   const row = [pago.id, data.fecha, data.nombrePagador, pago.correo, data.monto, data.tipo,
-    data.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones,
+    data.referencia, pago.cliente, pago.rif, pago.factura, obsVal,
     pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, pago.validadoEn??""];
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
-  return { ...pago, ...data };
+  return { ...pago, ...data, observaciones: obsVal };
 }
 
 // ─── ELIMINAR (marcar como ELIMINADO) ──────────────────────────────────────────

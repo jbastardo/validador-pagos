@@ -147,6 +147,10 @@ export default function Conciliacion() {
   const [editBsRef,      setEditBsRef]      = useState("");
   const [editBsCel,      setEditBsCel]      = useState("");
   const [editBsCliente,  setEditBsCliente]  = useState("");
+  const [editBsObs,      setEditBsObs]      = useState("");
+  const [editBsRif,      setEditBsRif]      = useState("");
+  const [editBsFactura,  setEditBsFactura]  = useState("");
+  const [editBsMega,     setEditBsMega]     = useState<"Sí" | "No" | "">("");
 
   // ── Modal edición Divisas (supervisor) ──
   const [editDivOpen,    setEditDivOpen]    = useState(false);
@@ -156,6 +160,7 @@ export default function Conciliacion() {
   const [editDivMonto,   setEditDivMonto]   = useState("");
   const [editDivTipo,    setEditDivTipo]    = useState("");
   const [editDivRef,     setEditDivRef]     = useState("");
+  const [editDivObs,     setEditDivObs]     = useState("");
 
   // ── Modal eliminar (admin) ──
   const [deleteOpen,     setDeleteOpen]     = useState(false);
@@ -250,7 +255,7 @@ export default function Conciliacion() {
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
   });
 
-  // ── Mutación edición Bs (supervisor) ──
+  // ── Mutación edición Bs (supervisor / admin) ──
   const editBsMutation = useMutation({
     mutationFn: async ({ id, campos }: { id: string; campos: Record<string, string> }) => {
       const res = await apiRequest("PATCH", `/api/pagos/${id}/editar`, campos);
@@ -260,6 +265,7 @@ export default function Conciliacion() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setEditBsOpen(false);
       toast({ title: "Pago actualizado en Google Sheets" });
     },
@@ -390,6 +396,10 @@ export default function Conciliacion() {
     setEditBsRef(p.referencia ?? "");
     setEditBsCel(p.celular ?? "");
     setEditBsCliente(p.cliente ?? "");
+    setEditBsObs(p.observaciones ?? "");
+    setEditBsRif(p.rif ?? "");
+    setEditBsFactura(p.factura ?? "");
+    setEditBsMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setEditBsOpen(true);
   };
 
@@ -400,6 +410,7 @@ export default function Conciliacion() {
     setEditDivMonto(p.monto ?? "");
     setEditDivTipo(p.tipo ?? "");
     setEditDivRef(p.referencia ?? "");
+    setEditDivObs(p.observaciones ?? "");
     setEditDivOpen(true);
   };
 
@@ -745,14 +756,8 @@ export default function Conciliacion() {
                             <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
                         )}
-                        {/* ── Botón admin: editar factura/cliente/rif en cualquier estado ── */}
-                        {isAdmin && (
-                          <Button size="sm" variant="outline" onClick={() => openCajeroFC(p)} className="gap-1.5 text-xs">
-                            <Pencil className="w-3.5 h-3.5"/> Editar
-                          </Button>
-                        )}
-                        {/* ── Botón editar (supervisor, solo pendientes) ── */}
-                        {isSupervisor && esPendiente && (
+                        {/* ── Botón editar (admin: siempre, supervisor no-admin: solo pendientes) ── */}
+                        {(isAdmin || (isSupervisor && esPendiente)) && (
                           <Button size="sm" variant="outline" onClick={() => openEditBs(p)} className="gap-1.5 text-xs">
                             <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
@@ -876,7 +881,7 @@ export default function Conciliacion() {
                         </div>
                       </div>
                       <div className="flex flex-row sm:flex-col gap-2 shrink-0">
-                        {isSupervisor && p.estado === "Pendiente" && (
+                        {(isAdmin || (isSupervisor && p.estado === "Pendiente")) && (
                           <Button size="sm" variant="outline" onClick={() => openEditDiv(p)} className="gap-1.5 text-xs">
                             <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
@@ -1104,7 +1109,7 @@ export default function Conciliacion() {
       <Dialog open={editBsOpen} onOpenChange={setEditBsOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar pago en Bs.</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto pr-1">
             <div><Label className="text-sm">Fecha de pago</Label><Input type="date" value={editBsFecha} onChange={e => setEditBsFecha(e.target.value)} className="mt-1"/></div>
             <div><Label className="text-sm">Banco Emisor</Label><Input value={editBsEmisor} onChange={e => setEditBsEmisor(e.target.value)} className="mt-1"/></div>
             <div>
@@ -1118,11 +1123,36 @@ export default function Conciliacion() {
             <div><Label className="text-sm">Referencia</Label><Input value={editBsRef} onChange={e => setEditBsRef(e.target.value)} className="mt-1"/></div>
             <div><Label className="text-sm">Teléfono / Celular</Label><Input value={editBsCel} onChange={e => setEditBsCel(e.target.value)} className="mt-1"/></div>
             <div><Label className="text-sm">Cliente</Label><Input value={editBsCliente} onChange={e => setEditBsCliente(e.target.value)} className="mt-1"/></div>
+            {isAdmin && (
+              <>
+                <div><Label className="text-sm">CI / RIF</Label><Input value={editBsRif} onChange={e => setEditBsRif(e.target.value)} placeholder="Ej: V-12345678" className="mt-1"/></div>
+                <div><Label className="text-sm">Número de Factura</Label><Input value={editBsFactura} onChange={e => setEditBsFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/></div>
+                <div>
+                  <Label className="text-sm">¿Validado por Megasoft?</Label>
+                  <Select value={editBsMega} onValueChange={v => setEditBsMega(v as "Sí" | "No")}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona"/></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sí">Sí</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            <div>
+              <Label className="text-sm">Observaciones</Label>
+              <Textarea value={editBsObs} onChange={e => setEditBsObs(e.target.value)} placeholder="Agrega una nota..." className="mt-1 resize-none" rows={3}/>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditBsOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => editBsPago && editBsMutation.mutate({ id: editBsPago.id, campos: { fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor, monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente } })}
+              onClick={() => editBsPago && editBsMutation.mutate({ id: editBsPago.id, campos: {
+                fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor,
+                monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente,
+                observaciones: editBsObs,
+                ...(isAdmin ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
+              } })}
               disabled={editBsMutation.isPending}
             >
               {editBsMutation.isPending ? "Guardando..." : "Guardar cambios"}
@@ -1151,11 +1181,15 @@ export default function Conciliacion() {
               </Select>
             </div>
             <div><Label className="text-sm">Referencia</Label><Input value={editDivRef} onChange={e => setEditDivRef(e.target.value)} className="mt-1"/></div>
+            <div>
+              <Label className="text-sm">Observaciones</Label>
+              <Textarea value={editDivObs} onChange={e => setEditDivObs(e.target.value)} placeholder="Agrega una nota..." className="mt-1 resize-none" rows={3}/>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDivOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => editDivPago && editDivMutation.mutate({ id: editDivPago.id, campos: { fecha: editDivFecha, nombrePagador: editDivPagador, monto: editDivMonto, tipo: editDivTipo, referencia: editDivRef } })}
+              onClick={() => editDivPago && editDivMutation.mutate({ id: editDivPago.id, campos: { fecha: editDivFecha, nombrePagador: editDivPagador, monto: editDivMonto, tipo: editDivTipo, referencia: editDivRef, observaciones: editDivObs } })}
               disabled={editDivMutation.isPending}
             >
               {editDivMutation.isPending ? "Guardando..." : "Guardar cambios"}
