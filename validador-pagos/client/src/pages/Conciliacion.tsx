@@ -1147,7 +1147,7 @@ export default function Conciliacion() {
             <div><Label className="text-sm">Referencia</Label><Input value={editBsRef} onChange={e => setEditBsRef(e.target.value)} className="mt-1"/></div>
             <div><Label className="text-sm">Teléfono / Celular</Label><Input value={editBsCel} onChange={e => setEditBsCel(e.target.value)} className="mt-1"/></div>
             <div><Label className="text-sm">Cliente</Label><Input value={editBsCliente} onChange={e => setEditBsCliente(e.target.value)} className="mt-1"/></div>
-            {isAdmin && (
+            {(isAdmin || isVendedor) && (
               <>
                 <div><Label className="text-sm">CI / RIF</Label><Input value={editBsRif} onChange={e => setEditBsRif(e.target.value)} placeholder="Ej: V-12345678" className="mt-1"/></div>
                 <div><Label className="text-sm">Número de Factura</Label><Input value={editBsFactura} onChange={e => setEditBsFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/></div>
@@ -1175,7 +1175,7 @@ export default function Conciliacion() {
                 fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor,
                 monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente,
                 observaciones: editBsObs,
-                ...(isAdmin ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
+                ...((isAdmin || isVendedor) ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
               } })}
               disabled={editBsMutation.isPending}
             >
