@@ -1,4 +1,3 @@
-import Solicitudes from "@/pages/Solicitudes";
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -34,13 +33,14 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [location] = useHashLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const allowedNav = navItems.filter(item => user && item.roles.includes(user.rol));
+  const allowedNav = navItems.filter(item => user && item.roles.includes(user.rol) && (item.href !== "/solicitudes" || user.rol !== "vendedor" || user.solicitudes));
 
   const rolLabel: Record<string, string> = {
     admin: "Administrador",
     contabilidad: "Contabilidad",
     vendedor: "Vendedor",
     cajero: "Cajero",
+        compras: "Compras",
   };
 
   const rolColor: Record<string, string> = {
@@ -48,6 +48,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     contabilidad: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     vendedor: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     cajero: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+        compras: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300",
   };
 
   return (
