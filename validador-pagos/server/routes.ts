@@ -444,6 +444,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 app.get("/api/solicitudes", async (_req, res) => {
   try {
   
+          const solicitudes = await getSolicitudes();
     res.json(solicitudes.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()));
   } catch (e: any) {
     res.status(500).json({ message: "Error al obtener solicitudes" });
