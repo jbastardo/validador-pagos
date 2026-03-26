@@ -1,3 +1,4 @@
+import Solicitudes from "@/pages/Solicitudes";
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
@@ -185,6 +186,4 @@ export default function Layout({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
-  import Solicitudes from "@/pages/Solicitudes";
-
-}
+  }
