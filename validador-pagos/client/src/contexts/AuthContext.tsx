@@ -5,6 +5,7 @@ interface AuthUser {
   nombre: string;
   email: string;
   rol: string;
+    solicitudes?: boolean;
 }
 
 interface AuthContextType {
