@@ -1,3 +1,5 @@
+// App.tsx correcto:
+
 import { Switch, Route, Router } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -15,8 +17,7 @@ import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 import PerplexityAttribution from "@/components/PerplexityAttribution";
 import Solicitudes from "@/pages/Solicitudes";
-// ... dentro del Switch:
-<Route path="/solicitudes" component={Solicitudes} />
+
 function AppRoutes() {
   const { user } = useAuth();
   if (!user) return <Login />;
@@ -30,6 +31,7 @@ function AppRoutes() {
           <Route path="/conciliacion" component={Conciliacion} />
           <Route path="/usuarios" component={Usuarios} />
           <Route path="/extractos" component={Extractos} />
+          <Route path="/solicitudes" component={Solicitudes} />
           <Route component={NotFound} />
         </Switch>
         <PerplexityAttribution />
@@ -47,7 +49,4 @@ export default function App() {
       </AuthProvider>
     </QueryClientProvider>
   );
-  import Solicitudes from "@/pages/Solicitudes";
-// ... dentro del Switch:
-<Route path="/solicitudes" component={Solicitudes} />
 }
