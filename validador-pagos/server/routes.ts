@@ -438,6 +438,50 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/extractos/:banco",     (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
   app.delete("/api/extractos/:banco",   (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
   // ─────────────────────────────────────────────────────────────────────────────
+// ===== SOLICITUDES =====
+import { getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud } from "./sheets";
 
+app.get("/api/solicitudes", async (_req, res) => {
+  try {
+    const solicitudes = await getSolicitudes();
+    res.json(solicitudes.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()));
+  } catch (e: any) {
+    res.status(500).json({ message: "Error al obtener solicitudes" });
+  }
+});
+
+app.post("/api/solicitudes", async (req, res) => {
+  try {
+    const schema = z.object({
+      vendedor: z.string().min(1),
+      cliente: z.string().min(1),
+      sku: z.string().optional().default(""),
+      producto: z.string().min(1),
+      cantidad: z.string().min(1),
+      fechaSolicitud: z.string().min(1),
+      fechaEstimada: z.string().optional().default(""),
+      observaciones: z.string().optional().default(""),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+    const nuevo = await addSolicitud({ ...parsed.data, estado: "Pendiente", creadoEn: new Date().toISOString() });
+    res.status(201).json(nuevo);
+  } catch (e: any) {
+    res.status(500).json({ message: "Error al crear solicitud" });
+  }
+});
+
+app.patch("/api/solicitudes/:id/estado", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+    if (!estado) return res.status(400).json({ message: "Estado requerido" });
+    const updated = await updateSolicitudEstado(id, estado);
+    if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ message: "Error al actualizar solicitud" });
+  }
+});
   return httpServer;
 }
