@@ -14,7 +14,9 @@ import Extractos from "@/pages/Extractos";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 import PerplexityAttribution from "@/components/PerplexityAttribution";
-
+import Solicitudes from "@/pages/Solicitudes";
+// ... dentro del Switch:
+<Route path="/solicitudes" component={Solicitudes} />
 function AppRoutes() {
   const { user } = useAuth();
   if (!user) return <Login />;
