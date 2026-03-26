@@ -7,6 +7,7 @@ import {
   getUsuarios, addUsuario, updateUsuario,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
+  getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud,
 } from "./sheets";
 import {
   parseExtractoExcel, addMovimientos, getMovimientos, deleteMovimientosBanco,
@@ -439,11 +440,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/extractos/:banco",   (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
   // ─────────────────────────────────────────────────────────────────────────────
 // ===== SOLICITUDES =====
-import { getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud } from "./sheets";
 
 app.get("/api/solicitudes", async (_req, res) => {
   try {
-    const solicitudes = await getSolicitudes();
+  
     res.json(solicitudes.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()));
   } catch (e: any) {
     res.status(500).json({ message: "Error al obtener solicitudes" });
