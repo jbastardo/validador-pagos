@@ -184,4 +184,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
+  import Solicitudes from "@/pages/Solicitudes";
+// ... dentro del Switch:
+<Route path="/solicitudes" component={Solicitudes} />
 }
