@@ -45,4 +45,7 @@ export default function App() {
       </AuthProvider>
     </QueryClientProvider>
   );
+  import Solicitudes from "@/pages/Solicitudes";
+// ... dentro del Switch:
+<Route path="/solicitudes" component={Solicitudes} />
 }
