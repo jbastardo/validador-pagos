@@ -28,7 +28,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const usuarios = await getUsuarios();
       const u = usuarios.find(x => x.email === email && x.password === password && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(401).json({ message: "Credenciales incorrectas" });
-      res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol });
+      res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, solicitudes: u.solicitudes === "true" });
     } catch (e: any) {
       console.error("Error login:", e.message);
       res.status(500).json({ message: "Error al verificar credenciales" });
@@ -393,7 +393,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/usuarios", async (_req, res) => {
     try {
       const usuarios = await getUsuarios();
-      res.json(usuarios.map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo })));
+      res.json(usuarios.map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo, solicitudes: u.solicitudes })));
     } catch (e: any) {
       res.status(500).json({ message: "Error al obtener usuarios" });
     }
@@ -401,13 +401,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/usuarios", async (req, res) => {
     try {
-      const { nombre, email, password, rol } = req.body;
+      const { nombre, email, password, rol, solicitudes } = req.body;
       if (!nombre || !email || !password) return res.status(400).json({ message: "Campos requeridos" });
       const usuarios = await getUsuarios();
       if (usuarios.find(u => u.email === email)) return res.status(409).json({ message: "El email ya está registrado" });
       const newId = String(Math.max(...usuarios.map(u => parseInt(u.id) || 0)) + 1);
-      const newUser = await addUsuario({ id: newId, nombre, email, password, rol: rol ?? "vendedor", activo: "true" });
-      res.status(201).json({ id: newUser.id, nombre: newUser.nombre, email: newUser.email, rol: newUser.rol, activo: newUser.activo });
+      const newUser = await addUsuario({ id: newId, nombre, email, password, rol: rol ?? "vendedor", activo: "true", solicitudes: solicitudes ?? "false" });
+      res.status(201).json({ id: newUser.id, nombre: newUser.nombre, email: newUser.email, rol: newUser.rol, activo: newUser.activo, solicitudes: newUser.solicitudes });
     } catch (e: any) {
       console.error("Error addUsuario:", e.message);
       res.status(500).json({ message: "Error al crear usuario" });
@@ -421,7 +421,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const usuario = usuarios.find(u => u.id === id);
       if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
       const updated = await updateUsuario(id, { ...usuario, ...req.body });
-      res.json({ id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, activo: updated.activo });
+      res.json({ id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, activo: updated.activo, solicitudes: updated.solicitudes });
     } catch (e: any) {
       console.error("Error updateUsuario:", e.message);
       res.status(500).json({ message: "Error al actualizar usuario" });
