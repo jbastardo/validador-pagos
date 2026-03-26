@@ -12,12 +12,12 @@ import {
   X,
   DollarSign,
   FileSpreadsheet,
+    ClipboardList,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero"] },
   { href: "/registrar", label: "Pagos en Bs", icon: PlusCircle, roles: ["admin", "vendedor"] },
@@ -25,6 +25,7 @@ const navItems = [
   { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor"] },
   // { href: "/extractos", label: "Extractos", icon: FileSpreadsheet, roles: ["admin", "contabilidad"] }, // DESACTIVADO TEMPORALMENTE
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
+    { href: "/solicitudes", label: "Solicitudes", icon: ClipboardList, roles: ["admin", "vendedor", "compras"] },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -185,6 +186,5 @@ export default function Layout({ children }: { children: ReactNode }) {
     </div>
   );
   import Solicitudes from "@/pages/Solicitudes";
-// ... dentro del Switch:
-<Route path="/solicitudes" component={Solicitudes} />
+
 }
