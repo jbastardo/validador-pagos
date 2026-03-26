@@ -191,7 +191,7 @@ export async function checkDuplicado(
 
 // ─── USUARIOS ─────────────────────────────────────────────────────────────────
 export interface SheetUsuario {
-  id: string; nombre: string; email: string; password: string; rol: string; activo: string; _rowIndex?: number;
+  id: string; nombre: string; email: string; password: string; rol: string; activo: string; solicitudes: string; _rowIndex?: number;
 }
 
 export async function getUsuarios(): Promise<SheetUsuario[]> {
@@ -200,13 +200,13 @@ export async function getUsuarios(): Promise<SheetUsuario[]> {
   return rows.slice(1)
     .map((row, i) => ({
       id: row[0]??"", nombre: row[1]??"", email: row[2]??"", password: row[3]??"",
-      rol: row[4]??"vendedor", activo: row[5]??"true", _rowIndex: i + 2,
+      rol: row[4]??"vendedor", activo: row[5]??"true", solicitudes: row[6]??"false", _rowIndex: i + 2,
     }))
     .filter(u => u.id !== "" && u.activo !== "ELIMINADO");
 }
 
 export async function addUsuario(u: Omit<SheetUsuario, "_rowIndex">): Promise<SheetUsuario> {
-  const row = [u.id, u.nombre, u.email, u.password, u.rol, u.activo];
+  const row = [u.id, u.nombre, u.email, u.password, u.rol, u.activo, u.solicitudes ?? "false"];
   await appendRow(TAB_USUARIOS, row);
   return u;
 }
@@ -216,7 +216,7 @@ export async function updateUsuario(id: string, data: Partial<SheetUsuario>): Pr
   const u = usuarios.find(x => x.id === id);
   if (!u || !u._rowIndex) throw new Error("Usuario no encontrado");
   const updated = { ...u, ...data };
-  const row = [updated.id, updated.nombre, updated.email, updated.password, updated.rol, updated.activo];
+  const row = [updated.id, updated.nombre, updated.email, updated.password, updated.rol, updated.activo, updated.solicitudes ?? "false"];
   await updateRow(TAB_USUARIOS, u._rowIndex, row);
   return updated;
 }
@@ -323,7 +323,7 @@ export async function deleteUsuario(id: string): Promise<boolean> {
   const u = usuarios.find(x => x.id === id);
   if (!u || !u._rowIndex) return false;
   // 6 columnas A:F — sobreescribir con vacíos + Activo=ELIMINADO
-  const emptyRow = ["", "", "", "", "", "ELIMINADO"];
+  const emptyRow = ["", "", "", "", "", "ELIMINADO", ""];
   await updateRow(TAB_USUARIOS, u._rowIndex, emptyRow);
   return true;
 }
