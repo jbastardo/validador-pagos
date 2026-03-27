@@ -5,6 +5,8 @@ const ODOO_DB   = process.env.ODOO_DB  || "binaural-dev-onprotec-16-release-8815
 const ODOO_USER = process.env.ODOO_USERNAME || "";
 const ODOO_KEY  = process.env.ODOO_API_KEY  || "";
 
+console.log("[odoo] config:", { ODOO_URL, ODOO_DB, ODOO_USER: ODOO_USER ? "SET" : "EMPTY", ODOO_KEY: ODOO_KEY ? "SET" : "EMPTY" });
+
 let uidCache: number | null = null;
 
 async function authenticate(): Promise<number> {
