@@ -12,7 +12,7 @@ import {
   X,
   DollarSign,
   FileSpreadsheet,
-    ClipboardList,
+    ClipboardList, BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +25,7 @@ const navItems = [
   { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor"] },
   // { href: "/extractos", label: "Extractos", icon: FileSpreadsheet, roles: ["admin", "contabilidad"] }, // DESACTIVADO TEMPORALMENTE
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
-    { href: "/solicitudes", label: "Solicitudes", icon: ClipboardList, roles: ["admin", "vendedor", "compras"] },
+    { href: "/solicitudes", label: "Solicitudes", icon: ClipboardList, roles: ["admin", "vendedor", "compras"] },   { href: "/dashboard-solicitudes", label: "Dashboard Solicitudes", icon: BarChart3, roles: ["admin", "compras"] },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
