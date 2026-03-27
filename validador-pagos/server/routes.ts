@@ -15,6 +15,7 @@ import {
 } from "./extractos";
 import { z } from "zod";
 import { BANCOS_RECEPTOR_META } from "../shared/schema";
+import { searchClientes, searchProductos } from "./odoo";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -483,6 +484,31 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ message: "Error al actualizar solicitud" });
   }
+
+    // ===== ODOO PROXY =====
+  app.get("/api/odoo/clientes", async (req, res) => {
+    try {
+      const q = (req.query.q as string) || "";
+      if (q.length < 2) return res.json([]);
+      const clientes = await searchClientes(q);
+      res.json(clientes);
+    } catch (e: any) {
+      console.error("Error searchClientes:", e.message);
+      res.status(500).json({ message: "Error al buscar clientes en Odoo" });
+    }
+  });
+
+  app.get("/api/odoo/productos", async (req, res) => {
+    try {
+      const q = (req.query.q as string) || "";
+      if (q.length < 2) return res.json([]);
+      const productos = await searchProductos(q);
+      res.json(productos);
+    } catch (e: any) {
+      console.error("Error searchProductos:", e.message);
+      res.status(500).json({ message: "Error al buscar productos en Odoo" });
+    }
+  });
 });
   return httpServer;
 }
