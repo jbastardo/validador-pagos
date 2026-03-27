@@ -1,6 +1,11 @@
 import { google } from "googleapis";
 import { extractBancoCode } from "../shared/schema";
 
+// Normaliza check Megasoft: acepta Si con o sin acento
+function isMegaSi(val: string): boolean {
+  return val.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === "si";
+}
+
 const SHEET_ID    = process.env.GOOGLE_SHEET_ID ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
 const TAB_PAGOS   = process.env.GOOGLE_SHEET_TAB ?? "Hoja 1";
 const TAB_USUARIOS = "Usuarios";
@@ -117,7 +122,7 @@ export async function updatePagoCajeroPendiente(
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
-  const autoAprueba = megasoft === "Si";
+  const autoAprueba = isMegaSi(megasoft);
   const nuevoEstado = autoAprueba ? "Verificado" : pago.estado;
   const nuevoValidado = autoAprueba ? cajeroEmail : pago.validadoPor;
   const validadoEnCajero = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
@@ -138,7 +143,7 @@ export async function updatePagoFacturaCliente(id: string, factura: string, clie
   const newFactura = factura || pago.factura;
   const newCliente = cliente || (pago.cliente ?? "");
   const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
-  const autoAprueba = newMegasoft === "Si";
+  const autoAprueba = isMegaSi(newMegasoft);
   const nuevoEstado = autoAprueba ? "Verificado" : pago.estado;
   const nuevoValidado = autoAprueba ? (cajeroEmail || "Cajero") + " (Megasoft)" : pago.validadoPor;
   const nuevoValidadoEn = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
@@ -172,6 +177,26 @@ export async function checkDuplicado(
     return pagos.find(p =>
       p.tipoPago === "PagoMovil" && !p.referencia?.trim() &&
       p.monto === monto && p.fechaPago === fechaPago &&
+        // Tolerancia: ultimos 4, 5 y 6 digitos + mismo monto + mismo banco
+  const digits = (referencia ?? "").replace(/\D/g, "");
+  if (digits.length >= 4) {
+    const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
+    const bancoCode = extractBancoCode(bancoReceptor ?? "");
+    for (const n of [6, 5, 4]) {
+      if (digits.length < n) continue;
+      const suffix = digits.slice(-n);
+      const dupT = pagos.find(p => {
+        const pDigits = p.referencia.replace(/\D/g, "");
+        if (pDigits.length < n) return false;
+        return (
+          pDigits.slice(-n) === suffix &&
+          Math.abs((parseFloat(p.monto.replace(",", ".")) || 0) - montoNorm) < 0.01 &&
+          extractBancoCode(p.bancoReceptor) === bancoCode
+        );
+      });
+      if (dupT) return dupT;
+    }
+  }
       p.celular.trim() === (celular ?? "").trim()
     );
   }
@@ -269,7 +294,7 @@ export async function updatePagoEdicion(id: string, data: { fechaPago: string; b
   const rifVal = data.rif !== undefined ? data.rif : (pago.rif ?? "");
   const facturaVal = data.factura !== undefined ? data.factura : (pago.factura ?? "");
   const megasoftVal = (data.megasoft !== undefined && data.megasoft !== "") ? data.megasoft : (pago.megasoft ?? "");
-  const autoAprueba = megasoftVal === "Si" && pago.megasoft !== "Si";
+  const autoAprueba = isMegaSi(megasoftVal) && !isMegaSi(pago.megasoft);
   const nuevoEstado = autoAprueba ? "Verificado" : pago.estado;
   const nuevoValidado = autoAprueba ? (data.cajeroEmail || "Admin") + " (Megasoft)" : pago.validadoPor;
   const nuevoValidadoEn = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
