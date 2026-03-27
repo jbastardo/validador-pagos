@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit2, Trash2, Filter } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, Filter, RefreshCw, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -16,7 +16,7 @@ interface Solicitud {
   id: string; vendedor: string; cliente: string; celular: string; sku: string;
   producto: string; cantidad: string;
   fechaTope: string; observaciones: string; estado: string; creadoEn: string;
-  observacionesCompras?: string; actualizadoEn?: string;
+  observacionesCompras?: string; actualizadoEn?: string; respondidoPor?: string;
 }
 interface OdooCliente { id: number; name: string; vat: string; phone: string; mobile: string; email: string; }
 interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; }
@@ -196,7 +196,7 @@ export default function Solicitudes() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Solicitudes de Producto</h1>
+        <h1 className="text-2xl font-bold">Solicitudes de Producto</h1><Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["solicitudes"] })} className="gap-2"><RefreshCw className="h-4 w-4" />Actualizar</Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><PlusCircle className="mr-2 h-4 w-4" /> Nueva Solicitud</Button>
@@ -342,7 +342,8 @@ export default function Solicitudes() {
                   <td className="p-3">{s.cantidad}</td>
                   <td className="p-3">{s.fechaTope || "—"}</td>
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
-                  <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge></td>
+                  <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}
+Fecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "—"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                   <td className="p-3">{s.vendedor}</td>
                   {isCompras && <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "—"}</td>}
                   {isCompras && <td className="p-3 space-x-1">
