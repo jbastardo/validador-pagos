@@ -195,7 +195,7 @@ export default function Solicitudes() {
     if (dias < 0) return "Vencida"; if (dias <= 3) return "Urgente"; if (dias <= 7) return "Alta"; return "Normal";
   };
   const colorPrioridad = (p: string) => (p === "Vencida" || p === "Urgente") ? "destructive" : p === "Alta" ? "default" : "secondary";
-  const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : "destructive";
+  const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "Agotado" ? "secondary" : "destructive";
   const isCompras = user?.rol === "admin" || user?.rol === "compras";
   const isAdmin = user?.rol === "admin";
   const isVendedor = user?.rol === "vendedor";
@@ -291,7 +291,7 @@ export default function Solicitudes() {
               <SelectItem value="Pendiente">Pendiente</SelectItem>
               <SelectItem value="En Proceso">En Proceso</SelectItem>
               <SelectItem value="Completada">Completada</SelectItem>
-              <SelectItem value="Cancelada">Cancelada</SelectItem>
+              <SelectItem value="Cancelada">Cancelada</SelectItem><SelectItem value="Agotado">Agotado</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filtroVendedor || "todos"} onValueChange={v => setFiltroVendedor(v === "todos" ? "" : v)}>
@@ -374,6 +374,7 @@ export default function Solicitudes() {
                   <SelectItem value="En Proceso">En Proceso</SelectItem>
                   <SelectItem value="Completada">Completada</SelectItem>
                   <SelectItem value="Cancelada">Cancelada</SelectItem>
+                                    <SelectItem value="Agotado">Agotado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
