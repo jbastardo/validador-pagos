@@ -15,7 +15,7 @@ import {
 } from "./extractos";
 import { z } from "zod";
 import { BANCOS_RECEPTOR_META } from "../shared/schema";
-import { searchClientes, searchProductos } from "./odoo";
+import { searchClientes, searchProductos, createCliente } from "./odoo";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -496,6 +496,17 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
     } catch (e: any) {
       console.error("Error searchClientes:", e.message);
       res.status(500).json({ message: "Error al buscar clientes en Odoo" });
+    }
+  });
+    app.post("/api/odoo/clientes", async (req, res) => {
+    try {
+      const { name, vat, phone, mobile, email } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ message: "El nombre es obligatorio" });
+      const cliente = await createCliente({ name: name.trim(), vat, phone, mobile, email });
+      res.status(201).json(cliente);
+    } catch (e: any) {
+      console.error("Error createCliente:", e.message);
+      res.status(500).json({ message: "Error al crear cliente en Odoo" });
     }
   });
 
