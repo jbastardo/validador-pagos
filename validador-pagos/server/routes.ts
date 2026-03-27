@@ -557,7 +557,14 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
       const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad }, usuario);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (estado && estado !== "Pendiente") {
-        const msg = `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
+        const msg = estado === "Agotado" ? `PRODUCTO AGOTADO
+Solicitud #${updated.id}
+Cliente: ${updated.cliente}
+Producto: ${updated.producto}
+Cantidad: ${updated.cantidad}
+Obs: ${observacionesCompras || "-"}
+Por favor sugiera un producto alternativo al cliente.
+Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
               sendTelegramToVendedor(updated.vendedor, msg).catch(() => {}, usuario);
       }
       res.json(updated);
