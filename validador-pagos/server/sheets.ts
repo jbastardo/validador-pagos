@@ -366,7 +366,7 @@ export async function deleteSolicitud(id: string): Promise<boolean> {
 }
 
 export async function updateSolicitudEdicion(
-  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string }
+  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string },
   usuario?: string,
 ): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
