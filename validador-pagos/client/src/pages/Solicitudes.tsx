@@ -43,7 +43,7 @@ export default function Solicitudes() {
   const { data: clientesOdoo = [] } = useQuery<OdooCliente[]>({
     queryKey: ["odoo-clientes", debouncedCliente],
     queryFn: () => fetch(`/api/odoo/clientes?q=${encodeURIComponent(debouncedCliente)}`).then(r => r.json()),
-    enabled: debouncedCliente.length >= 2,
+        enabled: debouncedCliente.length >= 1,
   });
 
   // --- Crear cliente en Odoo si no existe ---
@@ -70,11 +70,11 @@ export default function Solicitudes() {
   const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
     queryKey: ["odoo-productos-sku", debouncedSku],
     queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedSku)}`).then(r => r.json()),
-    enabled: debouncedSku.length >= 2,
+        enabled: debouncedSku.length >= 1,
   });
 
   useEffect(() => {
-    if (debouncedSku.length < 2) {
+        if (debouncedSku.length < 1) {
       if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
       return;
     }
@@ -148,10 +148,10 @@ export default function Solicitudes() {
                 <Input
                   value={clienteQuery}
                   onChange={e => { setClienteQuery(e.target.value); setForm(f => ({ ...f, cliente: e.target.value })); setShowClienteDD(true); }}
-                  onFocus={() => clienteQuery.length >= 2 && setShowClienteDD(true)}
+                  onFocus={() => clienteQuery.length >= 1 && setShowClienteDD(true)}
                   placeholder="Buscar en Odoo..."
                 />
-                {showClienteDD && debouncedCliente.length >= 2 && (
+                {showClienteDD && debouncedCliente.length >= 1 && (
                   <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-lg max-h-56 overflow-auto">
                     {clientesOdoo.length > 0 ? clientesOdoo.map(c => (
                       <div key={c.id} className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0" onMouseDown={() => selectCliente(c)}>
