@@ -16,7 +16,7 @@ import Extractos from "@/pages/Extractos";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
 import PerplexityAttribution from "@/components/PerplexityAttribution";
-import Solicitudes from "@/pages/Solicitudes";
+import Solicitudes from "@/pages/Solicitudes"; import DashboardSolicitudes from "@/pages/DashboardSolicitudes";
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -31,7 +31,7 @@ function AppRoutes() {
           <Route path="/conciliacion" component={Conciliacion} />
           <Route path="/usuarios" component={Usuarios} />
           <Route path="/extractos" component={Extractos} />
-          <Route path="/solicitudes" component={Solicitudes} />
+          <Route path="/solicitudes" component={Solicitudes} />             <Route path="/dashboard-solicitudes" component={DashboardSolicitudes} />
           <Route component={NotFound} />
         </Switch>
         <PerplexityAttribution />
