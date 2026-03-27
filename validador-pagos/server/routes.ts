@@ -4,7 +4,7 @@ import multer from "multer";
 import {
   getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado,
   deletePago, deletePagoDivisa, deleteUsuario,
-  getUsuarios, addUsuario, updateUsuario,
+  getUsuarios, addUsuario, updateUsuario, updateUsuarioTelegramChatId,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
     getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
@@ -19,15 +19,31 @@ import { searchClientes, searchProductos, createCliente } from "./odoo";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
-async function sendTelegram(text: string) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+async function sendTelegram(text: string, chatId?: string) {
+  if (!TELEGRAM_BOT_TOKEN) return;
+  const targetChatId = chatId || TELEGRAM_CHAT_ID;
+  if (!targetChatId) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: "HTML" }),
+    body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: "HTML" }),
   });
 }
 
+async function sendTelegramToVendedor(vendedorEmail: string, text: string) {
+  if (!TELEGRAM_BOT_TOKEN) return;
+  try {
+    const usuarios = await getUsuarios();
+    const u = usuarios.find(x => x.email === vendedorEmail);
+    if (u?.telegramChatId) {
+      await sendTelegram(text, u.telegramChatId);
+    } else if (TELEGRAM_CHAT_ID) {
+      await sendTelegram(text, TELEGRAM_CHAT_ID);
+    }
+  } catch (e) {
+    console.error("Error sendTelegramToVendedor:", e);
+  }
+}
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -542,7 +558,7 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (estado && estado !== "Pendiente") {
         const msg = `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
-        sendTelegram(msg).catch(() => {});
+              sendTelegramToVendedor(updated.vendedor, msg).catch(() => {});
       }
       res.json(updated);
     } catch (e: any) {
@@ -566,6 +582,47 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
     } catch (e: any) {
       console.error("Error deleteSolicitud:", e.message);
       res.status(500).json({ message: "Error al eliminar" });
+    }
+  });
+
+  // ===== TELEGRAM WEBHOOK (auto-link vendedor) =====
+  app.post("/api/telegram/webhook", async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message?.text || !message?.chat?.id) return res.json({ ok: true });
+      const text = message.text.trim();
+      const chatId = String(message.chat.id);
+      // /start email@example.com
+      if (text.startsWith("/start")) {
+        const parts = text.split(" ");
+        const email = parts[1]?.trim();
+        if (!email) {
+          await sendTelegram("Usa: /start tu_email@empresa.com", chatId);
+          return res.json({ ok: true });
+        }
+        const updated = await updateUsuarioTelegramChatId(email, chatId);
+        if (updated) {
+          await sendTelegram(`Vinculado correctamente. Hola ${updated.nombre}, recibiras notificaciones de solicitudes aqui.`, chatId);
+        } else {
+          await sendTelegram(`No se encontro un usuario con email: ${email}`, chatId);
+        }
+      }
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("Telegram webhook error:", e.message);
+      res.json({ ok: true });
+    }
+  });
+
+  // Endpoint para consultar estado de vinculacion Telegram
+  app.get("/api/usuarios/:id/telegram-status", async (req, res) => {
+    try {
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.id === req.params.id);
+      if (!u) return res.status(404).json({ message: "Usuario no encontrado" });
+      res.json({ linked: !!u.telegramChatId, chatId: u.telegramChatId || null });
+    } catch (e: any) {
+      res.status(500).json({ message: "Error" });
     }
   });
   return httpServer;
