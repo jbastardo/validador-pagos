@@ -180,7 +180,6 @@ export async function checkDuplicado(
         celular.trim() === (celular ?? "").trim()
     );
   }
-}
 // Tolerancia: ultimos 4, 5 y 6 digitos + mismo monto + mismo banco
   const digits = (referencia ?? "").replace(/\D/g, "");
   if (digits.length >= 4) {
@@ -201,6 +200,7 @@ export async function checkDuplicado(
       if (dupT) return dupT;
     }
   }
+}
 
 // --- USUARIOS ---
 export interface SheetUsuario {
