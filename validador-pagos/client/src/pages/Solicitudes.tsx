@@ -11,12 +11,12 @@ import { PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Solicitud {
-  id: string; vendedor: string; cliente: string; sku: string;
-  producto: string; cantidad: string; fechaSolicitud: string;
-  fechaEstimada: string; observaciones: string; estado: string; creadoEn: string;
+  id: string; vendedor: string; cliente: string; celular: string; sku: string;
+  producto: string; cantidad: string;
+  fechaTope: string; observaciones: string; estado: string; creadoEn: string;
 }
 
-interface OdooCliente { id: number; name: string; vat: string; phone: string; email: string; }
+interface OdooCliente { id: number; name: string; vat: string; phone: string; mobile: string; email: string; }
 interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; }
 
 function useDebounce(value: string, delay: number) {
@@ -33,9 +33,9 @@ export default function Solicitudes() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ cliente: "", sku: "", producto: "", cantidad: "", fechaSolicitud: "", fechaEstimada: "", observaciones: "" });
+  const [form, setForm] = useState({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
 
-  // Autocomplete cliente Odoo
+  // --- Autocomplete cliente Odoo ---
   const [clienteQuery, setClienteQuery] = useState("");
   const [showClienteDD, setShowClienteDD] = useState(false);
   const debouncedCliente = useDebounce(clienteQuery, 350);
@@ -46,7 +46,25 @@ export default function Solicitudes() {
     enabled: debouncedCliente.length >= 2,
   });
 
-  // SKU → autocomplete producto Odoo
+  // --- Crear cliente en Odoo si no existe ---
+  const [showCrearCliente, setShowCrearCliente] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState({ name: "", vat: "", phone: "", mobile: "", email: "" });
+  const crearClienteOdoo = useMutation({
+    mutationFn: (data: any) => fetch("/api/odoo/clientes", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    onSuccess: (c: OdooCliente) => {
+      const display = c.vat ? `${c.name} (${c.vat})` : c.name;
+      setForm(f => ({ ...f, cliente: display, celular: c.mobile || c.phone || "" }));
+      setClienteQuery(display);
+      setShowCrearCliente(false);
+      setNuevoCliente({ name: "", vat: "", phone: "", mobile: "", email: "" });
+      toast({ title: "Cliente creado en Odoo" });
+    },
+    onError: () => toast({ title: "Error al crear cliente", variant: "destructive" }),
+  });
+
+  // --- SKU autocomplete ---
   const debouncedSku = useDebounce(form.sku, 400);
   const [productoLocked, setProductoLocked] = useState(false);
   const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
@@ -55,33 +73,19 @@ export default function Solicitudes() {
     enabled: debouncedSku.length >= 2,
   });
 
-  // Cuando cambia el SKU debounced, buscar coincidencia exacta
   useEffect(() => {
     if (debouncedSku.length < 2) {
-      if (productoLocked) {
-        setForm(f => ({ ...f, producto: "" }));
-        setProductoLocked(false);
-      }
+      if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
       return;
     }
-    const exacto = productosOdoo.find(
-      p => p.default_code.toLowerCase() === debouncedSku.toLowerCase()
-    );
-    if (exacto) {
-      setForm(f => ({ ...f, producto: exacto.name }));
-      setProductoLocked(true);
-    } else {
-      if (productoLocked) {
-        setForm(f => ({ ...f, producto: "" }));
-        setProductoLocked(false);
-      }
-    }
+    const exacto = productosOdoo.find(p => p.default_code.toLowerCase() === debouncedSku.toLowerCase());
+    if (exacto) { setForm(f => ({ ...f, producto: exacto.name })); setProductoLocked(true); }
+    else if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
   }, [debouncedSku, productosOdoo]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (clienteRef.current && !clienteRef.current.contains(e.target as Node))
-        setShowClienteDD(false);
+      if (clienteRef.current && !clienteRef.current.contains(e.target as Node)) setShowClienteDD(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -99,9 +103,8 @@ export default function Solicitudes() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setOpen(false);
-      setForm({ cliente: "", sku: "", producto: "", cantidad: "", fechaSolicitud: "", fechaEstimada: "", observaciones: "" });
-      setClienteQuery("");
-      setProductoLocked(false);
+      setForm({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
+      setClienteQuery(""); setProductoLocked(false);
       toast({ title: "Solicitud creada" });
     },
   });
@@ -113,12 +116,9 @@ export default function Solicitudes() {
   });
 
   const prioridad = (s: Solicitud) => {
-    if (!s.fechaEstimada) return "Sin fecha";
-    const dias = Math.ceil((new Date(s.fechaEstimada).getTime() - Date.now()) / 86400000);
-    if (dias < 0) return "Vencida";
-    if (dias <= 3) return "Urgente";
-    if (dias <= 7) return "Alta";
-    return "Normal";
+    if (!s.fechaTope) return "Sin fecha";
+    const dias = Math.ceil((new Date(s.fechaTope).getTime() - Date.now()) / 86400000);
+    if (dias < 0) return "Vencida"; if (dias <= 3) return "Urgente"; if (dias <= 7) return "Alta"; return "Normal";
   };
   const colorPrioridad = (p: string) => (p === "Vencida" || p === "Urgente") ? "destructive" : p === "Alta" ? "default" : "secondary";
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : "destructive";
@@ -126,9 +126,8 @@ export default function Solicitudes() {
 
   const selectCliente = (c: OdooCliente) => {
     const display = c.vat ? `${c.name} (${c.vat})` : c.name;
-    setForm({ ...form, cliente: display });
-    setClienteQuery(display);
-    setShowClienteDD(false);
+    setForm(f => ({ ...f, cliente: display, celular: c.mobile || c.phone || "" }));
+    setClienteQuery(display); setShowClienteDD(false);
   };
 
   return (
@@ -139,80 +138,93 @@ export default function Solicitudes() {
           <DialogTrigger asChild>
             <Button><PlusCircle className="mr-2 h-4 w-4" /> Nueva Solicitud</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>Nueva Solicitud</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
+
               {/* CLIENTE - Autocomplete Odoo */}
               <div className="relative" ref={clienteRef}>
-                <Label>Cliente * <span className="text-xs text-muted-foreground">(busca por nombre, RIF o teléfono)</span></Label>
+                <Label>Cliente * <span className="text-xs text-muted-foreground">(nombre, RIF o celular)</span></Label>
                 <Input
                   value={clienteQuery}
-                  onChange={e => {
-                    setClienteQuery(e.target.value);
-                    setForm({ ...form, cliente: e.target.value });
-                    setShowClienteDD(true);
-                  }}
+                  onChange={e => { setClienteQuery(e.target.value); setForm(f => ({ ...f, cliente: e.target.value })); setShowClienteDD(true); }}
                   onFocus={() => clienteQuery.length >= 2 && setShowClienteDD(true)}
-                  placeholder="Escribe para buscar en Odoo..."
+                  placeholder="Buscar en Odoo..."
                 />
                 {showClienteDD && debouncedCliente.length >= 2 && (
                   <div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-lg max-h-56 overflow-auto">
                     {clientesOdoo.length > 0 ? clientesOdoo.map(c => (
                       <div key={c.id} className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0" onMouseDown={() => selectCliente(c)}>
                         <div className="font-medium text-sm">{c.name}</div>
-                        <div className="text-xs text-muted-foreground space-x-3">
+                        <div className="text-xs text-muted-foreground space-x-2">
                           {c.vat && <span>RIF: {c.vat}</span>}
-                          {c.phone && <span>{c.phone}</span>}
+                          {c.mobile && <span>Cel: {c.mobile}</span>}
+                          {c.phone && !c.mobile && <span>Tel: {c.phone}</span>}
                           {c.email && <span>{c.email}</span>}
                         </div>
                       </div>
                     )) : (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">No encontrado en Odoo. Puedes escribir el nombre manualmente.</div>
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        No encontrado.
+                        <button className="ml-2 text-blue-600 underline text-xs" onMouseDown={e => { e.preventDefault(); setShowClienteDD(false); setShowCrearCliente(true); setNuevoCliente(n => ({ ...n, name: clienteQuery })); }}>
+                          Crear nuevo cliente en Odoo
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
               </div>
+
+              {/* CREAR CLIENTE - panel inline */}
+              {showCrearCliente && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 grid gap-3">
+                  <p className="text-sm font-medium text-blue-800">Nuevo cliente en Odoo</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-xs">Nombre *</Label><Input value={nuevoCliente.name} onChange={e => setNuevoCliente(n => ({ ...n, name: e.target.value }))} placeholder="Nombre completo" /></div>
+                    <div><Label className="text-xs">RIF / CI</Label><Input value={nuevoCliente.vat} onChange={e => setNuevoCliente(n => ({ ...n, vat: e.target.value }))} placeholder="J-123456789" /></div>
+                    <div><Label className="text-xs">Celular</Label><Input value={nuevoCliente.mobile} onChange={e => setNuevoCliente(n => ({ ...n, mobile: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
+                    <div><Label className="text-xs">Teléfono</Label><Input value={nuevoCliente.phone} onChange={e => setNuevoCliente(n => ({ ...n, phone: e.target.value }))} placeholder="0212-XXXXXXX" /></div>
+                    <div className="col-span-2"><Label className="text-xs">Correo</Label><Input value={nuevoCliente.email} onChange={e => setNuevoCliente(n => ({ ...n, email: e.target.value }))} placeholder="correo@empresa.com" /></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => crearClienteOdoo.mutate(nuevoCliente)} disabled={!nuevoCliente.name.trim() || crearClienteOdoo.isPending}>
+                      {crearClienteOdoo.isPending ? "Guardando..." : "Crear en Odoo"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowCrearCliente(false)}>Cancelar</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* CELULAR */}
+              <div>
+                <Label>Celular</Label>
+                <Input value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} placeholder="04XX-XXXXXXX" />
+              </div>
+
               {/* SKU + PRODUCTO */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>SKU</Label>
-                  <Input
-                    value={form.sku}
-                    onChange={e => {
-                      setForm({ ...form, sku: e.target.value });
-                      if (!e.target.value) {
-                        setProductoLocked(false);
-                        setForm(f => ({ ...f, sku: e.target.value, producto: "" }));
-                      }
-                    }}
-                    placeholder="Ej: PROD-001"
-                  />
+                  <Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="Ej: PROD-001" />
                 </div>
                 <div>
-                  <Label>
-                    Producto *{" "}
-                    {productoLocked && (
-                      <span className="text-xs text-green-600 font-normal">✓ encontrado en Odoo</span>
-                    )}
-                  </Label>
-                  <Input
-                    value={form.producto}
-                    onChange={e => setForm({ ...form, producto: e.target.value })}
-                    disabled={productoLocked}
-                    placeholder={productoLocked ? "" : "Nombre del producto"}
-                    className={productoLocked ? "bg-muted" : ""}
-                  />
+                  <Label>Producto * {productoLocked && <span className="text-xs text-green-600 font-normal">✓ Odoo</span>}</Label>
+                  <Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre del producto" className={productoLocked ? "bg-muted" : ""} />
                 </div>
               </div>
-              <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm({ ...form, cantidad: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Fecha solicitud *</Label><Input type="date" value={form.fechaSolicitud} onChange={e => setForm({ ...form, fechaSolicitud: e.target.value })} /></div>
-                <div><Label>Fecha estimada</Label><Input type="date" value={form.fechaEstimada} onChange={e => setForm({ ...form, fechaEstimada: e.target.value })} /></div>
-              </div>
-              <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm({ ...form, observaciones: e.target.value })} /></div>
+
+              {/* CANTIDAD */}
+              <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
+
+              {/* FECHA TOPE */}
+              <div><Label>Fecha tope</Label><Input type="date" value={form.fechaTope} onChange={e => setForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
+
+              {/* OBSERVACIONES */}
+              <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))} /></div>
+
               <Button
                 onClick={() => crear.mutate({ ...form, vendedor: user?.email || "" })}
-                disabled={!form.cliente || !form.producto || !form.cantidad || !form.fechaSolicitud || crear.isPending}
+                disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}
               >
                 {crear.isPending ? "Guardando..." : "Crear Solicitud"}
               </Button>
@@ -220,15 +232,17 @@ export default function Solicitudes() {
           </DialogContent>
         </Dialog>
       </div>
+
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-muted/50">
               <th className="p-3 text-left">ID</th>
               <th className="p-3 text-left">Cliente</th>
+              <th className="p-3 text-left">Celular</th>
               <th className="p-3 text-left">Producto</th>
               <th className="p-3 text-left">Cant.</th>
-              <th className="p-3 text-left">Fecha Est.</th>
+              <th className="p-3 text-left">Fecha Tope</th>
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
@@ -239,9 +253,10 @@ export default function Solicitudes() {
                 <tr key={s.id} className="border-b">
                   <td className="p-3">{s.id}</td>
                   <td className="p-3">{s.cliente}</td>
+                  <td className="p-3">{s.celular || "—"}</td>
                   <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
                   <td className="p-3">{s.cantidad}</td>
-                  <td className="p-3">{s.fechaEstimada || "—"}</td>
+                  <td className="p-3">{s.fechaTope || "—"}</td>
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge></td>
                   <td className="p-3">{s.vendedor}</td>
