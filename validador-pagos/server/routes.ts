@@ -460,8 +460,8 @@ app.post("/api/solicitudes", async (req, res) => {
       sku: z.string().optional().default(""),
       producto: z.string().min(1),
       cantidad: z.string().min(1),
-      fechaSolicitud: z.string().min(1),
-      fechaEstimada: z.string().optional().default(""),
+                celular: z.string().optional().default(""),
+                fechaTope: z.string().optional().default(""),
       observaciones: z.string().optional().default(""),
     });
     const parsed = schema.safeParse(req.body);
