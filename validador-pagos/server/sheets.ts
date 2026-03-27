@@ -173,32 +173,35 @@ export async function checkDuplicado(
       if (dup) return dup;
     }
   }
+  // Tolerancia: ultimos 6, 5 y 4 digitos + mismo monto + mismo banco (aplica a todos los pagos con referencia)
+  if (referencia?.trim()) {
+    const digits = referencia.replace(/\D/g, "");
+    if (digits.length >= 4) {
+      const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
+      const bancoCode = extractBancoCode(bancoReceptor ?? "");
+      for (const n of [6, 5, 4]) {
+        if (digits.length < n) continue;
+        const suffix = digits.slice(-n);
+        const dupT = pagos.find(p => {
+          const pDigits = p.referencia.replace(/\D/g, "");
+          if (pDigits.length < n) return false;
+          return (
+            pDigits.slice(-n) === suffix &&
+            Math.abs((parseFloat(p.monto.replace(",", ".")) || 0) - montoNorm) < 0.01 &&
+            extractBancoCode(p.bancoReceptor) === bancoCode
+          );
+        });
+        if (dupT) return dupT;
+      }
+    }
+  }
+  // PagoMovil sin referencia: comparar monto + fecha + celular
   if (tipoPago === "PagoMovil" && !referencia?.trim()) {
     return pagos.find(p =>
       p.tipoPago === "PagoMovil" && !p.referencia?.trim() &&
       p.monto === monto && p.fechaPago === fechaPago &&
-        celular.trim() === (celular ?? "").trim()
+      p.celular.trim() === (celular ?? "").trim()
     );
-  }
-// Tolerancia: ultimos 4, 5 y 6 digitos + mismo monto + mismo banco
-  const digits = (referencia ?? "").replace(/\D/g, "");
-  if (digits.length >= 4) {
-    const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
-    const bancoCode = extractBancoCode(bancoReceptor ?? "");
-    for (const n of [6, 5, 4]) {
-      if (digits.length < n) continue;
-      const suffix = digits.slice(-n);
-      const dupT = pagos.find(p => {
-        const pDigits = p.referencia.replace(/\D/g, "");
-        if (pDigits.length < n) return false;
-        return (
-          pDigits.slice(-n) === suffix &&
-          Math.abs((parseFloat(p.monto.replace(",", ".")) || 0) - montoNorm) < 0.01 &&
-          extractBancoCode(p.bancoReceptor) === bancoCode
-        );
-      });
-      if (dupT) return dupT;
-    }
   }
 }
 
