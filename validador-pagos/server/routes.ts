@@ -554,11 +554,11 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
     try {
       const { id } = req.params;
       const { estado, observacionesCompras, fechaTope, cantidad, usuario } = req.body;
-      const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad });
+      const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad }, usuario);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (estado && estado !== "Pendiente") {
         const msg = `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
-              sendTelegramToVendedor(updated.vendedor, msg).catch(() => {});
+              sendTelegramToVendedor(updated.vendedor, msg).catch(() => {}, usuario);
       }
       res.json(updated);
     } catch (e: any) {
