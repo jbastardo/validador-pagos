@@ -17,6 +17,7 @@ interface Solicitud {
 }
 
 interface OdooCliente { id: number; name: string; vat: string; phone: string; email: string; }
+interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; }
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -39,12 +40,43 @@ export default function Solicitudes() {
   const [showClienteDD, setShowClienteDD] = useState(false);
   const debouncedCliente = useDebounce(clienteQuery, 350);
   const clienteRef = useRef<HTMLDivElement>(null);
-
   const { data: clientesOdoo = [] } = useQuery<OdooCliente[]>({
     queryKey: ["odoo-clientes", debouncedCliente],
     queryFn: () => fetch(`/api/odoo/clientes?q=${encodeURIComponent(debouncedCliente)}`).then(r => r.json()),
     enabled: debouncedCliente.length >= 2,
   });
+
+  // SKU → autocomplete producto Odoo
+  const debouncedSku = useDebounce(form.sku, 400);
+  const [productoLocked, setProductoLocked] = useState(false);
+  const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
+    queryKey: ["odoo-productos-sku", debouncedSku],
+    queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedSku)}`).then(r => r.json()),
+    enabled: debouncedSku.length >= 2,
+  });
+
+  // Cuando cambia el SKU debounced, buscar coincidencia exacta
+  useEffect(() => {
+    if (debouncedSku.length < 2) {
+      if (productoLocked) {
+        setForm(f => ({ ...f, producto: "" }));
+        setProductoLocked(false);
+      }
+      return;
+    }
+    const exacto = productosOdoo.find(
+      p => p.default_code.toLowerCase() === debouncedSku.toLowerCase()
+    );
+    if (exacto) {
+      setForm(f => ({ ...f, producto: exacto.name }));
+      setProductoLocked(true);
+    } else {
+      if (productoLocked) {
+        setForm(f => ({ ...f, producto: "" }));
+        setProductoLocked(false);
+      }
+    }
+  }, [debouncedSku, productosOdoo]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -69,6 +101,7 @@ export default function Solicitudes() {
       setOpen(false);
       setForm({ cliente: "", sku: "", producto: "", cantidad: "", fechaSolicitud: "", fechaEstimada: "", observaciones: "" });
       setClienteQuery("");
+      setProductoLocked(false);
       toast({ title: "Solicitud creada" });
     },
   });
@@ -87,7 +120,6 @@ export default function Solicitudes() {
     if (dias <= 7) return "Alta";
     return "Normal";
   };
-
   const colorPrioridad = (p: string) => (p === "Vencida" || p === "Urgente") ? "destructive" : p === "Alta" ? "default" : "secondary";
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : "destructive";
   const isCompras = user?.rol === "admin" || user?.rol === "compras";
@@ -110,7 +142,6 @@ export default function Solicitudes() {
           <DialogContent>
             <DialogHeader><DialogTitle>Nueva Solicitud</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
-
               {/* CLIENTE - Autocomplete Odoo */}
               <div className="relative" ref={clienteRef}>
                 <Label>Cliente * <span className="text-xs text-muted-foreground">(busca por nombre, RIF o teléfono)</span></Label>
@@ -141,22 +172,44 @@ export default function Solicitudes() {
                   </div>
                 )}
               </div>
-
               {/* SKU + PRODUCTO */}
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>SKU</Label><Input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} /></div>
-                <div><Label>Producto *</Label><Input value={form.producto} onChange={e => setForm({ ...form, producto: e.target.value })} /></div>
+                <div>
+                  <Label>SKU</Label>
+                  <Input
+                    value={form.sku}
+                    onChange={e => {
+                      setForm({ ...form, sku: e.target.value });
+                      if (!e.target.value) {
+                        setProductoLocked(false);
+                        setForm(f => ({ ...f, sku: e.target.value, producto: "" }));
+                      }
+                    }}
+                    placeholder="Ej: PROD-001"
+                  />
+                </div>
+                <div>
+                  <Label>
+                    Producto *{" "}
+                    {productoLocked && (
+                      <span className="text-xs text-green-600 font-normal">✓ encontrado en Odoo</span>
+                    )}
+                  </Label>
+                  <Input
+                    value={form.producto}
+                    onChange={e => setForm({ ...form, producto: e.target.value })}
+                    disabled={productoLocked}
+                    placeholder={productoLocked ? "" : "Nombre del producto"}
+                    className={productoLocked ? "bg-muted" : ""}
+                  />
+                </div>
               </div>
-
               <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm({ ...form, cantidad: e.target.value })} /></div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Fecha solicitud *</Label><Input type="date" value={form.fechaSolicitud} onChange={e => setForm({ ...form, fechaSolicitud: e.target.value })} /></div>
                 <div><Label>Fecha estimada</Label><Input type="date" value={form.fechaEstimada} onChange={e => setForm({ ...form, fechaEstimada: e.target.value })} /></div>
               </div>
-
               <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm({ ...form, observaciones: e.target.value })} /></div>
-
               <Button
                 onClick={() => crear.mutate({ ...form, vendedor: user?.email || "" })}
                 disabled={!form.cliente || !form.producto || !form.cantidad || !form.fechaSolicitud || crear.isPending}
@@ -167,7 +220,6 @@ export default function Solicitudes() {
           </DialogContent>
         </Dialog>
       </div>
-
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
