@@ -484,6 +484,7 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ message: "Error al actualizar solicitud" });
   }
+    });
 
     // ===== ODOO PROXY =====
   app.get("/api/odoo/clientes", async (req, res) => {
@@ -509,6 +510,5 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
       res.status(500).json({ message: "Error al buscar productos en Odoo" });
     }
   });
-});
   return httpServer;
 }
