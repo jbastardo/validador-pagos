@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import { extractBancoCode } from "../shared/schema";
 
-const SHEET_ID   = process.env.GOOGLE_SHEET_ID ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
+const SHEET_ID    = process.env.GOOGLE_SHEET_ID ?? "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
 const TAB_PAGOS   = process.env.GOOGLE_SHEET_TAB ?? "Hoja 1";
 const TAB_USUARIOS = "Usuarios";
 const TAB_DIVISAS  = "PagosDivisas";
@@ -40,7 +40,7 @@ async function appendRow(tab: string, row: string[]): Promise<void> {
 async function updateRow(tab: string, rowIndex: number, row: string[]): Promise<void> {
   const sheets = getSheets();
   const colCount = row.length;
-  const lastCol = String.fromCharCode(64 + colCount); // A=1, Q=17 etc
+  const lastCol = String.fromCharCode(64 + colCount);
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID,
     range: `${tab}!A${rowIndex}:${lastCol}${rowIndex}`,
@@ -49,7 +49,7 @@ async function updateRow(tab: string, rowIndex: number, row: string[]): Promise<
   });
 }
 
-// ─── PAGOS BS ─────────────────────────────────────────────────────────────────
+// --- PAGOS BS ---
 export interface SheetPago {
   id: string; fechaPago: string; tipoPago: string; bancoEmisor: string;
   monto: string; celular: string; bancoReceptor: string; referencia: string;
@@ -117,15 +117,14 @@ export async function updatePagoCajeroPendiente(
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
-  const autoAprueba = megasoft === "Sí";
-  // Si cajero dice NO → pago queda Pendiente para que el contable lo valide
-  const nuevoEstado   = autoAprueba ? "Verificado" : pago.estado;
-  const nuevoValidado = autoAprueba ? cajeroEmail   : pago.validadoPor;
+  const autoAprueba = megasoft === "Si";
+  const nuevoEstado = autoAprueba ? "Verificado" : pago.estado;
+  const nuevoValidado = autoAprueba ? cajeroEmail : pago.validadoPor;
   const validadoEnCajero = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
   const row = [
     pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
-    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif,
-    factura || pago.factura, nuevoEstado, nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn,
+    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, factura || pago.factura,
+    nuevoEstado, nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn,
     cliente || (pago.cliente ?? ""), megasoft, validadoEnCajero, pago.conciliadoEn??"", pago.conciliadoPor??"",
   ];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
@@ -139,29 +138,22 @@ export async function updatePagoFacturaCliente(id: string, factura: string, clie
   const newFactura = factura || pago.factura;
   const newCliente = cliente || (pago.cliente ?? "");
   const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
-  // Si megasoft = "Sí" → auto-validar como "Verificado"
-  const autoAprueba = newMegasoft === "Sí";
-  const nuevoEstado     = autoAprueba ? "Verificado"               : pago.estado;
-  const nuevoValidado   = autoAprueba ? (cajeroEmail || "Cajero") + " (Megasoft)" : pago.validadoPor;
-  const nuevoValidadoEn = autoAprueba ? new Date().toISOString()   : (pago.validadoEn ?? "");
+  const autoAprueba = newMegasoft === "Si";
+  const nuevoEstado = autoAprueba ? "Verificado" : pago.estado;
+  const nuevoValidado = autoAprueba ? (cajeroEmail || "Cajero") + " (Megasoft)" : pago.validadoPor;
+  const nuevoValidadoEn = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
   const row = [pago.id, pago.fechaPago, pago.tipoPago, pago.bancoEmisor, pago.monto,
-    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura, nuevoEstado,
-    nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
+    pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura,
+    nuevoEstado, nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, factura: newFactura, cliente: newCliente, megasoft: newMegasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
 
 export async function checkDuplicado(
-  referencia: string, monto: string, fechaPago: string, tipoPago: string,
-  bancoReceptor?: string, celular?: string
+  referencia: string, monto: string, fechaPago: string, tipoPago: string, bancoReceptor?: string, celular?: string
 ): Promise<SheetPago|undefined> {
   const pagos = await getPagos();
-
-  // Normaliza: últimos 10 dígitos con padding de ceros
   const norm10 = (s: string) => s.replace(/\D/g, "").padStart(10, "0").slice(-10);
-
-  // Regla 1 (cross-type): si hay referencia → misma ref normalizada + mismo banco receptor
-  // Cubre Transferencia vs Transferencia, PagoMovil vs PagoMovil, y cross entre ambos tipos
   if (referencia?.trim()) {
     const refNorm = norm10(referencia);
     if (refNorm !== "0000000000") {
@@ -176,22 +168,18 @@ export async function checkDuplicado(
       if (dup) return dup;
     }
   }
-
-  // Regla 2: PagoMovil SIN referencia → monto + fecha + celular
   if (tipoPago === "PagoMovil" && !referencia?.trim()) {
     return pagos.find(p =>
-      p.tipoPago === "PagoMovil" &&
-      !p.referencia?.trim() &&
-      p.monto === monto &&
-      p.fechaPago === fechaPago &&
+      p.tipoPago === "PagoMovil" && !p.referencia?.trim() &&
+      p.monto === monto && p.fechaPago === fechaPago &&
       p.celular.trim() === (celular ?? "").trim()
     );
   }
 }
 
-// ─── USUARIOS ─────────────────────────────────────────────────────────────────
+// --- USUARIOS ---
 export interface SheetUsuario {
-  id: string; nombre: string; email: string; password: string; rol: string; activo: string; solicitudes: string; _rowIndex?: number;
+  id: string; nombre: string; email: string; password: string; rol: string; activo: string; solicitudes: string; telegramChatId?: string; _rowIndex?: number;
 }
 
 export async function getUsuarios(): Promise<SheetUsuario[]> {
@@ -200,13 +188,15 @@ export async function getUsuarios(): Promise<SheetUsuario[]> {
   return rows.slice(1)
     .map((row, i) => ({
       id: row[0]??"", nombre: row[1]??"", email: row[2]??"", password: row[3]??"",
-      rol: row[4]??"vendedor", activo: row[5]??"true", solicitudes: row[6]??"false", _rowIndex: i + 2,
+      rol: row[4]??"vendedor", activo: row[5]??"true", solicitudes: row[6]??"false",
+      telegramChatId: row[7]??"",
+      _rowIndex: i + 2,
     }))
     .filter(u => u.id !== "" && u.activo !== "ELIMINADO");
 }
 
 export async function addUsuario(u: Omit<SheetUsuario, "_rowIndex">): Promise<SheetUsuario> {
-  const row = [u.id, u.nombre, u.email, u.password, u.rol, u.activo, u.solicitudes ?? "false"];
+  const row = [u.id, u.nombre, u.email, u.password, u.rol, u.activo, u.solicitudes ?? "false", u.telegramChatId ?? ""];
   await appendRow(TAB_USUARIOS, row);
   return u;
 }
@@ -216,17 +206,26 @@ export async function updateUsuario(id: string, data: Partial<SheetUsuario>): Pr
   const u = usuarios.find(x => x.id === id);
   if (!u || !u._rowIndex) throw new Error("Usuario no encontrado");
   const updated = { ...u, ...data };
-  const row = [updated.id, updated.nombre, updated.email, updated.password, updated.rol, updated.activo, updated.solicitudes ?? "false"];
+  const row = [updated.id, updated.nombre, updated.email, updated.password, updated.rol, updated.activo, updated.solicitudes ?? "false", updated.telegramChatId ?? ""];
   await updateRow(TAB_USUARIOS, u._rowIndex, row);
   return updated;
 }
 
-// ─── PAGOS DIVISAS ────────────────────────────────────────────────────────────
+export async function updateUsuarioTelegramChatId(email: string, chatId: string): Promise<SheetUsuario|null> {
+  const usuarios = await getUsuarios();
+  const u = usuarios.find(x => x.email === email);
+  if (!u || !u._rowIndex) return null;
+  const updated = { ...u, telegramChatId: chatId };
+  const row = [updated.id, updated.nombre, updated.email, updated.password, updated.rol, updated.activo, updated.solicitudes ?? "false", chatId];
+  await updateRow(TAB_USUARIOS, u._rowIndex, row);
+  return updated;
+}
+
+// --- PAGOS DIVISAS ---
 export interface SheetPagoDivisa {
-  id: string; fecha: string; nombrePagador: string; correo: string;
-  monto: string; tipo: string; referencia: string; cliente: string;
-  rif: string; factura: string; observaciones: string; estado: string;
-  validadoPor: string; vendedor: string; creadoEn: string; validadoEn: string; _rowIndex?: number;
+  id: string; fecha: string; nombrePagador: string; correo: string; monto: string; tipo: string;
+  referencia: string; cliente: string; rif: string; factura: string; observaciones: string;
+  estado: string; validadoPor: string; vendedor: string; creadoEn: string; validadoEn: string; _rowIndex?: number;
 }
 
 export async function getPagosDivisas(): Promise<SheetPagoDivisa[]> {
@@ -237,17 +236,16 @@ export async function getPagosDivisas(): Promise<SheetPagoDivisa[]> {
       id: row[0]??"", fecha: row[1]??"", nombrePagador: row[2]??"", correo: row[3]??"",
       monto: row[4]??"", tipo: row[5]??"", referencia: row[6]??"", cliente: row[7]??"",
       rif: row[8]??"", factura: row[9]??"", observaciones: row[10]??"", estado: row[11]??"",
-      validadoPor: row[12]??"", vendedor: row[13]??"", creadoEn: row[14]??"", validadoEn: row[15]??"", _rowIndex: i + 2,
+      validadoPor: row[12]??"", vendedor: row[13]??"", creadoEn: row[14]??"", validadoEn: row[15]??"",
+      _rowIndex: i + 2,
     }))
     .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
 }
 
-export async function addPagoDivisa(pago: Omit<SheetPagoDivisa, "id"|"_rowIndex">): Promise<SheetPagoDivisa> {
+export async function addPagoDivisa(pago: Omit<SheetPagoDivisa, "id"|"_rowIndex"|"validadoEn">): Promise<SheetPagoDivisa> {
   const existing = await getPagosDivisas();
   const id = String((existing.length === 0 ? 0 : Math.max(...existing.map(p => parseInt(p.id) || 0))) + 1);
-  const row = [id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo,
-    pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones,
-    pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, ""];
+  const row = [id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo, pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones, pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, ""];
   await appendRow(TAB_DIVISAS, row);
   return { ...pago, id, validadoEn: "" };
 }
@@ -257,9 +255,7 @@ export async function updatePagoDivisaEstado(id: string, estado: string, validad
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const validadoEn = new Date().toISOString();
-  const row = [pago.id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo,
-    pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones,
-    estado, validadoPor, pago.vendedor, pago.creadoEn, validadoEn];
+  const row = [pago.id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo, pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones, estado, validadoPor, pago.vendedor, pago.creadoEn, validadoEn];
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
   return { ...pago, estado, validadoPor, observaciones, validadoEn };
 }
@@ -273,14 +269,11 @@ export async function updatePagoEdicion(id: string, data: { fechaPago: string; b
   const rifVal = data.rif !== undefined ? data.rif : (pago.rif ?? "");
   const facturaVal = data.factura !== undefined ? data.factura : (pago.factura ?? "");
   const megasoftVal = (data.megasoft !== undefined && data.megasoft !== "") ? data.megasoft : (pago.megasoft ?? "");
-  // Si megasoft = "Sí" → auto-validar como "Verificado"
-  const autoAprueba = megasoftVal === "Sí" && pago.megasoft !== "Sí";
-  const nuevoEstado     = autoAprueba ? "Verificado"               : pago.estado;
-  const nuevoValidado   = autoAprueba ? (data.cajeroEmail || "Admin") + " (Megasoft)" : pago.validadoPor;
-  const nuevoValidadoEn = autoAprueba ? new Date().toISOString()   : (pago.validadoEn ?? "");
-  const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto,
-    data.celular, data.bancoReceptor, data.referencia, rifVal, facturaVal, nuevoEstado,
-    nuevoValidado, pago.vendedor, obsVal, pago.creadoEn, clienteVal, megasoftVal, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
+  const autoAprueba = megasoftVal === "Si" && pago.megasoft !== "Si";
+  const nuevoEstado = autoAprueba ? "Verificado" : pago.estado;
+  const nuevoValidado = autoAprueba ? (data.cajeroEmail || "Admin") + " (Megasoft)" : pago.validadoPor;
+  const nuevoValidadoEn = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
+  const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto, data.celular, data.bancoReceptor, data.referencia, rifVal, facturaVal, nuevoEstado, nuevoValidado, pago.vendedor, obsVal, pago.creadoEn, clienteVal, megasoftVal, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
   return { ...pago, ...data, cliente: clienteVal, observaciones: obsVal, rif: rifVal, factura: facturaVal, megasoft: megasoftVal, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
@@ -290,19 +283,16 @@ export async function updatePagoDivisaEdicion(id: string, data: { fecha: string;
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return null;
   const obsVal = data.observaciones !== undefined ? data.observaciones : (pago.observaciones ?? "");
-  const row = [pago.id, data.fecha, data.nombrePagador, pago.correo, data.monto, data.tipo,
-    data.referencia, pago.cliente, pago.rif, pago.factura, obsVal,
-    pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, pago.validadoEn??""];
+  const row = [pago.id, data.fecha, data.nombrePagador, pago.correo, data.monto, data.tipo, data.referencia, pago.cliente, pago.rif, pago.factura, obsVal, pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, pago.validadoEn??""];
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
   return { ...pago, ...data, observaciones: obsVal };
 }
 
-// ─── ELIMINAR (marcar como ELIMINADO) ──────────────────────────────────────────
+// --- ELIMINAR ---
 export async function deletePago(id: string): Promise<boolean> {
   const pagos = await getPagos();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return false;
-  // 17 columnas A:Q — sobreescribir con vacíos + Estado=ELIMINADO
   const emptyRow = ["", "", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", "", "", "", ""];
   await updateRow(TAB_PAGOS, pago._rowIndex, emptyRow);
   return true;
@@ -312,7 +302,6 @@ export async function deletePagoDivisa(id: string): Promise<boolean> {
   const pagos = await getPagosDivisas();
   const pago = pagos.find(p => p.id === id);
   if (!pago || !pago._rowIndex) return false;
-  // 15 columnas A:O — sobreescribir con vacíos + Estado=ELIMINADO
   const emptyRow = ["", "", "", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", ""];
   await updateRow(TAB_DIVISAS, pago._rowIndex, emptyRow);
   return true;
@@ -322,52 +311,51 @@ export async function deleteUsuario(id: string): Promise<boolean> {
   const usuarios = await getUsuarios();
   const u = usuarios.find(x => x.id === id);
   if (!u || !u._rowIndex) return false;
-  // 6 columnas A:F — sobreescribir con vacíos + Activo=ELIMINADO
-  const emptyRow = ["", "", "", "", "", "ELIMINADO", ""];
+  const emptyRow = ["", "", "", "", "", "ELIMINADO", "", ""];
   await updateRow(TAB_USUARIOS, u._rowIndex, emptyRow);
   return true;
 }
-// ─── SOLICITUDES ──────────────────────────────────────────────────────────────
+
+// --- SOLICITUDES ---
 const TAB_SOLICITUDES = "Solicitudes";
 
 export interface SheetSolicitud {
-  id: string; vendedor: string; cliente: string; celular: string; sku: string;
-  producto: string; cantidad: string;
-  fechaTope: string; observaciones: string; estado: string;
-  creadoEn: string; _rowIndex?: number;
-  observacionesCompras?: string; actualizadoEn?: string;
+  id: string; vendedor: string; cliente: string; celular: string; sku: string; producto: string;
+  cantidad: string; fechaTope: string; observaciones: string; estado: string; creadoEn: string;
+  _rowIndex?: number; observacionesCompras?: string; actualizadoEn?: string;
 }
+
 export async function getSolicitudes(): Promise<SheetSolicitud[]> {
   const rows = await getRows(TAB_SOLICITUDES);
   if (rows.length < 2) return [];
   return rows.slice(1)
     .map((row, i) => ({
       id: row[0]??"", vendedor: row[1]??"", cliente: row[2]??"", celular: row[3]??"",
-      sku: row[4]??"", producto: row[5]??"", cantidad: row[6]??"",
-      fechaTope: row[7]??"",
+      sku: row[4]??"", producto: row[5]??"", cantidad: row[6]??"", fechaTope: row[7]??"",
       observaciones: row[8]??"", estado: row[9]??"", creadoEn: row[10]??"",
-            observacionesCompras: row[11]??"", actualizadoEn: row[12]??"",
+      observacionesCompras: row[11]??"", actualizadoEn: row[12]??"",
       _rowIndex: i + 2,
     }))
     .filter(s => s.id !== "" && s.estado !== "ELIMINADO");
 }
+
 export async function addSolicitud(s: Omit<SheetSolicitud, "id"|"_rowIndex">): Promise<SheetSolicitud> {
   const existing = await getSolicitudes();
   const id = String((existing.length === 0 ? 0 : Math.max(...existing.map(x => parseInt(x.id) || 0))) + 1);
-  const row = [id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad,
-    s.fechaTope, s.observaciones, s.estado, s.creadoEn];
+  const row = [id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad, s.fechaTope, s.observaciones, s.estado, s.creadoEn];
   await appendRow(TAB_SOLICITUDES, row);
   return { ...s, id };
 }
+
 export async function updateSolicitudEstado(id: string, estado: string): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
   if (!s || !s._rowIndex) return null;
-  const row = [s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad,
-    s.fechaTope, s.observaciones, estado, s.creadoEn];
+  const row = [s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad, s.fechaTope, s.observaciones, estado, s.creadoEn];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
   return { ...s, estado };
 }
+
 export async function deleteSolicitud(id: string): Promise<boolean> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
@@ -376,10 +364,10 @@ export async function deleteSolicitud(id: string): Promise<boolean> {
   await updateRow(TAB_SOLICITUDES, s._rowIndex, emptyRow);
   return true;
 }
+
 export async function updateSolicitudEdicion(
-  id: string,
-  data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string }
-): Promise<SheetSolicitud | null> {
+  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string }
+): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
   if (!s || !s._rowIndex) return null;
@@ -389,8 +377,8 @@ export async function updateSolicitudEdicion(
   const nuevaCant = data.cantidad ?? s.cantidad;
   const actualizadoEn = new Date().toISOString();
   const row = [
-    s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, nuevaCant,
-    nuevaFecha, s.observaciones, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn,
+    s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, nuevaCant, nuevaFecha,
+    s.observaciones, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn,
   ];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
   return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, actualizadoEn };
