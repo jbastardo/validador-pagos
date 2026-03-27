@@ -567,6 +567,44 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
     }
   });
 
+  // ===== SOLICITUDES: vendedor confirma compra =====
+  app.patch("/api/solicitudes/:id/confirmar-vendedor", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { vendedorEmail } = req.body;
+      if (!vendedorEmail) return res.status(400).json({ message: "Email requerido" });
+      const solicitudes = await getSolicitudes();
+      const sol = solicitudes.find(s => s.id === id);
+      if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
+      // Notificar a compras (chat general) que el vendedor confirmo la compra
+      const msg = `Compra CONFIRMADA por vendedor\nSolicitud #${sol.id}\nCliente: ${sol.cliente}\nProducto: ${sol.producto}\nCantidad: ${sol.cantidad}\nVendedor: ${vendedorEmail}`;
+      await sendTelegram(msg);
+      res.json({ ok: true, message: "Confirmacion enviada" });
+    } catch (e: any) {
+      console.error("Error confirmar-vendedor:", e.message);
+      res.status(500).json({ message: "Error al confirmar compra" });
+    }
+  });
+
+  // ===== SOLICITUDES: vendedor solicita anulacion =====
+  app.patch("/api/solicitudes/:id/anular-vendedor", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { vendedorEmail, motivo } = req.body;
+      if (!vendedorEmail || !motivo?.trim()) return res.status(400).json({ message: "Email y motivo requeridos" });
+      const solicitudes = await getSolicitudes();
+      const sol = solicitudes.find(s => s.id === id);
+      if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
+      // Notificar a compras (chat general) que el vendedor solicita anulacion
+      const msg = `SOLICITUD DE ANULACION\nSolicitud #${sol.id}\nCliente: ${sol.cliente}\nProducto: ${sol.producto}\nCantidad: ${sol.cantidad}\nVendedor: ${vendedorEmail}\nMotivo: ${motivo}`;
+      await sendTelegram(msg);
+      res.json({ ok: true, message: "Solicitud de anulacion enviada" });
+    } catch (e: any) {
+      console.error("Error anular-vendedor:", e.message);
+      res.status(500).json({ message: "Error al solicitar anulacion" });
+    }
+  });
+
   // ===== SOLICITUDES: eliminar (solo admin) =====
   app.delete("/api/solicitudes/:id", async (req, res) => {
     try {
