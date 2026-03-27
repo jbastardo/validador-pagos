@@ -7,7 +7,7 @@ import {
   getUsuarios, addUsuario, updateUsuario,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
-  getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud,
+    getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
 } from "./sheets";
 import {
   parseExtractoExcel, addMovimientos, getMovimientos, deleteMovimientosBanco,
@@ -16,6 +16,17 @@ import {
 import { z } from "zod";
 import { BANCOS_RECEPTOR_META } from "../shared/schema";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
+async function sendTelegram(text: string) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: "HTML" }),
+  });
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -490,7 +501,7 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
   app.get("/api/odoo/clientes", async (req, res) => {
     try {
       const q = (req.query.q as string) || "";
-      if (q.length < 2) return res.json([]);
+            if (!q.trim()) return res.json([]);
       const clientes = await searchClientes(q);
       res.json(clientes);
     } catch (e: any) {
@@ -513,12 +524,48 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
   app.get("/api/odoo/productos", async (req, res) => {
     try {
       const q = (req.query.q as string) || "";
-      if (q.length < 2) return res.json([]);
+            if (!q.trim()) return res.json([]);
       const productos = await searchProductos(q);
       res.json(productos);
     } catch (e: any) {
       console.error("Error searchProductos:", e.message);
       res.status(500).json({ message: "Error al buscar productos en Odoo" });
+    }
+  });
+
+    // ===== SOLICITUDES: editar (compras/admin) =====
+  app.patch("/api/solicitudes/:id/editar", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { estado, observacionesCompras, fechaTope, cantidad, usuario } = req.body;
+      const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad });
+      if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
+      if (estado && estado !== "Pendiente") {
+        const msg = `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
+        sendTelegram(msg).catch(() => {});
+      }
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updateSolicitudEdicion:", e.message);
+      res.status(500).json({ message: "Error al editar solicitud" });
+    }
+  });
+
+  // ===== SOLICITUDES: eliminar (solo admin) =====
+  app.delete("/api/solicitudes/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && x.password === password && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas o sin permisos" });
+      const ok = await deleteSolicitud(id);
+      if (!ok) return res.status(404).json({ message: "Solicitud no encontrada" });
+      res.json({ message: "Eliminado" });
+    } catch (e: any) {
+      console.error("Error deleteSolicitud:", e.message);
+      res.status(500).json({ message: "Error al eliminar" });
     }
   });
   return httpServer;
