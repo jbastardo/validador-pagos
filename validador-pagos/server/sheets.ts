@@ -331,45 +331,41 @@ export async function deleteUsuario(id: string): Promise<boolean> {
 const TAB_SOLICITUDES = "Solicitudes";
 
 export interface SheetSolicitud {
-  id: string; vendedor: string; cliente: string; sku: string;
-  producto: string; cantidad: string; fechaSolicitud: string;
-  fechaEstimada: string; observaciones: string; estado: string;
+  id: string; vendedor: string; cliente: string; celular: string; sku: string;
+  producto: string; cantidad: string;
+  fechaTope: string; observaciones: string; estado: string;
   creadoEn: string; _rowIndex?: number;
 }
-
 export async function getSolicitudes(): Promise<SheetSolicitud[]> {
   const rows = await getRows(TAB_SOLICITUDES);
   if (rows.length < 2) return [];
   return rows.slice(1)
     .map((row, i) => ({
-      id: row[0]??"", vendedor: row[1]??"", cliente: row[2]??"",
-      sku: row[3]??"", producto: row[4]??"", cantidad: row[5]??"",
-      fechaSolicitud: row[6]??"", fechaEstimada: row[7]??"",
+      id: row[0]??"", vendedor: row[1]??"", cliente: row[2]??"", celular: row[3]??"",
+      sku: row[4]??"", producto: row[5]??"", cantidad: row[6]??"",
+      fechaTope: row[7]??"",
       observaciones: row[8]??"", estado: row[9]??"", creadoEn: row[10]??"",
       _rowIndex: i + 2,
     }))
     .filter(s => s.id !== "" && s.estado !== "ELIMINADO");
 }
-
 export async function addSolicitud(s: Omit<SheetSolicitud, "id"|"_rowIndex">): Promise<SheetSolicitud> {
   const existing = await getSolicitudes();
   const id = String((existing.length === 0 ? 0 : Math.max(...existing.map(x => parseInt(x.id) || 0))) + 1);
-  const row = [id, s.vendedor, s.cliente, s.sku, s.producto, s.cantidad,
-    s.fechaSolicitud, s.fechaEstimada, s.observaciones, s.estado, s.creadoEn];
+  const row = [id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad,
+    s.fechaTope, s.observaciones, s.estado, s.creadoEn];
   await appendRow(TAB_SOLICITUDES, row);
   return { ...s, id };
 }
-
 export async function updateSolicitudEstado(id: string, estado: string): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
   if (!s || !s._rowIndex) return null;
-  const row = [s.id, s.vendedor, s.cliente, s.sku, s.producto, s.cantidad,
-    s.fechaSolicitud, s.fechaEstimada, s.observaciones, estado, s.creadoEn];
+  const row = [s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad,
+    s.fechaTope, s.observaciones, estado, s.creadoEn];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
   return { ...s, estado };
 }
-
 export async function deleteSolicitud(id: string): Promise<boolean> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
