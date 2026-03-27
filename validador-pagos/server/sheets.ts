@@ -177,7 +177,11 @@ export async function checkDuplicado(
     return pagos.find(p =>
       p.tipoPago === "PagoMovil" && !p.referencia?.trim() &&
       p.monto === monto && p.fechaPago === fechaPago &&
-        // Tolerancia: ultimos 4, 5 y 6 digitos + mismo monto + mismo banco
+        celular.trim() === (celular ?? "").trim()
+    );
+  }
+}
+// Tolerancia: ultimos 4, 5 y 6 digitos + mismo monto + mismo banco
   const digits = (referencia ?? "").replace(/\D/g, "");
   if (digits.length >= 4) {
     const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
@@ -197,10 +201,6 @@ export async function checkDuplicado(
       if (dupT) return dupT;
     }
   }
-      p.celular.trim() === (celular ?? "").trim()
-    );
-  }
-}
 
 // --- USUARIOS ---
 export interface SheetUsuario {
