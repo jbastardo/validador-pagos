@@ -4,18 +4,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlusCircle, Edit2, Trash2, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Solicitud {
   id: string; vendedor: string; cliente: string; celular: string; sku: string;
   producto: string; cantidad: string;
   fechaTope: string; observaciones: string; estado: string; creadoEn: string;
+  observacionesCompras?: string; actualizadoEn?: string;
 }
-
 interface OdooCliente { id: number; name: string; vat: string; phone: string; mobile: string; email: string; }
 interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; }
 
@@ -35,6 +37,10 @@ export default function Solicitudes() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
 
+  // --- Filtros ---
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [filtroVendedor, setFiltroVendedor] = useState("");
+
   // --- Autocomplete cliente Odoo ---
   const [clienteQuery, setClienteQuery] = useState("");
   const [showClienteDD, setShowClienteDD] = useState(false);
@@ -43,7 +49,7 @@ export default function Solicitudes() {
   const { data: clientesOdoo = [] } = useQuery<OdooCliente[]>({
     queryKey: ["odoo-clientes", debouncedCliente],
     queryFn: () => fetch(`/api/odoo/clientes?q=${encodeURIComponent(debouncedCliente)}`).then(r => r.json()),
-        enabled: debouncedCliente.length >= 1,
+    enabled: debouncedCliente.length >= 1,
   });
 
   // --- Crear cliente en Odoo si no existe ---
@@ -70,11 +76,10 @@ export default function Solicitudes() {
   const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
     queryKey: ["odoo-productos-sku", debouncedSku],
     queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedSku)}`).then(r => r.json()),
-        enabled: debouncedSku.length >= 1,
+    enabled: debouncedSku.length >= 1,
   });
-
   useEffect(() => {
-        if (debouncedSku.length < 1) {
+    if (debouncedSku.length < 1) {
       if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
       return;
     }
@@ -109,11 +114,60 @@ export default function Solicitudes() {
     },
   });
 
-  const cambiarEstado = useMutation({
-    mutationFn: ({ id, estado }: { id: string; estado: string }) =>
-      fetch(`/api/solicitudes/${id}/estado`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado }) }).then(r => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["solicitudes"] }),
+  // --- Edit solicitud (compras/admin) ---
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSol, setEditSol] = useState<Solicitud | null>(null);
+  const [editForm, setEditForm] = useState({ estado: "", observacionesCompras: "", fechaTope: "", cantidad: "" });
+
+  const editarSolicitud = useMutation({
+    mutationFn: (data: any) => fetch(`/api/solicitudes/${editSol?.id}/editar`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, usuario: user?.email }),
+    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["solicitudes"] });
+      setEditOpen(false);
+      toast({ title: "Solicitud actualizada" });
+    },
+    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
   });
+
+  const openEdit = (s: Solicitud) => {
+    setEditSol(s);
+    setEditForm({ estado: s.estado, observacionesCompras: s.observacionesCompras || "", fechaTope: s.fechaTope, cantidad: s.cantidad });
+    setEditOpen(true);
+  };
+
+  // --- Delete solicitud (admin) ---
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteSolId, setDeleteSolId] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const deleteSolicitud = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const res = await apiRequest("DELETE", `/api/solicitudes/${id}`, { email: user?.email ?? "", password });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error al eliminar");
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["solicitudes"] });
+      toast({ title: "Solicitud eliminada" });
+      setDeleteOpen(false);
+      setDeletePassword("");
+    },
+    onError: (err: any) => toast({ title: err.message ?? "Error al eliminar", variant: "destructive" }),
+  });
+
+  const handleDelete = async () => {
+    if (!deleteSolId || !deletePassword) return;
+    setDeleteLoading(true);
+    try {
+      await deleteSolicitud.mutateAsync({ id: deleteSolId, password: deletePassword });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const prioridad = (s: Solicitud) => {
     if (!s.fechaTope) return "Sin fecha";
@@ -123,12 +177,21 @@ export default function Solicitudes() {
   const colorPrioridad = (p: string) => (p === "Vencida" || p === "Urgente") ? "destructive" : p === "Alta" ? "default" : "secondary";
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : "destructive";
   const isCompras = user?.rol === "admin" || user?.rol === "compras";
+  const isAdmin = user?.rol === "admin";
 
   const selectCliente = (c: OdooCliente) => {
     const display = c.vat ? `${c.name} (${c.vat})` : c.name;
     setForm(f => ({ ...f, cliente: display, celular: c.mobile || c.phone || "" }));
     setClienteQuery(display); setShowClienteDD(false);
   };
+
+  // --- Filtrar solicitudes ---
+  const vendedoresUnicos = [...new Set(solicitudes.map(s => s.vendedor))].sort();
+  const solicitudesFiltradas = solicitudes.filter(s => {
+    if (filtroEstado !== "todos" && s.estado !== filtroEstado) return false;
+    if (filtroVendedor && s.vendedor !== filtroVendedor) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -141,7 +204,6 @@ export default function Solicitudes() {
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>Nueva Solicitud</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
-
               {/* CLIENTE - Autocomplete Odoo */}
               <div className="relative" ref={clienteRef}>
                 <Label>Cliente * <span className="text-xs text-muted-foreground">(nombre, RIF o celular)</span></Label>
@@ -174,7 +236,6 @@ export default function Solicitudes() {
                   </div>
                 )}
               </div>
-
               {/* CREAR CLIENTE - panel inline */}
               {showCrearCliente && (
                 <div className="rounded-md border border-blue-200 bg-blue-50 p-3 grid gap-3">
@@ -183,7 +244,7 @@ export default function Solicitudes() {
                     <div><Label className="text-xs">Nombre *</Label><Input value={nuevoCliente.name} onChange={e => setNuevoCliente(n => ({ ...n, name: e.target.value }))} placeholder="Nombre completo" /></div>
                     <div><Label className="text-xs">RIF / CI</Label><Input value={nuevoCliente.vat} onChange={e => setNuevoCliente(n => ({ ...n, vat: e.target.value }))} placeholder="J-123456789" /></div>
                     <div><Label className="text-xs">Celular</Label><Input value={nuevoCliente.mobile} onChange={e => setNuevoCliente(n => ({ ...n, mobile: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
-                    <div><Label className="text-xs">Teléfono</Label><Input value={nuevoCliente.phone} onChange={e => setNuevoCliente(n => ({ ...n, phone: e.target.value }))} placeholder="0212-XXXXXXX" /></div>
+                    <div><Label className="text-xs">Telefono</Label><Input value={nuevoCliente.phone} onChange={e => setNuevoCliente(n => ({ ...n, phone: e.target.value }))} placeholder="0212-XXXXXXX" /></div>
                     <div className="col-span-2"><Label className="text-xs">Correo</Label><Input value={nuevoCliente.email} onChange={e => setNuevoCliente(n => ({ ...n, email: e.target.value }))} placeholder="correo@empresa.com" /></div>
                   </div>
                   <div className="flex gap-2">
@@ -194,13 +255,11 @@ export default function Solicitudes() {
                   </div>
                 </div>
               )}
-
               {/* CELULAR */}
               <div>
                 <Label>Celular</Label>
                 <Input value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} placeholder="04XX-XXXXXXX" />
               </div>
-
               {/* SKU + PRODUCTO */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -208,20 +267,16 @@ export default function Solicitudes() {
                   <Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="Ej: PROD-001" />
                 </div>
                 <div>
-                  <Label>Producto * {productoLocked && <span className="text-xs text-green-600 font-normal">✓ Odoo</span>}</Label>
+                  <Label>Producto * {productoLocked && <span className="text-xs text-green-600 font-normal">OK Odoo</span>}</Label>
                   <Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre del producto" className={productoLocked ? "bg-muted" : ""} />
                 </div>
               </div>
-
               {/* CANTIDAD */}
               <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
-
               {/* FECHA TOPE */}
               <div><Label>Fecha tope</Label><Input type="date" value={form.fechaTope} onChange={e => setForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
-
               {/* OBSERVACIONES */}
               <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))} /></div>
-
               <Button
                 onClick={() => crear.mutate({ ...form, vendedor: user?.email || "" })}
                 disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}
@@ -232,6 +287,34 @@ export default function Solicitudes() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* FILTROS (compras/admin) */}
+      {isCompras && (
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filtros:</span>
+          </div>
+          <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los estados</SelectItem>
+              <SelectItem value="Pendiente">Pendiente</SelectItem>
+              <SelectItem value="En Proceso">En Proceso</SelectItem>
+              <SelectItem value="Completada">Completada</SelectItem>
+              <SelectItem value="Cancelada">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filtroVendedor || "todos"} onValueChange={v => setFiltroVendedor(v === "todos" ? "" : v)}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los vendedores</SelectItem>
+              {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
+        </div>
+      )}
 
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
@@ -246,10 +329,11 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
+              {isCompras && <th className="p-3 text-left">Obs. Compras</th>}
               {isCompras && <th className="p-3 text-left">Acciones</th>}
             </tr></thead>
             <tbody>
-              {solicitudes.map(s => (
+              {solicitudesFiltradas.map(s => (
                 <tr key={s.id} className="border-b">
                   <td className="p-3">{s.id}</td>
                   <td className="p-3">{s.cliente}</td>
@@ -260,9 +344,14 @@ export default function Solicitudes() {
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge></td>
                   <td className="p-3">{s.vendedor}</td>
+                  {isCompras && <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "—"}</td>}
                   {isCompras && <td className="p-3 space-x-1">
-                    {s.estado === "Pendiente" && <Button size="sm" variant="outline" onClick={() => cambiarEstado.mutate({ id: s.id, estado: "En Proceso" })}>En Proceso</Button>}
-                    {(s.estado === "Pendiente" || s.estado === "En Proceso") && <Button size="sm" onClick={() => cambiarEstado.mutate({ id: s.id, estado: "Completada" })}>Completar</Button>}
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>
+                    {isAdmin && (
+                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </td>}
                 </tr>
               ))}
@@ -270,6 +359,70 @@ export default function Solicitudes() {
           </table>
         </div>
       )}
+
+      {/* DIALOG EDITAR SOLICITUD (compras/admin) */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Solicitud #{editSol?.id}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="font-medium">Cliente:</span> {editSol?.cliente}</div>
+              <div><span className="font-medium">Producto:</span> {editSol?.sku ? `[${editSol.sku}] ` : ""}{editSol?.producto}</div>
+              <div><span className="font-medium">Vendedor:</span> {editSol?.vendedor}</div>
+              <div><span className="font-medium">Obs. vendedor:</span> {editSol?.observaciones || "—"}</div>
+            </div>
+            <div>
+              <Label>Estado</Label>
+              <Select value={editForm.estado} onValueChange={v => setEditForm(f => ({ ...f, estado: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pendiente">Pendiente</SelectItem>
+                  <SelectItem value="En Proceso">En Proceso</SelectItem>
+                  <SelectItem value="Completada">Completada</SelectItem>
+                  <SelectItem value="Cancelada">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Cantidad</Label>
+              <Input type="number" value={editForm.cantidad} onChange={e => setEditForm(f => ({ ...f, cantidad: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Fecha tope</Label>
+              <Input type="date" value={editForm.fechaTope} onChange={e => setEditForm(f => ({ ...f, fechaTope: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Observaciones de Compras</Label>
+              <Textarea value={editForm.observacionesCompras} onChange={e => setEditForm(f => ({ ...f, observacionesCompras: e.target.value }))} placeholder="Notas de compras..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={() => editarSolicitud.mutate(editForm)} disabled={editarSolicitud.isPending}>
+              {editarSolicitud.isPending ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG ELIMINAR SOLICITUD (admin) */}
+      <Dialog open={deleteOpen} onOpenChange={(o) => { if (!deleteLoading) { setDeleteOpen(o); if (!o) setDeletePassword(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Eliminar solicitud</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta accion es <strong>irreversible</strong>. La solicitud sera eliminada permanentemente.
+            Ingresa tu contraseña para confirmar.
+          </p>
+          <div>
+            <Label>Tu contraseña</Label>
+            <Input type="password" placeholder="********" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && deletePassword) handleDelete(); }} autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeletePassword(""); }} disabled={deleteLoading}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={!deletePassword || deleteLoading}>{deleteLoading ? "Eliminando..." : "Eliminar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
