@@ -70,7 +70,7 @@ export async function searchClientes(q: string) {
     ["mobile", "ilike", q],
     ["email",  "ilike", q],
   ];
-  const results = await searchRead("res.partner", domain, ["id", "name", "vat", "phone", "mobile", "email"], 20);
+  const results = await searchRead("res.partner", domain, ["id", "name", "vat", "phone", "mobile", "email"], 80);
   return results.map((r: any) => ({
     id:     r.id,
     name:   r.name   || "",
@@ -115,7 +115,7 @@ export async function searchProductos(q: string) {
     ["default_code", "ilike", q],
     ["barcode",      "ilike", q],
   ];
-  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available"], 15);
+  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available"], 30);
   return results.map((r: any) => ({
     id:            r.id,
     name:          r.name          || "",
