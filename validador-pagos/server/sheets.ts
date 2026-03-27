@@ -322,7 +322,7 @@ const TAB_SOLICITUDES = "Solicitudes";
 export interface SheetSolicitud {
   id: string; vendedor: string; cliente: string; celular: string; sku: string; producto: string;
   cantidad: string; fechaTope: string; observaciones: string; estado: string; creadoEn: string;
-  _rowIndex?: number; observacionesCompras?: string; actualizadoEn?: string;
+  _rowIndex?: number; observacionesCompras?: string; actualizadoEn?: string; respondidoPor?: string;
 }
 
 export async function getSolicitudes(): Promise<SheetSolicitud[]> {
@@ -333,7 +333,7 @@ export async function getSolicitudes(): Promise<SheetSolicitud[]> {
       id: row[0]??"", vendedor: row[1]??"", cliente: row[2]??"", celular: row[3]??"",
       sku: row[4]??"", producto: row[5]??"", cantidad: row[6]??"", fechaTope: row[7]??"",
       observaciones: row[8]??"", estado: row[9]??"", creadoEn: row[10]??"",
-      observacionesCompras: row[11]??"", actualizadoEn: row[12]??"",
+      observacionesCompras: row[11]??"", actualizadoEn: row[12]??"", respondidoPor: row[13]??"",
       _rowIndex: i + 2,
     }))
     .filter(s => s.id !== "" && s.estado !== "ELIMINADO");
@@ -367,6 +367,7 @@ export async function deleteSolicitud(id: string): Promise<boolean> {
 
 export async function updateSolicitudEdicion(
   id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string }
+  usuario?: string,
 ): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
@@ -376,10 +377,11 @@ export async function updateSolicitudEdicion(
   const nuevaFecha = data.fechaTope ?? s.fechaTope;
   const nuevaCant = data.cantidad ?? s.cantidad;
   const actualizadoEn = new Date().toISOString();
+      const respondidoPor = usuario || s.respondidoPor || "";
   const row = [
     s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, nuevaCant, nuevaFecha,
-    s.observaciones, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn,
+    s.observaciones, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, respondidoPor,
   ];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
-  return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, actualizadoEn };
+  return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, actualizadoEn , respondidoPor };
 }
