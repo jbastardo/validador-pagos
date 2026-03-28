@@ -57,7 +57,8 @@ export default function Solicitudes() {
   const [nuevoCliente, setNuevoCliente] = useState({ name: "", vat: "", phone: "", mobile: "", email: "" });
   const crearClienteOdoo = useMutation({
     mutationFn: (data: any) => fetch("/api/odoo/clientes", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
     onSuccess: (c: OdooCliente) => {
       const display = c.vat ? `${c.name} (${c.vat})` : c.name;
@@ -78,8 +79,12 @@ export default function Solicitudes() {
     queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedSku)}`).then(r => r.json()),
     enabled: debouncedSku.length >= 1,
   });
+
   useEffect(() => {
-    if (debouncedSku.length < 1) { if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); } return; }
+    if (debouncedSku.length < 1) {
+      if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
+      return;
+    }
     const exacto = productosOdoo.find(p => p.default_code.toLowerCase() === debouncedSku.toLowerCase());
     if (exacto) { setForm(f => ({ ...f, producto: exacto.name })); setProductoLocked(true); }
     else if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
@@ -100,13 +105,15 @@ export default function Solicitudes() {
 
   const crear = useMutation({
     mutationFn: (data: any) => fetch("/api/solicitudes", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setOpen(false);
       setForm({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
-      setClienteQuery(""); setProductoLocked(false);
+      setClienteQuery("");
+      setProductoLocked(false);
       toast({ title: "Solicitud creada" });
     },
   });
@@ -148,22 +155,22 @@ export default function Solicitudes() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       toast({ title: "Solicitud eliminada" });
-      setDeleteOpen(false); setDeletePassword("");
+      setDeleteOpen(false);
+      setDeletePassword("");
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al eliminar", variant: "destructive" }),
   });
   const handleDelete = async () => {
     if (!deleteSolId || !deletePassword) return;
     setDeleteLoading(true);
-    try { await deleteSolicitud.mutateAsync({ id: deleteSolId, password: deletePassword }); }
-    finally { setDeleteLoading(false); }
+    try { await deleteSolicitud.mutateAsync({ id: deleteSolId, password: deletePassword }); } finally { setDeleteLoading(false); }
   };
 
   // --- Vendedor: confirmar compra ---
   const confirmarCompra = useMutation({
-    mutationFn: (id: string) => fetch(`/api/solicitudes/${id}/confirmar-vendedor`, {
+    mutationFn: (sol: Solicitud) => fetch(`/api/solicitudes/${sol.id}/confirmar-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vendedorEmail: user?.email }),
+      body: JSON.stringify({ vendedorEmail: user?.email, respondidoPor: sol.respondidoPor }),
     }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
@@ -177,13 +184,14 @@ export default function Solicitudes() {
   const [anularSol, setAnularSol] = useState<Solicitud | null>(null);
   const [anularMotivo, setAnularMotivo] = useState("");
   const anularCompra = useMutation({
-    mutationFn: ({ id, motivo }: { id: string; motivo: string }) => fetch(`/api/solicitudes/${id}/anular-vendedor`, {
+    mutationFn: ({ id, motivo, respondidoPor }: { id: string; motivo: string; respondidoPor?: string }) => fetch(`/api/solicitudes/${id}/anular-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vendedorEmail: user?.email, motivo }),
+      body: JSON.stringify({ vendedorEmail: user?.email, motivo, respondidoPor }),
     }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
-      setAnularOpen(false); setAnularMotivo("");
+      setAnularOpen(false);
+      setAnularMotivo("");
       toast({ title: "Solicitud de anulacion enviada" });
     },
     onError: () => toast({ title: "Error al solicitar anulacion", variant: "destructive" }),
@@ -192,17 +200,23 @@ export default function Solicitudes() {
   const prioridad = (s: Solicitud) => {
     if (!s.fechaTope) return "Sin fecha";
     const dias = Math.ceil((new Date(s.fechaTope).getTime() - Date.now()) / 86400000);
-    if (dias < 0) return "Vencida"; if (dias <= 3) return "Urgente"; if (dias <= 7) return "Alta"; return "Normal";
+    if (dias < 0) return "Vencida";
+    if (dias <= 3) return "Urgente";
+    if (dias <= 7) return "Alta";
+    return "Normal";
   };
   const colorPrioridad = (p: string) => (p === "Vencida" || p === "Urgente") ? "destructive" : p === "Alta" ? "default" : "secondary";
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "Agotado" ? "secondary" : "destructive";
+
   const isCompras = user?.rol === "admin" || user?.rol === "compras";
   const isAdmin = user?.rol === "admin";
   const isVendedor = user?.rol === "vendedor";
+
   const selectCliente = (c: OdooCliente) => {
     const display = c.vat ? `${c.name} (${c.vat})` : c.name;
     setForm(f => ({ ...f, cliente: display, celular: c.mobile || c.phone || "" }));
-    setClienteQuery(display); setShowClienteDD(false);
+    setClienteQuery(display);
+    setShowClienteDD(false);
   };
 
   // --- Filtrar solicitudes ---
@@ -221,7 +235,7 @@ export default function Solicitudes() {
           <Button variant="outline" onClick={() => qc.invalidateQueries({ queryKey: ["solicitudes"] })} className="gap-2"><RefreshCw className="h-4 w-4" />Actualizar</Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="gap-2"><PlusCircle className="h-4 w-4" />Nueva Solicitud</Button></DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent>
               <DialogHeader><DialogTitle>Nueva Solicitud</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
                 {/* CLIENTE - Autocomplete Odoo */}
@@ -229,9 +243,9 @@ export default function Solicitudes() {
                   <Label>Cliente * <span className="text-xs text-muted-foreground">(nombre, RIF o celular)</span></Label>
                   <Input value={clienteQuery} onChange={e => { setClienteQuery(e.target.value); setForm(f => ({ ...f, cliente: e.target.value })); setShowClienteDD(true); }} onFocus={() => clienteQuery.length >= 1 && setShowClienteDD(true)} placeholder="Buscar en Odoo..." />
                   {showClienteDD && debouncedCliente.length >= 1 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
                       {clientesOdoo.length > 0 ? clientesOdoo.map(c => (
-                        <div key={c.id} className="p-2 hover:bg-gray-100 cursor-pointer border-b" onClick={() => selectCliente(c)}>
+                        <div key={c.id} className="p-2 hover:bg-muted cursor-pointer border-b last:border-0" onClick={() => selectCliente(c)}>
                           <div className="font-medium">{c.name}</div>
                           <div className="text-xs text-muted-foreground">
                             {c.vat && <span>RIF: {c.vat} </span>}
@@ -241,17 +255,15 @@ export default function Solicitudes() {
                           </div>
                         </div>
                       )) : (
-                        <div className="p-3 text-sm text-muted-foreground">
-                          No encontrado. <a href="#" className="text-blue-600 underline" onClick={e => { e.preventDefault(); setShowClienteDD(false); setShowCrearCliente(true); setNuevoCliente(n => ({ ...n, name: clienteQuery })); }}>Crear nuevo cliente en Odoo</a>
-                        </div>
+                        <div className="p-3 text-sm text-muted-foreground">No encontrado. <a href="#" className="text-primary underline" onClick={e => { e.preventDefault(); setShowClienteDD(false); setShowCrearCliente(true); setNuevoCliente(n => ({ ...n, name: clienteQuery })); }}>Crear nuevo cliente en Odoo</a></div>
                       )}
                     </div>
                   )}
                 </div>
                 {/* CREAR CLIENTE - panel inline */}
                 {showCrearCliente && (
-                  <div className="border rounded-md p-3 space-y-2 bg-muted/30">
-                    <p className="text-sm font-medium">Nuevo cliente en Odoo</p>
+                  <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+                    <h4 className="font-medium">Nuevo cliente en Odoo</h4>
                     <div><Label>Nombre *</Label><Input value={nuevoCliente.name} onChange={e => setNuevoCliente(n => ({ ...n, name: e.target.value }))} placeholder="Nombre completo" /></div>
                     <div><Label>RIF / CI</Label><Input value={nuevoCliente.vat} onChange={e => setNuevoCliente(n => ({ ...n, vat: e.target.value }))} placeholder="J-123456789" /></div>
                     <div><Label>Celular</Label><Input value={nuevoCliente.mobile} onChange={e => setNuevoCliente(n => ({ ...n, mobile: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
@@ -267,7 +279,7 @@ export default function Solicitudes() {
                 <div><Label>Celular</Label><Input value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
                 {/* SKU + PRODUCTO */}
                 <div><Label>SKU</Label><Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="Ej: PROD-001" /></div>
-                <div><Label>Producto * {productoLocked && <Badge variant="outline" className="ml-1">OK Odoo</Badge>}</Label><Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre del producto" className={productoLocked ? "bg-muted" : ""} /></div>
+                <div><Label>Producto * {productoLocked && <Badge variant="outline" className="ml-2 text-green-600">OK Odoo</Badge>}</Label><Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre del producto" className={productoLocked ? "bg-muted" : ""} /></div>
                 {/* CANTIDAD */}
                 <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
                 {/* FECHA TOPE */}
@@ -291,7 +303,8 @@ export default function Solicitudes() {
               <SelectItem value="Pendiente">Pendiente</SelectItem>
               <SelectItem value="En Proceso">En Proceso</SelectItem>
               <SelectItem value="Completada">Completada</SelectItem>
-              <SelectItem value="Cancelada">Cancelada</SelectItem><SelectItem value="Agotado">Agotado</SelectItem>
+              <SelectItem value="Cancelada">Cancelada</SelectItem>
+              <SelectItem value="Agotado">Agotado</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filtroVendedor || "todos"} onValueChange={v => setFiltroVendedor(v === "todos" ? "" : v)}>
@@ -333,19 +346,40 @@ export default function Solicitudes() {
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                   <td className="p-3">{s.vendedor}</td>
                   <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
-                  <td className="p-3 space-x-1">
-                    {/* Compras/Admin: editar */}
-                    {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
-                    {/* Admin: eliminar */}
-                    {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
-                    {/* Vendedor: confirmar compra */}
-                    {isVendedor && (s.estado === "Completada") && (
-                      <Button size="sm" variant="ghost" className="text-green-600" title="Confirmar compra" onClick={() => confirmarCompra.mutate(s.id)} disabled={confirmarCompra.isPending}><CheckCircle className="h-4 w-4" /></Button>
-                    )}
-                    {/* Vendedor: solicitar anulacion */}
-                    {isVendedor && (s.estado !== "Cancelada") && (
-                      <Button size="sm" variant="ghost" className="text-red-500" title="Solicitar anulacion" onClick={() => { setAnularSol(s); setAnularMotivo(""); setAnularOpen(true); }}><XCircle className="h-4 w-4" /></Button>
-                    )}
+                  <td className="p-3">
+                    <div className="flex flex-col gap-2 items-start min-w-[160px]">
+                      {/* Compras/Admin: editar */}
+                      {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
+                      {/* Admin: eliminar */}
+                      {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
+                      {/* Vendedor: confirmar compra - BOTON MEJORADO */}
+                      {isVendedor && (s.estado === "Completada") && (
+                        <Button
+                          size="default"
+                          variant="outline"
+                          className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
+                          title="Confirmar compra"
+                          onClick={() => confirmarCompra.mutate(s)}
+                          disabled={confirmarCompra.isPending}
+                        >
+                          <CheckCircle className="h-5 w-5" />
+                          {confirmarCompra.isPending ? "Confirmando..." : "Confirmar Compra"}
+                        </Button>
+                      )}
+                      {/* Vendedor: solicitar anulacion - BOTON MEJORADO */}
+                      {isVendedor && (s.estado !== "Cancelada") && (
+                        <Button
+                          size="default"
+                          variant="outline"
+                          className="w-full justify-start gap-2 border-red-400 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium px-4 py-2"
+                          title="Solicitar anulacion"
+                          onClick={() => { setAnularSol(s); setAnularMotivo(""); setAnularOpen(true); }}
+                        >
+                          <XCircle className="h-5 w-5" />
+                          Anular Solicitud
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -353,7 +387,6 @@ export default function Solicitudes() {
           </table>
         </div>
       )}
-
       {/* DIALOG EDITAR SOLICITUD (compras/admin) */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
@@ -374,7 +407,7 @@ export default function Solicitudes() {
                   <SelectItem value="En Proceso">En Proceso</SelectItem>
                   <SelectItem value="Completada">Completada</SelectItem>
                   <SelectItem value="Cancelada">Cancelada</SelectItem>
-                                    <SelectItem value="Agotado">Agotado</SelectItem>
+                  <SelectItem value="Agotado">Agotado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -388,7 +421,6 @@ export default function Solicitudes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* DIALOG ELIMINAR SOLICITUD (admin) */}
       <Dialog open={deleteOpen} onOpenChange={(o) => { if (!deleteLoading) { setDeleteOpen(o); if (!o) setDeletePassword(""); } }}>
         <DialogContent>
@@ -401,7 +433,6 @@ export default function Solicitudes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* DIALOG SOLICITAR ANULACION (vendedor) */}
       <Dialog open={anularOpen} onOpenChange={(o) => { setAnularOpen(o); if (!o) setAnularMotivo(""); }}>
         <DialogContent>
@@ -419,7 +450,7 @@ export default function Solicitudes() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAnularOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => anularSol && anularCompra.mutate({ id: anularSol.id, motivo: anularMotivo })} disabled={!anularMotivo.trim() || anularCompra.isPending}>{anularCompra.isPending ? "Enviando..." : "Solicitar anulacion"}</Button>
+            <Button variant="destructive" onClick={() => anularSol && anularCompra.mutate({ id: anularSol.id, motivo: anularMotivo, respondidoPor: anularSol.respondidoPor })} disabled={!anularMotivo.trim() || anularCompra.isPending}>{anularCompra.isPending ? "Enviando..." : "Solicitar anulacion"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
