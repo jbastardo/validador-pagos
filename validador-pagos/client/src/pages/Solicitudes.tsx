@@ -36,8 +36,8 @@ export default function Solicitudes() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
-  const [items, setItems] = useState<Array<{ sku: string; producto: string; cantidad: string; categoria: string }>>([]);
-  const [nuevoItem, setNuevoItem] = useState({ sku: "", producto: "", cantidad: "1", categoria: "" });
+  const [items, setItems] = useState<Array<{ sku: string; producto: string; cantidad: string; categoria: string; productoLocked?: boolean }>>([]);
+  const [nuevoItem, setNuevoItem] = useState({ sku: "", producto: "", cantidad: "1", categoria: "", productoLocked: false });
 
   // --- Filtros ---
   const [filtroEstado, setFiltroEstado] = useState("todos");
@@ -81,9 +81,8 @@ export default function Solicitudes() {
     onError: () => toast({ title: "Error al crear cliente", variant: "destructive" }),
   });
 
-  // --- SKU autocomplete ---
-  const debouncedSku = useDebounce(form.sku, 400);
-  const [productoLocked, setProductoLocked] = useState(false);
+  // --- SKU autocomplete para nuevoItem ---
+  const debouncedSku = useDebounce(nuevoItem.sku, 400);
   const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
     queryKey: ["odoo-productos-sku", debouncedSku],
     queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedSku)}`).then(r => r.json()),
@@ -92,12 +91,12 @@ export default function Solicitudes() {
 
   useEffect(() => {
     if (debouncedSku.length < 1) {
-      if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
+      if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
       return;
     }
     const exacto = productosOdoo.find(p => p.default_code.toLowerCase() === debouncedSku.toLowerCase());
-    if (exacto) { setForm(f => ({ ...f, producto: exacto.name })); setProductoLocked(true); }
-    else if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
+    if (exacto) { setNuevoItem(i => ({ ...i, producto: exacto.name, productoLocked: true })); }
+    else if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
   }, [debouncedSku, productosOdoo]);
 
   useEffect(() => {
@@ -328,18 +327,27 @@ export default function Solicitudes() {
                 {/* ITEMS - MÚLTIPLES PRODUCTOS */}
                 <div className="border rounded-md p-4 space-y-3">
                   <h4 className="font-medium">Productos</h4>
-                  <div className="grid grid-cols-4 gap-2">
-                    <Input placeholder="SKU (opcional)" value={nuevoItem.sku} onChange={e => setNuevoItem(i => ({ ...i, sku: e.target.value }))} />
-                    <Input placeholder="Producto *" value={nuevoItem.producto} onChange={e => setNuevoItem(i => ({ ...i, producto: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-2">
                     <Input type="number" placeholder="Cantidad" value={nuevoItem.cantidad} onChange={e => setNuevoItem(i => ({ ...i, cantidad: e.target.value }))} />
-                    <Select value={nuevoItem.categoria} onValueChange={v => setNuevoItem(i => ({ ...i, categoria: v }))}>
+                    <Input 
+                      placeholder="SKU" 
+                      value={nuevoItem.sku} 
+                      onChange={e => setNuevoItem(i => ({ ...i, sku: e.target.value.toUpperCase() }))} 
+                    />
+                    <Input 
+                      placeholder="Nombre del producto" 
+                      value={nuevoItem.producto} 
+                      onChange={e => setNuevoItem(i => ({ ...i, producto: e.target.value }))} 
+                      className="col-span-2"
+                    />
+                    <Select value={nuevoItem.categoria} onValueChange={v => setNuevoItem(i => ({ ...i, categoria: v }))} className="col-span-2">
                       <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
                       <SelectContent>
                         {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => { if (nuevoItem.producto && nuevoItem.cantidad) { setItems(i => [...i, { ...nuevoItem }]); setNuevoItem({ sku: "", producto: "", cantidad: "1", categoria: "" }); }}} disabled={!nuevoItem.producto || !nuevoItem.cantidad}>Agregar Producto</Button>
+                  <Button size="sm" variant="outline" onClick={() => { if (nuevoItem.producto && nuevoItem.cantidad) { setItems(i => [...i, { ...nuevoItem, productoLocked: false }]); setNuevoItem({ sku: "", producto: "", cantidad: "1", categoria: "", productoLocked: false }); }}} disabled={!nuevoItem.producto || !nuevoItem.cantidad}>Agregar Producto</Button>
                   {items.length > 0 && (
                     <div className="space-y-2 mt-2">
                       {items.map((item, idx) => (
@@ -358,24 +366,7 @@ export default function Solicitudes() {
                 <div><Label>Fecha tope</Label><Input type="date" value={form.fechaTope} onChange={e => setForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
                 {/* OBSERVACIONES */}
                 <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))} /></div>
-                {/* CATEGORÍAS */}
-                <div>
-                  <Label>Categoría</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {categorias.map(cat => (
-                      <Button
-                        key={cat}
-                        size="sm"
-                        variant={categoriaSeleccionada === cat ? "default" : "outline"}
-                        onClick={() => setCategoriaSeleccionada(cat)}
-                        className="text-xs"
-                      >
-                        {cat}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <Button onClick={() => crear.mutate({ ...form, categoria: categoriaSeleccionada, vendedor: user?.email || "" })} disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
+                <Button onClick={() => crear.mutate({ ...form, categoria: items.length > 0 ? items[0]?.categoria : categoriaSeleccionada, vendedor: user?.email || "" })} disabled={!form.cliente || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
               </div>
             </DialogContent>
           </Dialog>
