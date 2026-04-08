@@ -593,6 +593,21 @@ Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: $
     }
   });
 
+  // ===== SOLICITUDES: vendedor editar observaciones =====
+  app.patch("/api/solicitudes/:id/observaciones-vendedor", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { observaciones } = req.body;
+      if (observaciones === undefined) return res.status(400).json({ message: "Observaciones requeridas" });
+      const updated = await updateSolicitudEdicion(id, { observaciones }, undefined);
+      if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error observaciones-vendedor:", e.message);
+      res.status(500).json({ message: "Error al actualizar observaciones" });
+    }
+  });
+
   // ===== SOLICITUDES: vendedor solicita anulacion =====
   app.patch("/api/solicitudes/:id/anular-vendedor", async (req, res) => {
     try {
