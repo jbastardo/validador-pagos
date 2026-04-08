@@ -336,6 +336,7 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Producto</th>
               <th className="p-3 text-left">Cant.</th>
               <th className="p-3 text-left">Fecha Tope</th>
+              <th className="p-3 text-left">Creado</th>
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
@@ -351,6 +352,7 @@ export default function Solicitudes() {
                   <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
                   <td className="p-3">{s.cantidad}</td>
                   <td className="p-3">{s.fechaTope || "\u2014"}</td>
+                  <td className="p-3" title={s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "Sin fecha"}>{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                   <td className="p-3">{s.vendedor}</td>
@@ -361,22 +363,22 @@ export default function Solicitudes() {
                       {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
                       {/* Admin: eliminar */}
                       {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
-                      {/* Vendedor: confirmar compra - BOTON MEJORADO */}
-                      {isVendedor && (s.estado === "Completada") && (
+                      {/* Vendedor: confirmar/aceptar - disponible en Pendiente, En Proceso y Completada */}
+                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso" || s.estado === "Completada") && (
                         <Button
                           size="default"
                           variant="outline"
                           className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
-                          title="Confirmar compra"
+                          title={s.estado === "Pendiente" ? "Aceptar solicitud" : s.estado === "En Proceso" ? "Confirmar entrega" : "Confirmar compra"}
                           onClick={() => confirmarCompra.mutate(s)}
                           disabled={confirmarCompra.isPending}
                         >
                           <CheckCircle className="h-5 w-5" />
-                          {confirmarCompra.isPending ? "Confirmando..." : "Confirmar Compra"}
+                          {confirmarCompra.isPending ? "Procesando..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
                         </Button>
                       )}
-                      {/* Vendedor: solicitar anulacion - BOTON MEJORADO */}
-                      {isVendedor && (s.estado !== "Cancelada") && (
+                      {/* Vendedor: solicitar anulacion - disponible en Pendiente y En Proceso */}
+                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso") && (
                         <Button
                           size="default"
                           variant="outline"
