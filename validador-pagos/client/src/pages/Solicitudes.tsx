@@ -136,17 +136,37 @@ export default function Solicitudes() {
   });
 
   const crear = useMutation({
-    mutationFn: (data: any) => fetch("/api/solicitudes", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    mutationFn: async (data: any) => {
+      const results = [];
+      for (const item of data.items) {
+        const res = await fetch("/api/solicitudes", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente: data.cliente,
+            celular: data.celular,
+            sku: item.sku,
+            producto: item.producto,
+            cantidad: item.cantidad,
+            fechaTope: data.fechaTope,
+            observaciones: data.observaciones,
+            categoria: item.categoria,
+            vendedor: data.vendedor,
+          }),
+        });
+        if (!res.ok) throw new Error();
+        results.push(await res.json());
+      }
+      return results;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setOpen(false);
       setForm({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
+      setItems([]);
+      setCategoriaSeleccionada("");
       setClienteQuery("");
       setProductoLocked(false);
-      toast({ title: "Solicitud creada" });
+      toast({ title: "Solicitudes creadas" });
     },
   });
 
@@ -313,28 +333,80 @@ export default function Solicitudes() {
                 )}
                 {/* CELULAR */}
                 <div><Label>Celular</Label><Input value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
-                {/* CANTIDAD */}
-                <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
-                {/* SKU + PRODUCTO reordered */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div><Label>SKU</Label><Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="SKU Odoo" /></div>
-                  <div><Label>Producto * {productoLocked && <Badge variant="outline" className="ml-2 text-green-600">OK</Badge>}</Label><Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre" className={productoLocked ? "bg-muted" : ""} /></div>
-                </div>
-                {/* CATEGORÍA */}
-                <div>
-                  <Label>Categoría</Label>
-                  <Select value={categoriaSeleccionada} onValueChange={setCategoriaSeleccionada}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
-                    <SelectContent>
-                      {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                {/* MULTIPLES PRODUCTOS */}
+                <div className="border rounded-md p-4 space-y-3">
+                  <h4 className="font-medium">Productos</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input 
+                      placeholder="SKU" 
+                      value={nuevoItem.sku} 
+                      onChange={e => setNuevoItem(i => ({ ...i, sku: e.target.value.toUpperCase() }))} 
+                    />
+                    <Input 
+                      placeholder="Nombre del producto" 
+                      value={nuevoItem.producto} 
+                      onChange={e => setNuevoItem(i => ({ ...i, producto: e.target.value }))} 
+                    />
+                    <Input 
+                      type="number" 
+                      placeholder="Cantidad" 
+                      value={nuevoItem.cantidad} 
+                      onChange={e => setNuevoItem(i => ({ ...i, cantidad: e.target.value }))} 
+                    />
+                    <Select value={nuevoItem.categoria} onValueChange={v => setNuevoItem(i => ({ ...i, categoria: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
+                      <SelectContent>
+                        {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => { 
+                      if (nuevoItem.producto && nuevoItem.cantidad) { 
+                        setItems(i => [...i, { ...nuevoItem }]); 
+                        setNuevoItem({ sku: "", producto: "", cantidad: "1", categoria: "" }); 
+                      }
+                    }} 
+                    disabled={!nuevoItem.producto || !nuevoItem.cantidad}
+                  >
+                    Agregar Producto
+                  </Button>
+                  {items.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-muted/30 p-2 rounded text-sm">
+                          <span className="font-medium">{idx + 1}.</span>
+                          <span>{item.sku ? `[${item.sku}] ` : ""}{item.producto}</span>
+                          <span className="text-muted-foreground">x{item.cantidad}</span>
+                          {item.categoria && <Badge variant="outline" className="text-xs">{item.categoria}</Badge>}
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="ml-auto h-6 p-0" 
+                            onClick={() => setItems(i => i.filter((_, x) => x !== idx))}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {/* FECHA TOPE */}
                 <div><Label>Fecha tope</Label><Input type="date" value={form.fechaTope} onChange={e => setForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
                 {/* OBSERVACIONES */}
                 <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))} /></div>
-                <Button onClick={() => crear.mutate({ ...form, categoria: categoriaSeleccionada, vendedor: user?.email || "" })} disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
+                <Button 
+                  onClick={() => {
+                    const itemsToSave = items.length > 0 ? items : [{ sku: form.sku, producto: form.producto, cantidad: form.cantidad, categoria: categoriaSeleccionada }];
+                    crear.mutate({ items: itemsToSave, cliente: form.cliente, celular: form.celular, fechaTope: form.fechaTope, observaciones: form.observaciones, vendedor: user?.email || "" });
+                  }} 
+                  disabled={!form.cliente || crear.isPending}
+                >
+                  {crear.isPending ? "Guardando..." : items.length > 0 ? `Crear ${items.length + 1} Solicitudes` : "Crear Solicitud"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
