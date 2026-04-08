@@ -394,7 +394,7 @@ export async function deleteSolicitud(id: string): Promise<boolean> {
 }
 
 export async function updateSolicitudEdicion(
-  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string; observaciones?: string },
+  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string },
   usuario?: string,
 ): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
@@ -404,13 +404,12 @@ export async function updateSolicitudEdicion(
   const nuevaObs = data.observacionesCompras !== undefined ? data.observacionesCompras : (s.observacionesCompras ?? "");
   const nuevaFecha = data.fechaTope ?? s.fechaTope;
   const nuevaCant = data.cantidad ?? s.cantidad;
-  const nuevasObsVendedor = data.observaciones !== undefined ? data.observaciones : (s.observaciones ?? "");
   const actualizadoEn = new Date().toISOString();
       const respondidoPor = usuario || s.respondidoPor || "";
   const row = [
     s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, nuevaCant, nuevaFecha,
-    nuevasObsVendedor, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, respondidoPor,
+    s.observaciones, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, respondidoPor,
   ];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
-  return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, observaciones: nuevasObsVendedor, actualizadoEn , respondidoPor };
+  return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, actualizadoEn , respondidoPor };
 }

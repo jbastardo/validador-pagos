@@ -36,20 +36,10 @@ export default function Solicitudes() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
-  const [items, setItems] = useState<Array<{ sku: string; producto: string; cantidad: string; categoria: string; productoLocked?: boolean }>>([]);
-  const [nuevoItem, setNuevoItem] = useState({ sku: "", producto: "", cantidad: "1", categoria: "", productoLocked: false });
 
   // --- Filtros ---
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("");
-  const [busqueda, setBusqueda] = useState("");
-  const debouncedBusqueda = useDebounce(busqueda, 300);
-
-  // --- Categorías predefinidas ---
-  const categorias = [
-    "Alarmas", "Control de Acceso", "Electrónica", "Seguridad", "Telefonía", "Oficina y Hogar", "Iluminación", "Ferretería", "CCTV", "Redes", "Computación"
-  ];
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
 
   // --- Autocomplete cliente Odoo ---
   const [clienteQuery, setClienteQuery] = useState("");
@@ -81,8 +71,9 @@ export default function Solicitudes() {
     onError: () => toast({ title: "Error al crear cliente", variant: "destructive" }),
   });
 
-  // --- SKU autocomplete para nuevoItem ---
-  const debouncedSku = useDebounce(nuevoItem.sku, 400);
+  // --- SKU autocomplete ---
+  const debouncedSku = useDebounce(form.sku, 400);
+  const [productoLocked, setProductoLocked] = useState(false);
   const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
     queryKey: ["odoo-productos-sku", debouncedSku],
     queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedSku)}`).then(r => r.json()),
@@ -91,12 +82,12 @@ export default function Solicitudes() {
 
   useEffect(() => {
     if (debouncedSku.length < 1) {
-      if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
+      if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
       return;
     }
     const exacto = productosOdoo.find(p => p.default_code.toLowerCase() === debouncedSku.toLowerCase());
-    if (exacto) { setNuevoItem(i => ({ ...i, producto: exacto.name, productoLocked: true })); }
-    else if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
+    if (exacto) { setForm(f => ({ ...f, producto: exacto.name })); setProductoLocked(true); }
+    else if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
   }, [debouncedSku, productosOdoo]);
 
   useEffect(() => {
@@ -113,28 +104,17 @@ export default function Solicitudes() {
   });
 
   const crear = useMutation({
-    mutationFn: async (data: any) => {
-      const itemsToSave = items.length > 0 ? items : [{ sku: form.sku, producto: form.producto, cantidad: form.cantidad, categoria: categoriaSeleccionada }];
-      const results = [];
-      for (const item of itemsToSave) {
-        const res = await fetch("/api/solicitudes", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...data, sku: item.sku, producto: item.producto, cantidad: item.cantidad, categoria: item.categoria }),
-        });
-        if (!res.ok) throw new Error();
-        results.push(await res.json());
-      }
-      return results;
-    },
+    mutationFn: (data: any) => fetch("/api/solicitudes", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setOpen(false);
       setForm({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
       setClienteQuery("");
       setProductoLocked(false);
-      setItems([]);
-      setCategoriaSeleccionada("");
-      toast({ title: items.length > 0 ? `${items.length + 1} solicitudes creadas` : "Solicitud creada" });
+      toast({ title: "Solicitud creada" });
     },
   });
 
@@ -203,29 +183,6 @@ export default function Solicitudes() {
   const [anularOpen, setAnularOpen] = useState(false);
   const [anularSol, setAnularSol] = useState<Solicitud | null>(null);
   const [anularMotivo, setAnularMotivo] = useState("");
-
-  // --- Vendedor: editar observaciones ---
-  const [obsOpen, setObsOpen] = useState(false);
-  const [obsSol, setObsSol] = useState<Solicitud | null>(null);
-  const [obsForm, setObsForm] = useState({ observaciones: "" });
-  const editarObsVendedor = useMutation({
-    mutationFn: (data: any) => fetch(`/api/solicitudes/${obsSol?.id}/observaciones-vendedor`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ observaciones: data.observaciones }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["solicitudes"] });
-      setObsOpen(false);
-      toast({ title: "Observaciones actualizadas" });
-    },
-    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
-  });
-  const openObsEdit = (s: Solicitud) => {
-    setObsSol(s);
-    setObsForm({ observaciones: s.observaciones || "" });
-    setObsOpen(true);
-  };
-
   const anularCompra = useMutation({
     mutationFn: ({ id, motivo, respondidoPor }: { id: string; motivo: string; respondidoPor?: string }) => fetch(`/api/solicitudes/${id}/anular-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -267,10 +224,6 @@ export default function Solicitudes() {
   const solicitudesFiltradas = solicitudes.filter(s => {
     if (filtroEstado !== "todos" && s.estado !== filtroEstado) return false;
     if (filtroVendedor && s.vendedor !== filtroVendedor) return false;
-    if (debouncedBusqueda) {
-      const q = debouncedBusqueda.toLowerCase();
-      if (!s.cliente.toLowerCase().includes(q) && !s.producto.toLowerCase().includes(q) && !s.sku?.toLowerCase().includes(q)) return false;
-    }
     return true;
   });
 
@@ -324,60 +277,25 @@ export default function Solicitudes() {
                 )}
                 {/* CELULAR */}
                 <div><Label>Celular</Label><Input value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
-                {/* ITEMS - MÚLTIPLES PRODUCTOS */}
-                <div className="border rounded-md p-4 space-y-3">
-                  <h4 className="font-medium">Productos</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input type="number" placeholder="Cantidad" value={nuevoItem.cantidad} onChange={e => setNuevoItem(i => ({ ...i, cantidad: e.target.value }))} />
-                    <Input 
-                      placeholder="SKU" 
-                      value={nuevoItem.sku} 
-                      onChange={e => setNuevoItem(i => ({ ...i, sku: e.target.value.toUpperCase() }))} 
-                    />
-                    <Input 
-                      placeholder="Nombre del producto" 
-                      value={nuevoItem.producto} 
-                      onChange={e => setNuevoItem(i => ({ ...i, producto: e.target.value }))} 
-                      className="col-span-2"
-                    />
-                    <Select value={nuevoItem.categoria} onValueChange={v => setNuevoItem(i => ({ ...i, categoria: v }))} className="col-span-2">
-                      <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
-                      <SelectContent>
-                        {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => { if (nuevoItem.producto && nuevoItem.cantidad) { setItems(i => [...i, { ...nuevoItem, productoLocked: false }]); setNuevoItem({ sku: "", producto: "", cantidad: "1", categoria: "", productoLocked: false }); }}} disabled={!nuevoItem.producto || !nuevoItem.cantidad}>Agregar Producto</Button>
-                  {items.length > 0 && (
-                    <div className="space-y-2 mt-2">
-                      {items.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-muted/30 p-2 rounded text-sm">
-                          <span className="font-medium">{idx + 1}.</span>
-                          <span>{item.sku ? `[${item.sku}] ` : ""}{item.producto}</span>
-                          <span className="text-muted-foreground">x{item.cantidad}</span>
-                          {item.categoria && <Badge variant="outline" className="text-xs">{item.categoria}</Badge>}
-                          <Button size="sm" variant="ghost" className="ml-auto h-6 p-0" onClick={() => setItems(i => i.filter((_, i) => i !== idx))}>×</Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* SKU + PRODUCTO */}
+                <div><Label>SKU</Label><Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="Ej: PROD-001" /></div>
+                <div><Label>Producto * {productoLocked && <Badge variant="outline" className="ml-2 text-green-600">OK Odoo</Badge>}</Label><Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre del producto" className={productoLocked ? "bg-muted" : ""} /></div>
+                {/* CANTIDAD */}
+                <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
                 {/* FECHA TOPE */}
                 <div><Label>Fecha tope</Label><Input type="date" value={form.fechaTope} onChange={e => setForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
                 {/* OBSERVACIONES */}
                 <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))} /></div>
-                <Button onClick={() => crear.mutate({ ...form, categoria: items.length > 0 ? items[0]?.categoria : categoriaSeleccionada, vendedor: user?.email || "" })} disabled={!form.cliente || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
+                <Button onClick={() => crear.mutate({ ...form, vendedor: user?.email || "" })} disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
-      {/* BUSCADOR - visible para todos */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <Input placeholder="Buscar cliente o producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="w-[220px]" />
-        {isCompras && (
-          <>
-            <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
+      {/* FILTROS (compras/admin) */}
+      {isCompras && (
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
           <Select value={filtroEstado} onValueChange={setFiltroEstado}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
             <SelectContent>
@@ -397,9 +315,8 @@ export default function Solicitudes() {
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
-          </>
-        )}
-      </div>
+        </div>
+      )}
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
@@ -410,7 +327,6 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Producto</th>
               <th className="p-3 text-left">Cant.</th>
               <th className="p-3 text-left">Fecha Tope</th>
-              <th className="p-3 text-left">Creado</th>
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
@@ -420,41 +336,38 @@ export default function Solicitudes() {
             <tbody>
               {solicitudesFiltradas.map(s => (
                 <tr key={s.id} className="border-b">
-                  <td className="p-3" title={`Creada: ${s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "sin fecha"}`}>{s.id}</td>
+                  <td className="p-3">{s.id}</td>
                   <td className="p-3">{s.cliente}</td>
                   <td className="p-3">{s.celular || "\u2014"}</td>
                   <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
                   <td className="p-3">{s.cantidad}</td>
                   <td className="p-3">{s.fechaTope || "\u2014"}</td>
-                  <td className="p-3" title={s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "Sin fecha"}>{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                   <td className="p-3">{s.vendedor}</td>
                   <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
                   <td className="p-3">
                     <div className="flex flex-col gap-2 items-start min-w-[160px]">
-                      {/* Vendedor: editar observaciones */}
-                      {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
                       {/* Compras/Admin: editar */}
-                      {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)} title="Editar solicitud completa"><Edit2 className="h-4 w-4" /></Button>}
+                      {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
                       {/* Admin: eliminar */}
                       {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
-                      {/* Vendedor: confirmar compra - disponible en Pendiente, En Proceso y Completada */}
-                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso" || s.estado === "Completada") && (
+                      {/* Vendedor: confirmar compra - BOTON MEJORADO */}
+                      {isVendedor && (s.estado === "Completada") && (
                         <Button
                           size="default"
                           variant="outline"
                           className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
-                          title={s.estado === "Pendiente" ? "Aceptar solicitud" : s.estado === "En Proceso" ? "Confirmar que el producto fue entregado al cliente" : "Confirmar compra"}
+                          title="Confirmar compra"
                           onClick={() => confirmarCompra.mutate(s)}
                           disabled={confirmarCompra.isPending}
                         >
                           <CheckCircle className="h-5 w-5" />
-                          {confirmarCompra.isPending ? "Procesando..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
+                          {confirmarCompra.isPending ? "Confirmando..." : "Confirmar Compra"}
                         </Button>
                       )}
-                      {/* Vendedor: solicitar anulacion - disponible en Pendiente y En Proceso */}
-                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso") && (
+                      {/* Vendedor: solicitar anulacion - BOTON MEJORADO */}
+                      {isVendedor && (s.estado !== "Cancelada") && (
                         <Button
                           size="default"
                           variant="outline"
@@ -505,26 +418,6 @@ export default function Solicitudes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
             <Button onClick={() => editarSolicitud.mutate(editForm)} disabled={editarSolicitud.isPending}>{editarSolicitud.isPending ? "Guardando..." : "Guardar cambios"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* DIALOG EDITAR OBSERVACIONES (vendedor) */}
-      <Dialog open={obsOpen} onOpenChange={setObsOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Editar Observaciones - Solicitud #{obsSol?.id}</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="font-medium">Cliente:</span> {obsSol?.cliente}</div>
-              <div><span className="font-medium">Producto:</span> {obsSol?.sku ? `[${obsSol.sku}] ` : ""}{obsSol?.producto}</div>
-            </div>
-            <div>
-              <Label>Observaciones</Label>
-              <Textarea value={obsForm.observaciones} onChange={e => setObsForm(f => ({ ...f, observaciones: e.target.value }))} placeholder="Notas para compras..." rows={3} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setObsOpen(false)}>Cancelar</Button>
-            <Button onClick={() => editarObsVendedor.mutate(obsForm)} disabled={editarObsVendedor.isPending}>{editarObsVendedor.isPending ? "Guardando..." : "Guardar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
