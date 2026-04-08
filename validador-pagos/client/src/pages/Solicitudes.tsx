@@ -16,7 +16,7 @@ interface Solicitud {
   id: string; vendedor: string; cliente: string; celular: string; sku: string;
   producto: string; cantidad: string;
   fechaTope: string; observaciones: string; estado: string; creadoEn: string;
-  observacionesCompras?: string; actualizadoEn?: string; respondidoPor?: string;
+  observacionesCompras?: string; actualizadoEn?: string; respondidoPor?: string; categoria?: string;
 }
 interface OdooCliente { id: number; name: string; vat: string; phone: string; mobile: string; email: string; }
 interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; }
@@ -191,7 +191,7 @@ export default function Solicitudes() {
   // --- Edit solicitud (compras/admin) ---
   const [editOpen, setEditOpen] = useState(false);
   const [editSol, setEditSol] = useState<Solicitud | null>(null);
-  const [editForm, setEditForm] = useState({ estado: "", observacionesCompras: "", fechaTope: "", cantidad: "" });
+  const [editForm, setEditForm] = useState({ estado: "", observacionesCompras: "", fechaTope: "", cantidad: "", categoria: "" });
   const editarSolicitud = useMutation({
     mutationFn: (data: any) => fetch(`/api/solicitudes/${editSol?.id}/editar`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -206,7 +206,7 @@ export default function Solicitudes() {
   });
   const openEdit = (s: Solicitud) => {
     setEditSol(s);
-    setEditForm({ estado: s.estado, observacionesCompras: s.observacionesCompras || "", fechaTope: s.fechaTope, cantidad: s.cantidad });
+    setEditForm({ estado: s.estado, observacionesCompras: s.observacionesCompras || "", fechaTope: s.fechaTope, cantidad: s.cantidad, categoria: s.categoria || "" });
     setEditOpen(true);
   };
 
@@ -473,6 +473,7 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
+              <th className="p-3 text-left">Categoría</th>
               <th className="p-3 text-left">Obs. Compras</th>
               <th className="p-3 text-left">Acciones</th>
             </tr></thead>
@@ -489,6 +490,7 @@ export default function Solicitudes() {
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                   <td className="p-3">{s.vendedor}</td>
+                  <td className="p-3">{s.categoria || "\u2014"}</td>
                   <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
                   <td className="p-3">
                     <div className="flex flex-col gap-2 items-start min-w-[160px]">
@@ -558,6 +560,15 @@ export default function Solicitudes() {
               </Select>
             </div>
             <div><Label>Cantidad</Label><Input type="number" value={editForm.cantidad} onChange={e => setEditForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
+            <div>
+              <Label>Categoría</Label>
+              <Select value={editForm.categoria} onValueChange={v => setEditForm(f => ({ ...f, categoria: v }))}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>
+                  {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Fecha tope</Label><Input type="date" value={editForm.fechaTope} onChange={e => setEditForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
             <div><Label>Observaciones de Compras</Label><Textarea value={editForm.observacionesCompras} onChange={e => setEditForm(f => ({ ...f, observacionesCompras: e.target.value }))} placeholder="Notas de compras..." /></div>
           </div>
