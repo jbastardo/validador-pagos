@@ -40,6 +40,8 @@ export default function Solicitudes() {
   // --- Filtros ---
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const debouncedBusqueda = useDebounce(busqueda, 300);
 
   // --- Autocomplete cliente Odoo ---
   const [clienteQuery, setClienteQuery] = useState("");
@@ -224,6 +226,10 @@ export default function Solicitudes() {
   const solicitudesFiltradas = solicitudes.filter(s => {
     if (filtroEstado !== "todos" && s.estado !== filtroEstado) return false;
     if (filtroVendedor && s.vendedor !== filtroVendedor) return false;
+    if (debouncedBusqueda) {
+      const q = debouncedBusqueda.toLowerCase();
+      if (!s.cliente.toLowerCase().includes(q) && !s.producto.toLowerCase().includes(q) && !s.sku?.toLowerCase().includes(q)) return false;
+    }
     return true;
   });
 
@@ -292,10 +298,12 @@ export default function Solicitudes() {
           </Dialog>
         </div>
       </div>
-      {/* FILTROS (compras/admin) */}
-      {isCompras && (
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
+      {/* BUSCADOR Y FILTROS */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <Input placeholder="Buscar cliente o producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="w-[220px]" />
+        {isCompras && (
+          <>
+            <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
           <Select value={filtroEstado} onValueChange={setFiltroEstado}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
             <SelectContent>
@@ -315,8 +323,9 @@ export default function Solicitudes() {
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
-        </div>
-      )}
+          </>
+        )}
+      </div>
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
