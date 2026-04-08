@@ -37,7 +37,7 @@ export default function Solicitudes() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
   const [items, setItems] = useState<Array<{ sku: string; producto: string; cantidad: string; categoria: string }>>([]);
-  const [nuevoItem, setNuevoItem] = useState({ sku: "", producto: "", cantidad: "1", categoria: "" });
+  const [nuevoItem, setNuevoItem] = useState({ sku: "", producto: "", cantidad: "1", categoria: "", productoLocked: false });
 
   // --- Filtros ---
   const [filtroEstado, setFiltroEstado] = useState("todos");
@@ -81,7 +81,7 @@ export default function Solicitudes() {
     onError: () => toast({ title: "Error al crear cliente", variant: "destructive" }),
   });
 
-  // --- SKU autocomplete ---
+  // --- SKU autocomplete para form (legacy) ---
   const debouncedSku = useDebounce(form.sku, 400);
   const [productoLocked, setProductoLocked] = useState(false);
   const { data: productosOdoo = [] } = useQuery<OdooProducto[]>({
@@ -99,6 +99,24 @@ export default function Solicitudes() {
     if (exacto) { setForm(f => ({ ...f, producto: exacto.name })); setProductoLocked(true); }
     else if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
   }, [debouncedSku, productosOdoo]);
+
+  // --- SKU autocomplete para nuevoItem ---
+  const debouncedNuevoSku = useDebounce(nuevoItem.sku, 400);
+  const { data: productosOdoo2 = [] } = useQuery<OdooProducto[]>({
+    queryKey: ["odoo-productos-nuevoitem", debouncedNuevoSku],
+    queryFn: () => fetch(`/api/odoo/productos?q=${encodeURIComponent(debouncedNuevoSku)}`).then(r => r.json()),
+    enabled: debouncedNuevoSku.length >= 1,
+  });
+
+  useEffect(() => {
+    if (debouncedNuevoSku.length < 1) {
+      if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
+      return;
+    }
+    const exacto = productosOdoo2.find(p => p.default_code.toLowerCase() === debouncedNuevoSku.toLowerCase());
+    if (exacto) { setNuevoItem(i => ({ ...i, producto: exacto.name, productoLocked: true })); }
+    else if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
+  }, [debouncedNuevoSku, productosOdoo2]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -366,7 +384,7 @@ export default function Solicitudes() {
                     onClick={() => { 
                       if (nuevoItem.producto && nuevoItem.cantidad) { 
                         setItems(i => [...i, { ...nuevoItem }]); 
-                        setNuevoItem({ sku: "", producto: "", cantidad: "1", categoria: "" }); 
+                        setNuevoItem({ sku: "", producto: "", cantidad: "1", categoria: "", productoLocked: false }); 
                       }
                     }} 
                     disabled={!nuevoItem.producto || !nuevoItem.cantidad}
