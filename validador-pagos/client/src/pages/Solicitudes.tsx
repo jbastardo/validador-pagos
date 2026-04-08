@@ -381,11 +381,12 @@ export default function Solicitudes() {
           </Dialog>
         </div>
       </div>
-      {/* FILTROS (compras/admin) */}
-      {isCompras && (
-        <div className="flex items-center gap-4 flex-wrap">
-          <Input placeholder="Buscar cliente o producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="w-[220px]" />
-          <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
+      {/* BUSCADOR - visible para todos */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <Input placeholder="Buscar cliente o producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="w-[220px]" />
+        {isCompras && (
+          <>
+            <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
           <Select value={filtroEstado} onValueChange={setFiltroEstado}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
             <SelectContent>
@@ -405,8 +406,9 @@ export default function Solicitudes() {
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
-        </div>
-      )}
+          </>
+        )}
+      </div>
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
@@ -417,6 +419,7 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Producto</th>
               <th className="p-3 text-left">Cant.</th>
               <th className="p-3 text-left">Fecha Tope</th>
+              <th className="p-3 text-left">Creado</th>
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
@@ -432,6 +435,7 @@ export default function Solicitudes() {
                   <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
                   <td className="p-3">{s.cantidad}</td>
                   <td className="p-3">{s.fechaTope || "\u2014"}</td>
+                  <td className="p-3" title={s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "Sin fecha"}>{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
                   <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                   <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                   <td className="p-3">{s.vendedor}</td>
@@ -444,22 +448,22 @@ export default function Solicitudes() {
                       {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)} title="Editar solicitud completa"><Edit2 className="h-4 w-4" /></Button>}
                       {/* Admin: eliminar */}
                       {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
-                      {/* Vendedor: confirmar compra - disponible en En Proceso y Completada */}
-                      {isVendedor && (s.estado === "En Proceso" || s.estado === "Completada") && (
+                      {/* Vendedor: confirmar compra - disponible en Pendiente, En Proceso y Completada */}
+                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso" || s.estado === "Completada") && (
                         <Button
                           size="default"
                           variant="outline"
                           className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
-                          title={s.estado === "En Proceso" ? "Confirmar que el producto fue entregado al cliente" : "Confirmar compra"}
+                          title={s.estado === "Pendiente" ? "Aceptar solicitud" : s.estado === "En Proceso" ? "Confirmar que el producto fue entregado al cliente" : "Confirmar compra"}
                           onClick={() => confirmarCompra.mutate(s)}
                           disabled={confirmarCompra.isPending}
                         >
                           <CheckCircle className="h-5 w-5" />
-                          {confirmarCompra.isPending ? "Confirmando..." : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
+                          {confirmarCompra.isPending ? "Procesando..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
                         </Button>
                       )}
-                      {/* Vendedor: solicitar anulacion - disponible en En Proceso */}
-                      {isVendedor && s.estado === "En Proceso" && (
+                      {/* Vendedor: solicitar anulacion - disponible en Pendiente y En Proceso */}
+                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso") && (
                         <Button
                           size="default"
                           variant="outline"
