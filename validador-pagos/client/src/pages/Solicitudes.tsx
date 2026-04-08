@@ -36,6 +36,8 @@ export default function Solicitudes() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ cliente: "", celular: "", sku: "", producto: "", cantidad: "", fechaTope: "", observaciones: "" });
+  const [items, setItems] = useState<Array<{ sku: string; producto: string; cantidad: string; categoria: string }>>([]);
+  const [nuevoItem, setNuevoItem] = useState({ sku: "", producto: "", cantidad: "1", categoria: "" });
 
   // --- Filtros ---
   const [filtroEstado, setFiltroEstado] = useState("todos");
@@ -105,6 +107,28 @@ export default function Solicitudes() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // --- Vendedor: editar observaciones ---
+  const [obsOpen, setObsOpen] = useState(false);
+  const [obsSol, setObsSol] = useState<Solicitud | null>(null);
+  const [obsForm, setObsForm] = useState({ observaciones: "" });
+  const editarObsVendedor = useMutation({
+    mutationFn: (data: any) => fetch(`/api/solicitudes/${obsSol?.id}/observaciones-vendedor`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ observaciones: data.observaciones }),
+    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["solicitudes"] });
+      setObsOpen(false);
+      toast({ title: "Observaciones actualizadas" });
+    },
+    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
+  });
+  const openObsEdit = (s: Solicitud) => {
+    setObsSol(s);
+    setObsForm({ observaciones: s.observaciones || "" });
+    setObsOpen(true);
+  };
 
   const { data: solicitudes = [], isLoading } = useQuery<Solicitud[]>({
     queryKey: ["solicitudes"],
@@ -377,6 +401,8 @@ export default function Solicitudes() {
                   <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
                   <td className="p-3">
                     <div className="flex flex-col gap-2 items-start min-w-[160px]">
+                      {/* Vendedor: editar observaciones */}
+                      {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
                       {/* Compras/Admin: editar */}
                       {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
                       {/* Admin: eliminar */}
@@ -480,6 +506,26 @@ export default function Solicitudes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAnularOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={() => anularSol && anularCompra.mutate({ id: anularSol.id, motivo: anularMotivo, respondidoPor: anularSol.respondidoPor })} disabled={!anularMotivo.trim() || anularCompra.isPending}>{anularCompra.isPending ? "Enviando..." : "Solicitar anulacion"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* DIALOG EDITAR OBSERVACIONES (vendedor) */}
+      <Dialog open={obsOpen} onOpenChange={setObsOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Observaciones - Solicitud #{obsSol?.id}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="font-medium">Cliente:</span> {obsSol?.cliente}</div>
+              <div><span className="font-medium">Producto:</span> {obsSol?.sku ? `[${obsSol.sku}] ` : ""}{obsSol?.producto}</div>
+            </div>
+            <div>
+              <Label>Observaciones</Label>
+              <Textarea value={obsForm.observaciones} onChange={e => setObsForm(f => ({ ...f, observaciones: e.target.value }))} placeholder="Notas para compras..." rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setObsOpen(false)}>Cancelar</Button>
+            <Button onClick={() => editarObsVendedor.mutate(obsForm)} disabled={editarObsVendedor.isPending}>{editarObsVendedor.isPending ? "Guardando..." : "Guardar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
