@@ -43,6 +43,12 @@ export default function Solicitudes() {
   const [busqueda, setBusqueda] = useState("");
   const debouncedBusqueda = useDebounce(busqueda, 300);
 
+  // --- Categorías predefinidas ---
+  const categorias = [
+    "Alarmas", "Control de Acceso", "Electrónica", "Seguridad", "Telefonía", "Oficina y Hogar", "Iluminación", "Ferretería", "CCTV", "Redes", "Computación"
+  ];
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
+
   // --- Autocomplete cliente Odoo ---
   const [clienteQuery, setClienteQuery] = useState("");
   const [showClienteDD, setShowClienteDD] = useState(false);
@@ -283,16 +289,28 @@ export default function Solicitudes() {
                 )}
                 {/* CELULAR */}
                 <div><Label>Celular</Label><Input value={form.celular} onChange={e => setForm(f => ({ ...f, celular: e.target.value }))} placeholder="04XX-XXXXXXX" /></div>
-                {/* SKU + PRODUCTO */}
-                <div><Label>SKU</Label><Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="Ej: PROD-001" /></div>
-                <div><Label>Producto * {productoLocked && <Badge variant="outline" className="ml-2 text-green-600">OK Odoo</Badge>}</Label><Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre del producto" className={productoLocked ? "bg-muted" : ""} /></div>
                 {/* CANTIDAD */}
                 <div><Label>Cantidad *</Label><Input type="number" value={form.cantidad} onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))} /></div>
+                {/* SKU + PRODUCTO reordered */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>SKU</Label><Input value={form.sku} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, sku: v, producto: v ? f.producto : "" })); if (!e.target.value) setProductoLocked(false); }} placeholder="SKU Odoo" /></div>
+                  <div><Label>Producto * {productoLocked && <Badge variant="outline" className="ml-2 text-green-600">OK</Badge>}</Label><Input value={form.producto} onChange={e => setForm(f => ({ ...f, producto: e.target.value }))} disabled={productoLocked} placeholder="Nombre" className={productoLocked ? "bg-muted" : ""} /></div>
+                </div>
+                {/* CATEGORÍA */}
+                <div>
+                  <Label>Categoría</Label>
+                  <Select value={categoriaSeleccionada} onValueChange={setCategoriaSeleccionada}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
+                    <SelectContent>
+                      {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {/* FECHA TOPE */}
                 <div><Label>Fecha tope</Label><Input type="date" value={form.fechaTope} onChange={e => setForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
                 {/* OBSERVACIONES */}
                 <div><Label>Observaciones</Label><Textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))} /></div>
-                <Button onClick={() => crear.mutate({ ...form, vendedor: user?.email || "" })} disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
+                <Button onClick={() => crear.mutate({ ...form, categoria: categoriaSeleccionada, vendedor: user?.email || "" })} disabled={!form.cliente || !form.producto || !form.cantidad || crear.isPending}>{crear.isPending ? "Guardando..." : "Crear Solicitud"}</Button>
               </div>
             </DialogContent>
           </Dialog>
