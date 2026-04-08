@@ -343,6 +343,14 @@ export default function Solicitudes() {
       {/* BUSCADOR Y FILTROS */}
       <div className="flex items-center gap-4 flex-wrap">
         <Input placeholder="Buscar cliente o producto..." value={busqueda} onChange={e => setBusqueda(e.target.value)} className="w-[220px]" />
+        {/* Filtro vendedor - visible para todos */}
+        <Select value={filtroVendedor || "todos"} onValueChange={v => setFiltroVendedor(v === "todos" ? "" : v)}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los vendedores</SelectItem>
+            {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {isCompras && (
           <>
             <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
@@ -355,13 +363,6 @@ export default function Solicitudes() {
               <SelectItem value="Completada">Completada</SelectItem>
               <SelectItem value="Cancelada">Cancelada</SelectItem>
               <SelectItem value="Agotado">Agotado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filtroVendedor || "todos"} onValueChange={v => setFiltroVendedor(v === "todos" ? "" : v)}>
-            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los vendedores</SelectItem>
-              {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
