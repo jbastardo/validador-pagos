@@ -482,15 +482,14 @@ export default function Solicitudes() {
             <thead><tr className="border-b bg-muted/50">
               <th className="p-3 text-left">ID</th>
               <th className="p-3 text-left">Cliente</th>
-              <th className="p-3 text-left">Celular</th>
               <th className="p-3 text-left">Producto</th>
               <th className="p-3 text-left">Cant.</th>
+              <th className="p-3 text-left">Categoría</th>
               <th className="p-3 text-left">Fecha Tope</th>
               <th className="p-3 text-left">Creado</th>
               <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
-              <th className="p-3 text-left">Categoría</th>
               <th className="p-3 text-left">Obs. Compras</th>
               <th className="p-3 text-left">Acciones</th>
             </tr></thead>
@@ -498,27 +497,32 @@ export default function Solicitudes() {
               {grupos.map((grupo, gIdx) => (
                 <>
                   {grupo.items.map((s, iIdx) => (
-                    <tr key={`${s.id}-${iIdx}`} className={`border-b ${iIdx === 0 ? "bg-muted/20" : ""}`}>
+                    <tr key={`${s.id}-${iIdx}`} className={`border-b ${iIdx === 0 ? "bg-blue-50/50" : ""}`}>
                       <td className="p-3">
                         {iIdx === 0 ? (
-                          <span className="font-medium">{grupo.primerId}</span>
+                          <div>
+                            <span className="font-bold text-blue-700">{grupo.primerId}</span>
+                            <span className="text-xs text-muted-foreground ml-1">({grupo.items.length} items)</span>
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground text-xs">└─ {iIdx + 1}</span>
+                          <span className="text-muted-foreground text-xs ml-4">└─ {iIdx + 1}</span>
                         )}
                       </td>
-                      <td className="p-3">{iIdx === 0 ? s.cliente : ""}</td>
-                      <td className="p-3">{iIdx === 0 ? (s.celular || "\u2014") : ""}</td>
-                      <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
-                      <td className="p-3">{s.cantidad}</td>
-                      <td className="p-3">{iIdx === 0 ? (s.fechaTope || "\u2014") : ""}</td>
-                      <td className="p-3" title={s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "Sin fecha"}>{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
+                      <td className="p-3">
+                        <div className="font-medium">{s.cliente}</div>
+                        {s.celular && <div className="text-xs text-muted-foreground">{s.celular}</div>}
+                      </td>
+                      <td className="p-3">{s.sku ? <code className="bg-muted px-1 rounded text-xs">[{s.sku}]</code> : ""} {s.producto}</td>
+                      <td className="p-3 font-medium">{s.cantidad}</td>
+                      <td className="p-3">{s.categoria || "\u2014"}</td>
+                      <td className="p-3">{s.fechaTope || "\u2014"}</td>
+                      <td className="p-3">{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
                       <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                       <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
-                      <td className="p-3">{iIdx === 0 ? s.vendedor : ""}</td>
-                      <td className="p-3">{s.categoria || "\u2014"}</td>
-                      <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
+                      <td className="p-3">{s.vendedor}</td>
+                      <td className="p-3 text-xs max-w-[150px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
                       <td className="p-3">
-                        <div className="flex flex-col gap-2 items-start min-w-[160px]">
+                        <div className="flex flex-col gap-1 items-start min-w-[140px]">
                           {/* Vendedor: editar observaciones */}
                           {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
                           {/* Compras/Admin: editar */}
@@ -528,28 +532,28 @@ export default function Solicitudes() {
                           {/* Vendedor: confirmar/aceptar - disponible en Pendiente, En Proceso y Completada */}
                           {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso" || s.estado === "Completada") && (
                             <Button
-                              size="default"
+                              size="sm"
                               variant="outline"
-                              className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
+                              className="w-full justify-start gap-1 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium text-xs"
                               title={s.estado === "Pendiente" ? "Aceptar solicitud" : s.estado === "En Proceso" ? "Confirmar entrega" : "Confirmar compra"}
                               onClick={() => confirmarCompra.mutate(s)}
                               disabled={confirmarCompra.isPending}
                             >
-                              <CheckCircle className="h-5 w-5" />
-                              {confirmarCompra.isPending ? "Procesando..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
+                              <CheckCircle className="h-4 w-4" />
+                              {confirmarCompra.isPending ? "..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Entrega" : "Confirmar"}
                             </Button>
                           )}
                           {/* Vendedor: solicitar anulacion - disponible en Pendiente y En Proceso */}
                           {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso") && (
                             <Button
-                              size="default"
+                              size="sm"
                               variant="outline"
-                              className="w-full justify-start gap-2 border-red-400 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium px-4 py-2"
+                              className="w-full justify-start gap-1 border-red-400 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium text-xs"
                               title="Solicitar anulacion"
                               onClick={() => { setAnularSol(s); setAnularMotivo(""); setAnularOpen(true); }}
                             >
-                              <XCircle className="h-5 w-5" />
-                              Anular Solicitud
+                              <XCircle className="h-4 w-4" />
+                              Anular
                             </Button>
                           )}
                         </div>
