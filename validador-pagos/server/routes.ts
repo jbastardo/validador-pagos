@@ -565,7 +565,7 @@ Cantidad: ${updated.cantidad}
 Obs: ${observacionesCompras || "-"}
 Por favor sugiera un producto alternativo al cliente.
 Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
-              sendTelegramToVendedor(updated.vendedor, msg).catch(() => {}, usuario);
+              sendTelegramToVendedor(updated.vendedor, msg).catch(() => {});
       }
       res.json(updated);
     } catch (e: any) {
