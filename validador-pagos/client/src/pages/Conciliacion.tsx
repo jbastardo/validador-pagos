@@ -457,7 +457,7 @@ export default function Conciliacion() {
     const md = !fechaDesde || fISO >= fechaDesde;
     const mh = !fechaHasta || fISO <= fechaHasta;
     return mq && me && mt && mb && mv && mf && mc && mcj && md && mh;
-  });
+  }).sort((a, b) => new Date(b.creadoEn ?? 0).getTime() - new Date(a.creadoEn ?? 0).getTime());
 
   // ── Filtrado Divisas ──
   const filtradosDiv = (divisas ?? []).filter(p => {
@@ -470,7 +470,7 @@ export default function Conciliacion() {
     const md = !fechaDesde || fISO >= fechaDesde;
     const mh = !fechaHasta || fISO <= fechaHasta;
     return mq && me && mt && mcj && md && mh;
-  });
+  }).sort((a, b) => new Date(b.creadoEn ?? 0).getTime() - new Date(a.creadoEn ?? 0).getTime());
 
   const handleExportBs = () => {
     const h = ["ID","Fecha","Tipo","Banco Emisor","Monto","Celular","Banco Receptor","Referencia","CI / RIF","Factura","Caja","Estado","Validado Por","Vendedor","Observaciones","Cliente","Megasoft"];
