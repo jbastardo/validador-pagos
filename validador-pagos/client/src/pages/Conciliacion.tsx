@@ -172,9 +172,14 @@ export default function Conciliacion() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteLoading,  setDeleteLoading]  = useState(false);
 
+
   const isAdmin = user?.rol === "admin";
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ── Refs para auto-scroll al tope cuando cargan los registros ──
+  const listBsRef  = useRef<HTMLDivElement>(null);
+  const listDivRef = useRef<HTMLDivElement>(null);
 
   const { data: pagos,   isLoading: loadingBs,  refetch: refetchBs  } = useQuery<Pago[]>      ({ queryKey: ["/api/pagos"] });
   const { data: divisas, isLoading: loadingDiv, refetch: refetchDiv } = useQuery<PagoDivisa[]>({ queryKey: ["/api/pagos-divisas"] });
@@ -185,7 +190,20 @@ export default function Conciliacion() {
     setIsRefreshing(false);
   };
 
-  // ── Mutación estado Bs ──
+  // ── Auto-scroll al tope de la lista cuando llegan/cambian los datos ──
+  useEffect(() => {
+    if (listBsRef.current) {
+      listBsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [filtradosBs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (listDivRef.current) {
+      listDivRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [filtradosDiv]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, estado, obs }: { id: string; estado: string; obs: string }) => {
       const res = await apiRequest("PATCH", `/api/pagos/${id}/estado`, { estado, validadoPor: user?.email ?? "", observaciones: obs });
@@ -704,10 +722,13 @@ export default function Conciliacion() {
             </CardContent>
           </Card>
 
+          <div ref={listBsRef} className="space-y-3">
           {loadingBs ? (
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}</div>
           ) : filtradosBs.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">No se encontraron pagos</CardContent></Card>
+
+
           ) : (
             filtradosBs.map(p => {
               const Icon = estadoIcon[p.estado] ?? Clock;
@@ -811,7 +832,9 @@ export default function Conciliacion() {
               );
             })
           )}
+          </div>
         </TabsContent>
+
 
         {/* ══════════════ PESTAÑA DIVISAS ══════════════ */}
         <TabsContent value="divisas" className="space-y-4">
@@ -863,6 +886,7 @@ export default function Conciliacion() {
             </CardContent>
           </Card>
 
+          <div ref={listDivRef} className="space-y-3">
           {loadingDiv ? (
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}</div>
           ) : filtradosDiv.length === 0 ? (
@@ -935,10 +959,13 @@ export default function Conciliacion() {
               );
             })
           )}
+          </div>
         </TabsContent>
       </Tabs>
 
+
       {/* ══════════════ MODAL ESTADO Bs ══════════════ */}
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Validar pago en Bs.</DialogTitle></DialogHeader>
