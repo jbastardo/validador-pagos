@@ -381,7 +381,7 @@ export async function updateSolicitudEstado(id: string, estado: string): Promise
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
   if (!s || !s._rowIndex) return null;
-  const row = [s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad, s.fechaTope, s.observaciones, estado, s.creadoEn];
+  const row = [s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad, s.fechaTope, s.observaciones, estado, s.creadoEn, s.observacionesCompras ?? "", s.actualizadoEn ?? "", s.respondidoPor ?? "", s.categoria ?? ""];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
   return { ...s, estado };
 }
@@ -390,13 +390,13 @@ export async function deleteSolicitud(id: string): Promise<boolean> {
   const solicitudes = await getSolicitudes();
   const s = solicitudes.find(x => x.id === id);
   if (!s || !s._rowIndex) return false;
-  const emptyRow = ["", "", "", "", "", "", "", "", "", "ELIMINADO", ""];
+  const emptyRow = ["", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", "", "", ""];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, emptyRow);
   return true;
 }
 
 export async function updateSolicitudEdicion(
-  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string;observaciones?: string; categoria?: string },
+  id: string, data: { estado?: string; observacionesCompras?: string; fechaTope?: string; cantidad?: string; observaciones?: string; categoria?: string; sku?: string; producto?: string; cliente?: string; celular?: string },
   usuario?: string,
 ): Promise<SheetSolicitud|null> {
   const solicitudes = await getSolicitudes();
@@ -408,12 +408,16 @@ export async function updateSolicitudEdicion(
   const nuevaCant = data.cantidad ?? s.cantidad;
   const nuevasObsVendedor = data.observaciones !== undefined ? data.observaciones : (s.observaciones ?? "");
   const actualizadoEn = new Date().toISOString();
-      const respondidoPor = usuario || s.respondidoPor || "";
-const nuevaCategoria = data.categoria ?? s.categoria ?? "";
+  const nuevoRespondidoPor = usuario || s.respondidoPor || "";
+  const nuevaCategoria = data.categoria ?? s.categoria ?? "";
+  const nuevoSku = data.sku !== undefined ? data.sku : s.sku;
+  const nuevoProducto = data.producto !== undefined ? data.producto : s.producto;
+  const nuevoCliente = data.cliente !== undefined ? data.cliente : s.cliente;
+  const nuevoCelular = data.celular !== undefined ? data.celular : s.celular;
   const row = [
-    s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, nuevaCant, nuevaFecha,
-    nuevasObsVendedor, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, RespondidoPor, nuevaCategoria,
+    s.id, s.vendedor, nuevoCliente, nuevoCelular ?? "", nuevoSku, nuevoProducto, nuevaCant, nuevaFecha,
+    nuevasObsVendedor, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, nuevoRespondidoPor, nuevaCategoria,
   ];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
-  return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, observaciones: nuevasObsVendedor, categoria: nuevaCategoria, actualizadoEn , RespondidoPor };
+  return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, observaciones: nuevasObsVendedor, categoria: nuevaCategoria, sku: nuevoSku, producto: nuevoProducto, cliente: nuevoCliente, celular: nuevoCelular, actualizadoEn, respondidoPor: nuevoRespondidoPor };
 }

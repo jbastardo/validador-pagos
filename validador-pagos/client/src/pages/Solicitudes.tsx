@@ -19,7 +19,7 @@ interface Solicitud {
   observacionesCompras?: string; actualizadoEn?: string; respondidoPor?: string; categoria?: string;
 }
 interface OdooCliente { id: number; name: string; vat: string; phone: string; mobile: string; email: string; }
-interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; }
+interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; categ_id: string; }
 
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
@@ -110,12 +110,12 @@ export default function Solicitudes() {
 
   useEffect(() => {
     if (debouncedNuevoSku.length < 1) {
-      if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
+      if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", categoria: "", productoLocked: false })); }
       return;
     }
     const exacto = productosOdoo2.find(p => p.default_code.toLowerCase() === debouncedNuevoSku.toLowerCase());
-    if (exacto) { setNuevoItem(i => ({ ...i, producto: exacto.name, productoLocked: true })); }
-    else if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", productoLocked: false })); }
+    if (exacto) { setNuevoItem(i => ({ ...i, producto: exacto.name, categoria: exacto.categ_id || "", productoLocked: true })); }
+    else if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", categoria: "", productoLocked: false })); }
   }, [debouncedNuevoSku, productosOdoo2]);
 
   useEffect(() => {
@@ -301,6 +301,23 @@ export default function Solicitudes() {
     return true;
   });
 
+  // --- Agrupar solicitudes por cliente+vendedor+fechaTope para mostrar como una solicitud ---
+  interface SolicitudGrupo {
+    key: string;
+    items: Solicitud[];
+    primerId: string;
+  }
+  const grupos: SolicitudGrupo[] = [];
+  const grupoMap = new Map<string, number>();
+  solicitudesFiltradas.forEach(s => {
+    const key = `${s.cliente}|${s.vendedor}|${s.fechaTope || ""}`;
+    if (!grupoMap.has(key)) {
+      grupoMap.set(key, grupos.length);
+      grupos.push({ key, items: [], primerId: s.id });
+    }
+    grupos[grupoMap.get(key)!].items.push(s);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -478,58 +495,68 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Acciones</th>
             </tr></thead>
             <tbody>
-              {solicitudesFiltradas.map(s => (
-                <tr key={s.id} className="border-b">
-                  <td className="p-3">{s.id}</td>
-                  <td className="p-3">{s.cliente}</td>
-                  <td className="p-3">{s.celular || "\u2014"}</td>
-                  <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
-                  <td className="p-3">{s.cantidad}</td>
-                  <td className="p-3">{s.fechaTope || "\u2014"}</td>
-                  <td className="p-3" title={s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "Sin fecha"}>{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
-                  <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
-                  <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
-                  <td className="p-3">{s.vendedor}</td>
-                  <td className="p-3">{s.categoria || "\u2014"}</td>
-                  <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
-                  <td className="p-3">
-                    <div className="flex flex-col gap-2 items-start min-w-[160px]">
-                      {/* Vendedor: editar observaciones */}
-                      {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
-                      {/* Compras/Admin: editar */}
-                      {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
-                      {/* Admin: eliminar */}
-                      {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
-                      {/* Vendedor: confirmar/aceptar - disponible en Pendiente, En Proceso y Completada */}
-                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso" || s.estado === "Completada") && (
-                        <Button
-                          size="default"
-                          variant="outline"
-                          className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
-                          title={s.estado === "Pendiente" ? "Aceptar solicitud" : s.estado === "En Proceso" ? "Confirmar entrega" : "Confirmar compra"}
-                          onClick={() => confirmarCompra.mutate(s)}
-                          disabled={confirmarCompra.isPending}
-                        >
-                          <CheckCircle className="h-5 w-5" />
-                          {confirmarCompra.isPending ? "Procesando..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
-                        </Button>
-                      )}
-                      {/* Vendedor: solicitar anulacion - disponible en Pendiente y En Proceso */}
-                      {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso") && (
-                        <Button
-                          size="default"
-                          variant="outline"
-                          className="w-full justify-start gap-2 border-red-400 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium px-4 py-2"
-                          title="Solicitar anulacion"
-                          onClick={() => { setAnularSol(s); setAnularMotivo(""); setAnularOpen(true); }}
-                        >
-                          <XCircle className="h-5 w-5" />
-                          Anular Solicitud
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+              {grupos.map((grupo, gIdx) => (
+                <>
+                  {grupo.items.map((s, iIdx) => (
+                    <tr key={`${s.id}-${iIdx}`} className={`border-b ${iIdx === 0 ? "bg-muted/20" : ""}`}>
+                      <td className="p-3">
+                        {iIdx === 0 ? (
+                          <span className="font-medium">{grupo.primerId}</span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">└─ {iIdx + 1}</span>
+                        )}
+                      </td>
+                      <td className="p-3">{iIdx === 0 ? s.cliente : ""}</td>
+                      <td className="p-3">{iIdx === 0 ? (s.celular || "\u2014") : ""}</td>
+                      <td className="p-3">{s.sku ? `[${s.sku}] ` : ""}{s.producto}</td>
+                      <td className="p-3">{s.cantidad}</td>
+                      <td className="p-3">{iIdx === 0 ? (s.fechaTope || "\u2014") : ""}</td>
+                      <td className="p-3" title={s.creadoEn ? new Date(s.creadoEn).toLocaleString() : "Sin fecha"}>{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
+                      <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
+                      <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
+                      <td className="p-3">{iIdx === 0 ? s.vendedor : ""}</td>
+                      <td className="p-3">{s.categoria || "\u2014"}</td>
+                      <td className="p-3 text-xs max-w-[200px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
+                      <td className="p-3">
+                        <div className="flex flex-col gap-2 items-start min-w-[160px]">
+                          {/* Vendedor: editar observaciones */}
+                          {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
+                          {/* Compras/Admin: editar */}
+                          {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
+                          {/* Admin: eliminar */}
+                          {isAdmin && <Button size="sm" variant="ghost" className="text-red-500" onClick={() => { setDeleteSolId(s.id); setDeletePassword(""); setDeleteOpen(true); }}><Trash2 className="h-4 w-4" /></Button>}
+                          {/* Vendedor: confirmar/aceptar - disponible en Pendiente, En Proceso y Completada */}
+                          {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso" || s.estado === "Completada") && (
+                            <Button
+                              size="default"
+                              variant="outline"
+                              className="w-full justify-start gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 font-medium px-4 py-2"
+                              title={s.estado === "Pendiente" ? "Aceptar solicitud" : s.estado === "En Proceso" ? "Confirmar entrega" : "Confirmar compra"}
+                              onClick={() => confirmarCompra.mutate(s)}
+                              disabled={confirmarCompra.isPending}
+                            >
+                              <CheckCircle className="h-5 w-5" />
+                              {confirmarCompra.isPending ? "Procesando..." : s.estado === "Pendiente" ? "Aceptar" : s.estado === "En Proceso" ? "Confirmar Entrega" : "Confirmar Compra"}
+                            </Button>
+                          )}
+                          {/* Vendedor: solicitar anulacion - disponible en Pendiente y En Proceso */}
+                          {isVendedor && (s.estado === "Pendiente" || s.estado === "En Proceso") && (
+                            <Button
+                              size="default"
+                              variant="outline"
+                              className="w-full justify-start gap-2 border-red-400 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium px-4 py-2"
+                              title="Solicitar anulacion"
+                              onClick={() => { setAnularSol(s); setAnularMotivo(""); setAnularOpen(true); }}
+                            >
+                              <XCircle className="h-5 w-5" />
+                              Anular Solicitud
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </>
               ))}
             </tbody>
           </table>

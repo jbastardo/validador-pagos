@@ -115,12 +115,14 @@ export async function searchProductos(q: string) {
     ["default_code", "ilike", q],
     ["barcode",      "ilike", q],
   ];
-  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available"], 30);
+  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id"], 30);
+  console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   return results.map((r: any) => ({
     id:            r.id,
     name:          r.name          || "",
     default_code:  r.default_code  || "",
     list_price:    r.list_price    || 0,
     qty_available: r.qty_available || 0,
+    categ_id:      r.categ_id?.[1] || "",
   }));
 }

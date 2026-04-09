@@ -553,8 +553,8 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
   app.patch("/api/solicitudes/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
-      const { estado, observacionesCompras, fechaTope, cantidad, usuario } = req.body;
-      const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad }, usuario);
+      const { estado, observacionesCompras, fechaTope, cantidad, categoria, usuario } = req.body;
+      const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad, categoria }, usuario);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (estado && estado !== "Pendiente") {
         const msg = estado === "Agotado" ? `PRODUCTO AGOTADO
@@ -605,6 +605,20 @@ Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: $
     } catch (e: any) {
       console.error("Error observaciones-vendedor:", e.message);
       res.status(500).json({ message: "Error al actualizar observaciones" });
+    }
+  });
+
+  // ===== SOLICITUDES: vendedor editar solicitud completa =====
+  app.patch("/api/solicitudes/:id/editar-vendedor", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { sku, producto, cantidad, categoria, observaciones, fechaTope, cliente, celular } = req.body;
+      const updated = await updateSolicitudEdicion(id, { sku, producto, cantidad, categoria, observaciones, fechaTope }, undefined);
+      if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error editar-vendedor:", e.message);
+      res.status(500).json({ message: "Error al editar solicitud" });
     }
   });
 
