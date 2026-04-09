@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit2, Trash2, Filter, RefreshCw, Info, CheckCircle, XCircle } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, Filter, RefreshCw, Info, CheckCircle, XCircle, CheckSquare, Square } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -44,6 +44,28 @@ export default function Solicitudes() {
   const [filtroVendedor, setFiltroVendedor] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const debouncedBusqueda = useDebounce(busqueda, 300);
+
+  // --- Selección múltiple (compras/admin) ---
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const toggleSeleccion = (id: string) => {
+    setSeleccionados(s => {
+      const newSet = new Set(s);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+  const toggleTodos = () => {
+    if (seleccionados.size === solicitudesFiltradas.length) {
+      setSeleccionados(new Set());
+    } else {
+      setSeleccionados(new Set(solicitudesFiltradas.map(s => s.id)));
+    }
+  };
+  const seleccionarPorEstado = (estado: string) => {
+    const ids = solicitudesFiltradas.filter(s => s.estado === estado).map(s => s.id);
+    setSeleccionados(new Set(ids));
+  };
 
   // --- Categorías predefinidas ---
   const categorias = [
@@ -267,6 +289,67 @@ export default function Solicitudes() {
     onError: () => toast({ title: "Error al solicitar anulacion", variant: "destructive" }),
   });
 
+  // --- Batch: cambiar estado (compras/admin) ---
+  const batchCambiarEstado = useMutation({
+    mutationFn: async ({ ids, estado, observaciones }: { ids: string[]; estado: string; observaciones?: string }) => {
+      for (const id of ids) {
+        const res = await fetch(`/api/solicitudes/${id}/editar`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado, observacionesCompras: observaciones, usuario: user?.email }),
+        });
+        if (!res.ok) throw new Error();
+      }
+    },
+    onSuccess: (_void, { ids }) => {
+      qc.invalidateQueries({ queryKey: ["solicitudes"] });
+      toast({ title: `${ids.length} solicitudes actualizadas` });
+      setSeleccionados(new Set());
+    },
+    onError: () => toast({ title: "Error al actualizar en masa", variant: "destructive" }),
+  });
+
+  // --- Batch: eliminar (admin) ---
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [batchDeletePassword, setBatchDeletePassword] = useState("");
+  const batchEliminar = useMutation({
+    mutationFn: async ({ ids, password }: { ids: string[]; password: string }) => {
+      for (const id of ids) {
+        const res = await apiRequest("DELETE", `/api/solicitudes/${id}`, { email: user?.email ?? "", password });
+        if (!res.ok) throw new Error();
+      }
+    },
+    onSuccess: (_void, { ids }) => {
+      qc.invalidateQueries({ queryKey: ["solicitudes"] });
+      toast({ title: `${ids.length} solicitudes eliminadas` });
+      setSeleccionados(new Set());
+      setBatchDeleteOpen(false);
+      setBatchDeletePassword("");
+    },
+    onError: () => toast({ title: "Error al eliminar en masa", variant: "destructive" }),
+  });
+
+  // --- Batch: confirmar acepta (vendedor) ---
+  const batchConfirmar = useMutation({
+    mutationFn: async ({ ids }: { ids: string[] }) => {
+      for (const id of ids) {
+        const sol = solicitudes.find(x => x.id === id);
+        if (sol) {
+          const res = await fetch(`/api/solicitudes/${id}/confirmar-vendedor`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vendedorEmail: user?.email, respondidoPor: sol.respondidoPor }),
+          });
+          if (!res.ok) throw new Error();
+        }
+      }
+    },
+    onSuccess: (_void, { ids }) => {
+      qc.invalidateQueries({ queryKey: ["solicitudes"] });
+      toast({ title: `${ids.length} compras confirmadas` });
+      setSeleccionados(new Set());
+    },
+    onError: () => toast({ title: "Error al confirmar en masa", variant: "destructive" }),
+  });
+
   const prioridad = (s: Solicitud) => {
     if (!s.fechaTope) return "Sin fecha";
     const dias = Math.ceil((new Date(s.fechaTope).getTime() - Date.now()) / 86400000);
@@ -476,10 +559,41 @@ export default function Solicitudes() {
           </>
         )}
       </div>
+      {/* BARRA DE ACCIONES BATCH (solo compras/admin) */}
+      {isCompras && seleccionados.size > 0 && (
+        <div className="flex items-center gap-2 bg-blue-50 border rounded-md p-2">
+          <span className="text-sm font-medium">{seleccionados.size} seleccionados</span>
+          <div className="flex gap-1 ml-2">
+            <Button size="sm" variant="outline" onClick={() => batchCambiarEstado.mutate({ ids: Array.from(seleccionados), estado: "En Proceso" })}>Marcar "En Proceso"</Button>
+            <Button size="sm" variant="outline" onClick={() => batchCambiarEstado.mutate({ ids: Array.from(seleccionados), estado: "Completada" })}>Marcar "Completada"</Button>
+            <Button size="sm" variant="outline" onClick={() => batchCambiarEstado.mutate({ ids: Array.from(seleccionados), estado: "Cancelada" })}>Marcar "Cancelada"</Button>
+            <Button size="sm" variant="outline" onClick={() => batchCambiarEstado.mutate({ ids: Array.from(seleccionados), estado: "Agotado" })}>Marcar "Agotado"</Button>
+          </div>
+          <div className="flex gap-1 ml-auto">
+            <Select onValueChange={v => seleccionarPorEstado(v)}>
+              <SelectTrigger className="w-[140px] h-8"><SelectValue placeholder="Seleccionar por estado" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Pendiente">Pendiente</SelectItem>
+                <SelectItem value="En Proceso">En Proceso</SelectItem>
+                <SelectItem value="Completada">Completada</SelectItem>
+                <SelectItem value="Cancelada">Cancelada</SelectItem>
+                <SelectItem value="Agotado">Agotado</SelectItem>
+              </SelectContent>
+            </Select>
+            {isAdmin && <Button size="sm" variant="destructive" onClick={() => setBatchDeleteOpen(true)}>Eliminar</Button>}
+            <Button size="sm" variant="ghost" onClick={() => setSeleccionados(new Set())}>Limpiar</Button>
+          </div>
+        </div>
+      )}
       {isLoading ? <p>Cargando...</p> : (
         <div className="rounded-md border">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-muted/50">
+              {isCompras && <th className="p-2 text-center w-8">
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={toggleTodos} title={seleccionados.size === solicitudesFiltradas.length ? "Deseleccionar todos" : "Seleccionar todos"}>
+                  {seleccionados.size === solicitudesFiltradas.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                </Button>
+              </th>}
               <th className="p-3 text-left">ID</th>
               <th className="p-3 text-left">Cliente</th>
               <th className="p-3 text-left">Producto</th>
@@ -497,7 +611,12 @@ export default function Solicitudes() {
               {grupos.map((grupo, gIdx) => (
                 <>
                   {grupo.items.map((s, iIdx) => (
-                    <tr key={`${s.id}-${iIdx}`} className={`border-b ${iIdx === 0 ? "bg-blue-50/50" : ""}`}>
+                    <tr key={`${s.id}-${iIdx}`} className={`border-b ${iIdx === 0 ? "bg-blue-50/50" : ""} ${seleccionados.has(s.id) ? "bg-yellow-50" : ""}`}>
+                      {isCompras && <td className="p-2 text-center">
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => toggleSeleccion(s.id)}>
+                          {seleccionados.has(s.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
+                        </Button>
+                      </td>}
                       <td className="p-3">
                         {iIdx === 0 ? (
                           <div>
@@ -659,6 +778,18 @@ export default function Solicitudes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setObsOpen(false)}>Cancelar</Button>
             <Button onClick={() => editarObsVendedor.mutate(obsForm)} disabled={editarObsVendedor.isPending}>{editarObsVendedor.isPending ? "Guardando..." : "Guardar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* DIALOGO ELIMINAR EN MASA (admin) */}
+      <Dialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Eliminar {seleccionados.size} solicitudes</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Esta acción es <strong>irreversible</strong>. Ingresa tu contraseña para confirmar.</p>
+          <div><Label>Tu contraseña</Label><Input type="password" placeholder="********" value={batchDeletePassword} onChange={e => setBatchDeletePassword(e.target.value)} autoFocus /></div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => batchEliminar.mutate({ ids: Array.from(seleccionados), password: batchDeletePassword })} disabled={!batchDeletePassword || batchEliminar.isPending}>{batchEliminar.isPending ? "Eliminando..." : "Eliminar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
