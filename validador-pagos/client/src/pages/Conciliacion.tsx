@@ -797,8 +797,8 @@ export default function Conciliacion() {
                             <MessageSquare className="w-3.5 h-3.5"/>
                           </Button>
                         )}
-                        {/* ── Botón eliminar (admin) ── */}
-                        {isAdmin && (
+                        {/* ── Botón eliminar (admin/contabilidad) ── */}
+                        {(isAdmin || isContabilidad) && (
                           <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
                             onClick={() => { setDeleteTarget({ id: p.id, tipo: "bs" }); setDeletePassword(""); setDeleteOpen(true); }}>
                             <Trash2 className="w-3.5 h-3.5"/>
@@ -922,7 +922,7 @@ export default function Conciliacion() {
                             <MessageSquare className="w-3.5 h-3.5"/>
                           </Button>
                         )}
-                        {isAdmin && (
+                        {(isAdmin || isContabilidad) && (
                           <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
                             onClick={() => { setDeleteTarget({ id: p.id, tipo: "div" }); setDeletePassword(""); setDeleteOpen(true); }}>
                             <Trash2 className="w-3.5 h-3.5"/>

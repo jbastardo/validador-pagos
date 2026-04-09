@@ -317,14 +317,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // ===== DELETE (solo admin, requiere revalidación de clave) =====
+  // ===== DELETE (admin o contabilidad, requiere revalidación de clave) =====
   app.delete("/api/pagos/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
       const usuarios = await getUsuarios();
-      const u = usuarios.find(x => x.email === email && x.password === password && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      const u = usuarios.find(x => x.email === email && x.password === password && (x.rol === "admin" || x.rol === "contabilidad") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(401).json({ message: "Credenciales incorrectas o sin permisos" });
       const ok = await deletePago(id);
       if (!ok) return res.status(404).json({ message: "Pago no encontrado" });
@@ -341,7 +341,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
       const usuarios = await getUsuarios();
-      const u = usuarios.find(x => x.email === email && x.password === password && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      const u = usuarios.find(x => x.email === email && x.password === password && (x.rol === "admin" || x.rol === "contabilidad") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(401).json({ message: "Credenciales incorrectas o sin permisos" });
       const ok = await deletePagoDivisa(id);
       if (!ok) return res.status(404).json({ message: "Pago en divisas no encontrado" });
