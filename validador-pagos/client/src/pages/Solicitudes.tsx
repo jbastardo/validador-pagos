@@ -350,15 +350,6 @@ export default function Solicitudes() {
     onError: () => toast({ title: "Error al confirmar en masa", variant: "destructive" }),
   });
 
-  const prioridad = (s: Solicitud) => {
-    if (!s.fechaTope) return "Sin fecha";
-    const dias = Math.ceil((new Date(s.fechaTope).getTime() - Date.now()) / 86400000);
-    if (dias < 0) return "Vencida";
-    if (dias <= 3) return "Urgente";
-    if (dias <= 7) return "Alta";
-    return "Normal";
-  };
-  const colorPrioridad = (p: string) => (p === "Vencida" || p === "Urgente") ? "destructive" : p === "Alta" ? "default" : "secondary";
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "Agotado" ? "secondary" : "destructive";
 
   const isCompras = user?.rol === "admin" || user?.rol === "compras";
@@ -600,8 +591,6 @@ export default function Solicitudes() {
               <th className="p-3 text-left">Cant.</th>
               <th className="p-3 text-left">Categoría</th>
               <th className="p-3 text-left">Fecha Tope</th>
-              <th className="p-3 text-left">Creado</th>
-              <th className="p-3 text-left">Prioridad</th>
               <th className="p-3 text-left">Estado</th>
               <th className="p-3 text-left">Vendedor</th>
               <th className="p-3 text-left">Obs. Compras</th>
@@ -635,8 +624,6 @@ export default function Solicitudes() {
                       <td className="p-3 font-medium">{s.cantidad}</td>
                       <td className="p-3">{s.categoria || "\u2014"}</td>
                       <td className="p-3">{s.fechaTope || "\u2014"}</td>
-                      <td className="p-3">{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString() : "\u2014"}</td>
-                      <td className="p-3"><Badge variant={colorPrioridad(prioridad(s)) as any}>{prioridad(s)}</Badge></td>
                       <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                       <td className="p-3">{s.vendedor}</td>
                       <td className="p-3 text-xs max-w-[150px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
