@@ -194,20 +194,6 @@ export default function Conciliacion() {
     setIsRefreshing(false);
   };
 
-  // ── Auto-scroll al tope de la lista cuando llegan/cambian los datos ──
-  useEffect(() => {
-    if (listBsRef.current) {
-      listBsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [filtradosBs]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (listDivRef.current) {
-      listDivRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [filtradosDiv]); // eslint-disable-line react-hooks/exhaustive-deps
-
-
   const updateMutation = useMutation({
     mutationFn: async ({ id, estado, obs }: { id: string; estado: string; obs: string }) => {
       const res = await apiRequest("PATCH", `/api/pagos/${id}/estado`, { estado, validadoPor: user?.email ?? "", observaciones: obs });
@@ -493,6 +479,19 @@ export default function Conciliacion() {
     const mh = !fechaHasta || fISO <= fechaHasta;
     return mq && me && mt && mcj && md && mh;
   });
+
+  // ── Auto-scroll al tope de la lista cuando llegan/cambian los datos ──
+  useEffect(() => {
+    if (listBsRef.current) {
+      listBsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [filtradosBs]);
+
+  useEffect(() => {
+    if (listDivRef.current) {
+      listDivRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [filtradosDiv]);
 
   const handleExportBs = () => {
     const h = ["ID","Fecha","Tipo","Banco Emisor","Monto","Celular","Banco Receptor","Referencia","CI / RIF","Factura","Caja","Estado","Validado Por","Vendedor","Observaciones","Cliente","Megasoft"];
