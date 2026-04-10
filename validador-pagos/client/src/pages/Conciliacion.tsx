@@ -63,41 +63,45 @@ export default function Conciliacion() {
   // Se ejecuta una sola vez al montar porque cada navegación desde el Dashboard
   // causa un remount completo del componente (ruta diferente → / a /conciliacion).
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const estado = params.get("estado");
-    const tab = params.get("tab");
-    if (!estado && !tab) return; // Sin params → no tocar filtros
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const estado = params.get("estado");
+      const tab = params.get("tab");
+      if (!estado && !tab) return; // Sin params → no tocar filtros
 
-    // Reset filtros antes de aplicar los del URL
-    setFiltroEstado("todos");
-    setFiltroTipo("todos");
-    setFiltroBanco("todos");
-    setFiltroVendedor("todos");
-    setFiltroFactura("todos");
-    setFiltroCaja("todos");
-    setFiltroConciliado("todos");
-    setFechaDesde("");
-    setFechaHasta("");
+      // Reset filtros antes de aplicar los del URL
+      setFiltroEstado("todos");
+      setFiltroTipo("todos");
+      setFiltroBanco("todos");
+      setFiltroVendedor("todos");
+      setFiltroFactura("todos");
+      setFiltroCaja("todos");
+      setFiltroConciliado("todos");
+      setFechaDesde("");
+      setFechaHasta("");
 
-    if (tab === "divisas") {
-      setActiveTab("divisas");
-      if (estado && estado !== "todos") setFiltroEstDiv(estado);
-    } else {
-      if (estado === "Pendiente") setFiltroEstado("Pendiente");
-      else if (estado === "SinFactura") setFiltroFactura("SinFactura");
-      else if (estado === "Verificado") setFiltroEstado("Verificado");
-      else if (estado === "Rechazado") setFiltroEstado("Rechazado");
-      else if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); }
-      else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); }
-      else if (estado === "PendienteCajero") setFiltroEstado("PendienteCajero");
-      else if (estado === "MegasoftSi") setFiltroEstado("MegasoftSi");
-      else if (estado === "MegasoftNo") setFiltroEstado("MegasoftNo");
-    }
+      if (tab === "divisas") {
+        setActiveTab("divisas");
+        if (estado && estado !== "todos") setFiltroEstDiv(estado);
+      } else {
+        if (estado === "Pendiente") setFiltroEstado("Pendiente");
+        else if (estado === "SinFactura") setFiltroFactura("SinFactura");
+        else if (estado === "Verificado") setFiltroEstado("Verificado");
+        else if (estado === "Rechazado") setFiltroEstado("Rechazado");
+        else if (estado === "PagoMovil") { setFiltroTipo("PagoMovil"); }
+        else if (estado === "Transferencia") { setFiltroTipo("Transferencia"); }
+        else if (estado === "PendienteCajero") setFiltroEstado("PendienteCajero");
+        else if (estado === "MegasoftSi") setFiltroEstado("MegasoftSi");
+        else if (estado === "MegasoftNo") setFiltroEstado("MegasoftNo");
+      }
 
-    // Limpiar los search params del URL para que no persistan en recargas
-    if (window.history.replaceState) {
-      const cleanUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState(null, "", cleanUrl);
+      // Limpiar los search params del URL para que no persistan en recargas
+      if (window.history.replaceState) {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState(null, "", cleanUrl);
+      }
+    } catch (e) {
+      console.error("Error parsing URL params:", e);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
