@@ -39,7 +39,7 @@ export const usuarios = pgTable("usuarios", {
   nombre: text("nombre").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
-  rol: text("rol").notNull().default("vendedor"), // "vendedor" | "contabilidad" | "admin"
+  rol: text("rol").notNull().default("vendedor"), // "vendedor" | "contabilidad" | "admin" | "cajero" | "compras" | "supervisor_caja"
   activo: text("activo").notNull().default("true"),
   creadoEn: timestamp("creado_en").defaultNow(),
 });

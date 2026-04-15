@@ -19,10 +19,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero"] },
-  { href: "/registrar", label: "Pagos en Bs", icon: PlusCircle, roles: ["admin", "vendedor"] },
-  { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor"] },
-  { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor"] },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero", "supervisor_caja"] },
+  { href: "/registrar", label: "Pagos en Bs", icon: PlusCircle, roles: ["admin", "vendedor", "supervisor_caja"] },
+  { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor", "supervisor_caja"] },
+  { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor", "supervisor_caja"] },
   // { href: "/extractos", label: "Extractos", icon: FileSpreadsheet, roles: ["admin", "contabilidad"] }, // DESACTIVADO TEMPORALMENTE
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
     { href: "/solicitudes", label: "Solicitudes", icon: ClipboardList, roles: ["admin", "vendedor", "compras"] },   { href: "/dashboard-solicitudes", label: "Dashboard Solicitudes", icon: BarChart3, roles: ["admin", "compras"] },
@@ -40,7 +40,8 @@ export default function Layout({ children }: { children: ReactNode }) {
     contabilidad: "Contabilidad",
     vendedor: "Vendedor",
     cajero: "Cajero",
-        compras: "Compras",
+    compras: "Compras",
+    supervisor_caja: "Supervisor de Caja",
   };
 
   const rolColor: Record<string, string> = {
@@ -48,7 +49,8 @@ export default function Layout({ children }: { children: ReactNode }) {
     contabilidad: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     vendedor: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     cajero: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
-        compras: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300",
+    compras: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300",
+    supervisor_caja: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
   };
 
   return (

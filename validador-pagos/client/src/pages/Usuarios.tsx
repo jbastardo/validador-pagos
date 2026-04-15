@@ -25,6 +25,7 @@ const rolLabel: Record<string, string> = {
   vendedor: "Vendedor",
   cajero: "Cajero",
   compras: "Compras",
+  supervisor_caja: "Supervisor de Caja",
 };
 
 const rolColors: Record<string, string> = {
@@ -33,6 +34,7 @@ const rolColors: Record<string, string> = {
   vendedor: "bg-green-100 text-green-700",
   cajero: "bg-orange-100 text-orange-700",
   compras: "bg-teal-100 text-teal-700",
+  supervisor_caja: "bg-indigo-100 text-indigo-700",
 };
 
 export default function Usuarios() {
@@ -246,6 +248,7 @@ export default function Usuarios() {
                   <SelectItem value="vendedor">Vendedor</SelectItem>
                   <SelectItem value="cajero">Cajero</SelectItem>
                   <SelectItem value="compras">Compras</SelectItem>
+                  <SelectItem value="supervisor_caja">Supervisor de Caja</SelectItem>
                   <SelectItem value="contabilidad">Contabilidad</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>

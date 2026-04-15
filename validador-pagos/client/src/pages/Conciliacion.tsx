@@ -514,12 +514,13 @@ export default function Conciliacion() {
   const isCajero           = user?.rol === "cajero";
   const isVendedor         = user?.rol === "vendedor";
   const isContabilidad     = user?.rol === "contabilidad";
+  const isSupervisorCaja   = user?.rol === "supervisor_caja";
   // Puede aprobar/rechazar
   const isContable         = user?.rol === "admin" || user?.rol === "contabilidad";
-  // Puede editar pendientes (contabilidad, admin, vendedor)
-  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor";
+  // Puede editar pendientes (contabilidad, admin, vendedor, supervisor_caja)
+  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja";
   // Puede ver info de validación (quien validó + cuándo)
-  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor";
+  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja";
 
   // Componente tooltip de auditoría — se posiciona sobre el ícono usando getBoundingClientRect
   const AuditTooltip = ({ vendedor, creadoEn, validadoPor, validadoEn, estado, conciliadoEn, conciliadoPor }: { vendedor?: string; creadoEn?: string; validadoPor?: string; validadoEn?: string; estado?: string; conciliadoEn?: string; conciliadoPor?: string }) => {
@@ -610,11 +611,11 @@ export default function Conciliacion() {
         <div>
           <h1 className="text-xl font-bold">Resumen de Pagos</h1>
           <p className="text-sm text-muted-foreground">
-            {isCajero ? "Agrega el número de factura y valida con Megasoft" : "Verifica y aprueba los pagos — sincronizado con Google Sheets"}
+            {(isCajero || isSupervisorCaja) ? "Agrega el número de factura y valida con Megasoft" : "Verifica y aprueba los pagos — sincronizado con Google Sheets"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {(pendientesBs + pendientesDiv) > 0 && !isCajero && (
+          {(pendientesBs + pendientesDiv) > 0 && !isCajero && !isSupervisorCaja && (
             <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertCircle className="w-4 h-4 text-amber-600"/>
               <span className="text-xs font-semibold text-amber-700">{pendientesBs + pendientesDiv} pendiente{(pendientesBs + pendientesDiv) !== 1 ? "s" : ""}</span>
@@ -783,14 +784,14 @@ export default function Conciliacion() {
                         </div>
                       </div>
                       <div className="flex flex-row sm:flex-col gap-2 shrink-0">
-                        {/* ── Botón cajero Pendiente (validar megasoft) ── */}
-                        {isCajero && esPendienteMegasoft && (
+                        {/* ── Botón cajero/supervisor_caja Pendiente (validar megasoft) ── */}
+                        {(isCajero || isSupervisorCaja) && esPendienteMegasoft && (
                           <Button size="sm" variant="outline" onClick={() => openCajeroPendiente(p)} className="gap-1.5 text-xs">
                             <Receipt className="w-3.5 h-3.5"/> Validar Megasoft
                           </Button>
                         )}
-                        {/* ── Botón cajero: editar factura/cliente/megasoft en cualquier estado ── */}
-                        {isCajero && !esPendienteMegasoft && (
+                        {/* ── Botón cajero/supervisor_caja: editar factura/cliente/megasoft en cualquier estado ── */}
+                        {(isCajero || isSupervisorCaja) && !esPendienteMegasoft && (
                           <Button size="sm" variant="outline" onClick={() => openCajeroFC(p)} className="gap-1.5 text-xs">
                             <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
@@ -807,14 +808,14 @@ export default function Conciliacion() {
                             <CheckCircle2 className="w-3.5 h-3.5"/> Validar
                           </Button>
                         )}
-                        {/* ── Botón cajero verificado (cajero + megasoft = '') ── */}
-                        {isCajero && esVerificado && p.megasoft && p.megasoft.trim() !== "" && (
+                        {/* ── Botón cajero/supervisor_caja verificado ── */}
+                        {(isCajero || isSupervisorCaja) && esVerificado && p.megasoft && p.megasoft.trim() !== "" && (
                           <Button size="sm" variant="outline" onClick={() => openCajero(p)} className="gap-1.5 text-xs">
                             <Receipt className="w-3.5 h-3.5"/> Ver Factura
                           </Button>
                         )}
                         {/* ── Botón observaciones ── */}
-                        {!isCajero && !isVendedor && p.observaciones && (
+                        {!isCajero && !isVendedor && !isSupervisorCaja && p.observaciones && (
                           <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-muted-foreground" onClick={() =>
                             toast({ title: "Observaciones", description: p.observaciones })
                           }>
@@ -942,7 +943,7 @@ export default function Conciliacion() {
                             <CheckCircle2 className="w-3.5 h-3.5"/> Validar
                           </Button>
                         )}
-                        {!isCajero && !isVendedor && p.observaciones && (
+                        {!isCajero && !isVendedor && !isSupervisorCaja && p.observaciones && (
                           <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-muted-foreground" onClick={() =>
                             toast({ title: "Observaciones", description: p.observaciones })
                           }>
