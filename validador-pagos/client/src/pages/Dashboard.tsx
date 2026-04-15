@@ -2,8 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHashLocation } from "wouter/use-hash-location";
-import { BarChart3, Clock, XCircle, DollarSign, ShieldCheck, ShieldX, Coins, FileX } from "lucide-react";
+import { BarChart3, Clock, XCircle, DollarSign, ShieldCheck, ShieldX, Coins, FileX, KeyRound } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Stats {
   total: number; pendientes: number; verificados: number; rechazados: number;
@@ -18,9 +24,14 @@ interface Stats {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, navigate] = useHashLocation();
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwdActual, setPwdActual] = useState("");
+  const [pwdNueva, setPwdNueva] = useState("");
+  const [pwdLoading, setPwdLoading] = useState(false);
   const queryKey = fechaDesde || fechaHasta
     ? [`/api/stats?${new URLSearchParams({ ...(fechaDesde && { fechaDesde }), ...(fechaHasta && { fechaHasta }) }).toString()}`]
     : ["/api/stats"];
@@ -32,14 +43,64 @@ export default function Dashboard() {
     navigate(`/conciliacion?estado=${encodeURIComponent(filtro)}`);
   };
 
+  const handleCambiarPassword = async () => {
+    if (!pwdActual || !pwdNueva) return;
+    setPwdLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/usuarios/cambiar-password", {
+        email: user?.email,
+        passwordActual: pwdActual,
+        passwordNueva: pwdNueva,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? "Error");
+      toast({ title: "Contraseña actualizada correctamente" });
+      setPwdOpen(false);
+      setPwdActual("");
+      setPwdNueva("");
+    } catch (err: any) {
+      toast({ title: err.message ?? "Error al cambiar contraseña", variant: "destructive" });
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
   const fmt = (n: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2 }).format(n);
 
   return (
     <div className="space-y-3">
       {/* ── Header compacto ── */}
-      <div>
-        <h1 className="text-xl font-bold leading-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">{user?.nombre} · {new Date().toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" })}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold leading-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">{user?.nombre} · {new Date().toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" })}</p>
+        </div>
+        <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <KeyRound className="h-4 w-4" /> Cambiar Clave
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Cambiar Contraseña</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Contraseña Actual</Label>
+                <Input type="password" value={pwdActual} onChange={e => setPwdActual(e.target.value)} className="mt-1" placeholder="Ingresa tu contraseña actual" />
+              </div>
+              <div>
+                <Label>Nueva Contraseña</Label>
+                <Input type="password" value={pwdNueva} onChange={e => setPwdNueva(e.target.value)} className="mt-1" placeholder="Mínimo 4 caracteres" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPwdOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCambiarPassword} disabled={!pwdActual || !pwdNueva || pwdLoading}>
+                {pwdLoading ? "Guardando..." : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* ── Selector de fechas ── */}

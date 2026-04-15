@@ -699,5 +699,28 @@ Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: $
       res.status(500).json({ message: "Error" });
     }
   });
+
+  // Endpoint para cambiar contraseña del usuario
+  app.post("/api/usuarios/cambiar-password", async (req, res) => {
+    try {
+      const { email, passwordActual, passwordNueva } = req.body;
+      if (!email || !passwordActual || !passwordNueva) {
+        return res.status(400).json({ message: "Todos los campos son requeridos" });
+      }
+      if (passwordNueva.length < 4) {
+        return res.status(400).json({ message: "La nueva contraseña debe tener al menos 4 caracteres" });
+      }
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email);
+      if (!u) return res.status(404).json({ message: "Usuario no encontrado" });
+      if (u.password !== passwordActual) {
+        return res.status(401).json({ message: "Contraseña actual incorrecta" });
+      }
+      await updateUsuario(u.id, { ...u, password: passwordNueva });
+      res.json({ message: "Contraseña actualizada correctamente" });
+    } catch (e: any) {
+      res.status(500).json({ message: "Error al cambiar contraseña" });
+    }
+  });
   return httpServer;
 }
