@@ -22,6 +22,24 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// ─── Headers de seguridad ───
+app.use((_req, res, next) => {
+  // Prevenir clickjacking
+  res.setHeader("X-Frame-Options", "DENY");
+  // Prevenir MIME type sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Política de Referrer
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Permissions Policy
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // HSTS (1 año)
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  // Ocultar headers del servidor
+  res.removeHeader("X-Powered-By");
+  res.removeHeader("X-Generator");
+  next();
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
