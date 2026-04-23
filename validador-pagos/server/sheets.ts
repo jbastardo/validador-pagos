@@ -1,5 +1,11 @@
 import { google } from "googleapis";
 import { extractBancoCode } from "../shared/schema";
+import { getCache, setCache, invalidateCache } from "./cache";
+
+// TTL de cache en ms (3 minutos para datos frecuentes, 1 minuto para stats)
+const CACHE_TTL_PAGOS = 3 * 60 * 1000;
+const CACHE_TTL_STATS = 1 * 60 * 1000;
+const CACHE_TTL_SOLICITUDES = 2 * 60 * 1000;
 
 // Normaliza check Megasoft: acepta Si con o sin acento
 function isMegaSi(val: string): boolean {
@@ -64,9 +70,11 @@ export interface SheetPago {
 }
 
 export async function getPagos(): Promise<SheetPago[]> {
+  const cached = getCache<SheetPago[]>("pagos_bs");
+  if (cached) return cached;
   const rows = await getRows(TAB_PAGOS);
   if (rows.length < 2) return [];
-  return rows.slice(1)
+  const pagos = rows.slice(1)
     .map((row, i) => ({
       id: row[0]??"", fechaPago: row[1]??"", tipoPago: row[2]??"", bancoEmisor: row[3]??"",
       monto: row[4]??"", celular: row[5]??"", bancoReceptor: row[6]??"", referencia: row[7]??"",
@@ -75,6 +83,8 @@ export async function getPagos(): Promise<SheetPago[]> {
       cliente: row[15]??"", megasoft: row[16]??"", validadoEn: row[17]??"", conciliadoEn: row[18]??"", conciliadoPor: row[19]??"", _rowIndex: i + 2,
     }))
     .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
+  setCache("pagos_bs", pagos, CACHE_TTL_PAGOS);
+  return pagos;
 }
 
 export async function getNextId(): Promise<number> {
@@ -89,6 +99,7 @@ export async function addPago(pago: Omit<SheetPago, "id"|"_rowIndex">): Promise<
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, pago.factura, pago.estado,
     pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, pago.cliente??"", pago.megasoft??"", ""];
   await appendRow(TAB_PAGOS, row);
+  invalidateCache("pagos_bs");
   return { ...pago, id: String(id), validadoEn: "" };
 }
 
@@ -101,6 +112,7 @@ export async function updatePagoEstado(id: string, estado: string, validadoPor: 
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, pago.factura,
     estado, validadoPor, pago.vendedor, observaciones, pago.creadoEn, pago.cliente??"", pago.megasoft??"", validadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  invalidateCache("pagos_bs");
   return { ...pago, estado, validadoPor, observaciones, validadoEn };
 }
 
@@ -113,6 +125,7 @@ export async function updatePagoCajero(id: string, factura: string, megasoft: st
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, factura || pago.factura,
     pago.estado, pago.validadoPor, pago.vendedor, pago.observaciones, pago.creadoEn, clienteVal, megasoft, pago.validadoEn??"", pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  invalidateCache("pagos_bs");
   return { ...pago, factura: factura || pago.factura, megasoft, cliente: clienteVal };
 }
 
@@ -133,6 +146,7 @@ export async function updatePagoCajeroPendiente(
     cliente || (pago.cliente ?? ""), megasoft, validadoEnCajero, pago.conciliadoEn??"", pago.conciliadoPor??"",
   ];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  invalidateCache("pagos_bs");
   return { ...pago, factura: factura || pago.factura, cliente: cliente || (pago.cliente ?? ""), megasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: validadoEnCajero };
 }
 
@@ -151,6 +165,7 @@ export async function updatePagoFacturaCliente(id: string, factura: string, clie
     pago.celular, pago.bancoReceptor, pago.referencia, pago.rif, newFactura,
     nuevoEstado, nuevoValidado, pago.vendedor, pago.observaciones, pago.creadoEn, newCliente, newMegasoft, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  invalidateCache("pagos_bs");
   return { ...pago, factura: newFactura, cliente: newCliente, megasoft: newMegasoft, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
 
@@ -257,9 +272,11 @@ export interface SheetPagoDivisa {
 }
 
 export async function getPagosDivisas(): Promise<SheetPagoDivisa[]> {
+  const cached = getCache<SheetPagoDivisa[]>("pagos_divisas");
+  if (cached) return cached;
   const rows = await getRows(TAB_DIVISAS);
   if (rows.length < 2) return [];
-  return rows.slice(1)
+  const divisas = rows.slice(1)
     .map((row, i) => ({
       id: row[0]??"", fecha: row[1]??"", nombrePagador: row[2]??"", correo: row[3]??"",
       monto: row[4]??"", tipo: row[5]??"", referencia: row[6]??"", cliente: row[7]??"",
@@ -268,6 +285,8 @@ export async function getPagosDivisas(): Promise<SheetPagoDivisa[]> {
       _rowIndex: i + 2,
     }))
     .filter(p => p.id !== "" && p.estado !== "ELIMINADO");
+  setCache("pagos_divisas", divisas, CACHE_TTL_PAGOS);
+  return divisas;
 }
 
 export async function addPagoDivisa(pago: Omit<SheetPagoDivisa, "id"|"_rowIndex"|"validadoEn">): Promise<SheetPagoDivisa> {
@@ -275,6 +294,7 @@ export async function addPagoDivisa(pago: Omit<SheetPagoDivisa, "id"|"_rowIndex"
   const id = String((existing.length === 0 ? 0 : Math.max(...existing.map(p => parseInt(p.id) || 0))) + 1);
   const row = [id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo, pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones, pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, ""];
   await appendRow(TAB_DIVISAS, row);
+  invalidateCache("pagos_divisas");
   return { ...pago, id, validadoEn: "" };
 }
 
@@ -285,6 +305,7 @@ export async function updatePagoDivisaEstado(id: string, estado: string, validad
   const validadoEn = new Date().toISOString();
   const row = [pago.id, pago.fecha, pago.nombrePagador, pago.correo, pago.monto, pago.tipo, pago.referencia, pago.cliente, pago.rif, pago.factura, pago.observaciones, estado, validadoPor, pago.vendedor, pago.creadoEn, validadoEn];
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
+  invalidateCache("pagos_divisas");
   return { ...pago, estado, validadoPor, observaciones, validadoEn };
 }
 
@@ -303,6 +324,7 @@ export async function updatePagoEdicion(id: string, data: { fechaPago: string; b
   const nuevoValidadoEn = autoAprueba ? new Date().toISOString() : (pago.validadoEn ?? "");
   const row = [pago.id, data.fechaPago, pago.tipoPago, data.bancoEmisor, data.monto, data.celular, data.bancoReceptor, data.referencia, rifVal, facturaVal, nuevoEstado, nuevoValidado, pago.vendedor, obsVal, pago.creadoEn, clienteVal, megasoftVal, nuevoValidadoEn, pago.conciliadoEn??"", pago.conciliadoPor??""];
   await updateRow(TAB_PAGOS, pago._rowIndex, row);
+  invalidateCache("pagos_bs");
   return { ...pago, ...data, cliente: clienteVal, observaciones: obsVal, rif: rifVal, factura: facturaVal, megasoft: megasoftVal, estado: nuevoEstado, validadoPor: nuevoValidado, validadoEn: nuevoValidadoEn };
 }
 
@@ -313,6 +335,7 @@ export async function updatePagoDivisaEdicion(id: string, data: { fecha: string;
   const obsVal = data.observaciones !== undefined ? data.observaciones : (pago.observaciones ?? "");
   const row = [pago.id, data.fecha, data.nombrePagador, pago.correo, data.monto, data.tipo, data.referencia, pago.cliente, pago.rif, pago.factura, obsVal, pago.estado, pago.validadoPor, pago.vendedor, pago.creadoEn, pago.validadoEn??""];
   await updateRow(TAB_DIVISAS, pago._rowIndex, row);
+  invalidateCache("pagos_divisas");
   return { ...pago, ...data, observaciones: obsVal };
 }
 
@@ -323,6 +346,7 @@ export async function deletePago(id: string): Promise<boolean> {
   if (!pago || !pago._rowIndex) return false;
   const emptyRow = ["", "", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", "", "", "", ""];
   await updateRow(TAB_PAGOS, pago._rowIndex, emptyRow);
+  invalidateCache("pagos_bs");
   return true;
 }
 
@@ -332,6 +356,7 @@ export async function deletePagoDivisa(id: string): Promise<boolean> {
   if (!pago || !pago._rowIndex) return false;
   const emptyRow = ["", "", "", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", ""];
   await updateRow(TAB_DIVISAS, pago._rowIndex, emptyRow);
+  invalidateCache("pagos_divisas");
   return true;
 }
 
@@ -355,9 +380,11 @@ export interface SheetSolicitud {
 }
 
 export async function getSolicitudes(): Promise<SheetSolicitud[]> {
+  const cached = getCache<SheetSolicitud[]>("solicitudes");
+  if (cached) return cached;
   const rows = await getRows(TAB_SOLICITUDES);
   if (rows.length < 2) return [];
-  return rows.slice(1)
+  const solicitudes = rows.slice(1)
     .map((row, i) => ({
       id: row[0]??"", vendedor: row[1]??"", cliente: row[2]??"", celular: row[3]??"",
       sku: row[4]??"", producto: row[5]??"", cantidad: row[6]??"", fechaTope: row[7]??"",
@@ -367,6 +394,8 @@ export async function getSolicitudes(): Promise<SheetSolicitud[]> {
       _rowIndex: i + 2,
     }))
     .filter(s => s.id !== "" && s.estado !== "ELIMINADO");
+  setCache("solicitudes", solicitudes, CACHE_TTL_SOLICITUDES);
+  return solicitudes;
 }
 
 export async function addSolicitud(s: Omit<SheetSolicitud, "id"|"_rowIndex">): Promise<SheetSolicitud> {
@@ -374,6 +403,7 @@ export async function addSolicitud(s: Omit<SheetSolicitud, "id"|"_rowIndex">): P
   const id = String((existing.length === 0 ? 0 : Math.max(...existing.map(x => parseInt(x.id) || 0))) + 1);
   const row = [id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad, s.fechaTope, s.observaciones, s.estado, s.creadoEn, s.observacionesCompras ?? "", s.actualizadoEn ?? "", s.respondidoPor ?? "", s.categoria ?? ""];
   await appendRow(TAB_SOLICITUDES, row);
+  invalidateCache("solicitudes");
   return { ...s, id };
 }
 
@@ -383,6 +413,7 @@ export async function updateSolicitudEstado(id: string, estado: string): Promise
   if (!s || !s._rowIndex) return null;
   const row = [s.id, s.vendedor, s.cliente, s.celular ?? "", s.sku, s.producto, s.cantidad, s.fechaTope, s.observaciones, estado, s.creadoEn, s.observacionesCompras ?? "", s.actualizadoEn ?? "", s.respondidoPor ?? "", s.categoria ?? ""];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
+  invalidateCache("solicitudes");
   return { ...s, estado };
 }
 
@@ -392,6 +423,7 @@ export async function deleteSolicitud(id: string): Promise<boolean> {
   if (!s || !s._rowIndex) return false;
   const emptyRow = ["", "", "", "", "", "", "", "", "", "ELIMINADO", "", "", "", "", ""];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, emptyRow);
+  invalidateCache("solicitudes");
   return true;
 }
 
@@ -419,5 +451,6 @@ export async function updateSolicitudEdicion(
     nuevasObsVendedor, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, nuevoRespondidoPor, nuevaCategoria,
   ];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);
+  invalidateCache("solicitudes");
   return { ...s, estado: nuevoEstado, observacionesCompras: nuevaObs, fechaTope: nuevaFecha, cantidad: nuevaCant, observaciones: nuevasObsVendedor, categoria: nuevaCategoria, sku: nuevoSku, producto: nuevoProducto, cliente: nuevoCliente, celular: nuevoCelular, actualizadoEn, respondidoPor: nuevoRespondidoPor };
 }
