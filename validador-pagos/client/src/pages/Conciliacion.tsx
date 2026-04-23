@@ -798,7 +798,7 @@ export default function Conciliacion() {
                           </Button>
                         )}
                         {/* ── Botón editar (admin: siempre, supervisor no-admin: solo pendientes) ── */}
-                        {(isAdmin || (isSupervisor && esPendiente)) && (
+                        {(isAdmin || isContabilidad || isCompras || (isSupervisor && esPendiente)) && (
                           <Button size="sm" variant="outline" onClick={() => openEditBs(p)} className="gap-1.5 text-xs">
                             <Pencil className="w-3.5 h-3.5"/> Editar
                           </Button>
