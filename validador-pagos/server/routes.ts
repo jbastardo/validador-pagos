@@ -267,10 +267,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // PATCH /api/pagos/:id/editar (supervisor / admin)
+  // PATCH /api/pagos/:id/editar (admin / contabilidad)
   app.patch("/api/pagos/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
+      const { email, rol } = req.body;
+      if (!email) return res.status(400).json({ message: "Email requerido" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && (x.rol === "admin" || x.rol === "contabilidad") && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular, cliente, observaciones, rif, factura, megasoft, cajeroEmail } = req.body;
       if (!fechaPago || !monto) return res.status(400).json({ message: "Campos requeridos" });
       const updated = await updatePagoEdicion(id, {
@@ -287,10 +292,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // PATCH /api/pagos-divisas/:id/editar (supervisor / admin)
+  // PATCH /api/pagos-divisas/:id/editar (admin / contabilidad)
   app.patch("/api/pagos-divisas/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email requerido" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && (x.rol === "admin" || x.rol === "contabilidad") && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fecha, nombrePagador, monto, tipo, referencia, observaciones } = req.body;
       if (!fecha || !monto || !nombrePagador) return res.status(400).json({ message: "Campos requeridos" });
       const updated = await updatePagoDivisaEdicion(id, { fecha, nombrePagador, monto, tipo: tipo ?? "", referencia: referencia ?? "", observaciones: observaciones ?? undefined });
@@ -549,11 +559,15 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
     }
   });
 
-    // ===== SOLICITUDES: editar (compras/admin) =====
+// ===== SOLICITUDES: editar (compras/admin) =====
   app.patch("/api/solicitudes/:id/editar", async (req, res) => {
     try {
       const { id } = req.params;
-      const { estado, observacionesCompras, fechaTope, cantidad, categoria, usuario } = req.body;
+      const { estado, observacionesCompras, fechaTope, cantidad, categoria, usuario, email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email requerido" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find(x => x.email === email && (x.rol === "admin" || x.rol === "compras") && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(403).json({ message: "Sin permisos para editar solicitudes" });
       const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad, categoria }, usuario);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (estado && estado !== "Pendiente") {
@@ -564,8 +578,10 @@ Producto: ${updated.producto}
 Cantidad: ${updated.cantidad}
 Obs: ${observacionesCompras || "-"}
 Por favor sugiera un producto alternativo al cliente.
-Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}\nCantidad: ${updated.cantidad}\nActualizado por: ${usuario || "Compras"}`;
-              sendTelegramToVendedor(updated.vendedor, msg).catch(() => {});
+Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: ${estado}\nCliente: ${updated.cliente}\nProducto: ${updated.producto}
+Cantidad: ${updated.cantidad}
+Actualizado por: ${usuario || "Compras"}`;
+        sendTelegramToVendedor(updated.vendedor, msg).catch(() => {});
       }
       res.json(updated);
     } catch (e: any) {
