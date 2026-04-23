@@ -514,11 +514,12 @@ export default function Conciliacion() {
   const isCajero           = user?.rol === "cajero";
   const isVendedor         = user?.rol === "vendedor";
   const isContabilidad     = user?.rol === "contabilidad";
+  const isCompras           = user?.rol === "compras";
   const isSupervisorCaja   = user?.rol === "supervisor_caja";
   // Puede aprobar/rechazar
   const isContable         = user?.rol === "admin" || user?.rol === "contabilidad";
   // Puede editar pendientes (contabilidad, admin, vendedor, supervisor_caja)
-  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja";
+  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja" || user?.rol === "compras";
   // Puede ver info de validación (quien validó + cuándo)
   const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja";
 
@@ -1208,7 +1209,7 @@ export default function Conciliacion() {
                 fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor,
                 monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente,
                 observaciones: editBsObs,
-                ...((isAdmin || isContabilidad) ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
+                ...((isAdmin || isContabilidad || isCompras) ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
               } })}
               disabled={editBsMutation.isPending}
             >
