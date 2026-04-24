@@ -217,7 +217,7 @@ export default function Solicitudes() {
   const editarSolicitud = useMutation({
     mutationFn: (data: any) => fetch(`/api/solicitudes/${editSol?.id}/editar`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, usuario: user?.email }),
+      body: JSON.stringify({ ...data, usuario: user?.email, email: user?.email }),
     }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
