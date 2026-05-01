@@ -10,9 +10,10 @@ import {
      getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
 } from "./db";
 import {
-  parseExtractoExcel, addMovimientos, getMovimientos, deleteMovimientosBanco,
+  addMovimientos, getMovimientos, deleteMovimientosBanco,
   marcarUsado, tryMatch, getExtractosStats,
 } from "./db";
+import { parseExtractoExcel } from "./extractos";
 import { z } from "zod";
 import { BANCOS_RECEPTOR_META } from "../shared/schema";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
