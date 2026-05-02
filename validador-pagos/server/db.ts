@@ -374,5 +374,74 @@ export async function getExtractosStats() {
   return { byBanco };
 }
 
+// ─── IMPORTACIÓN MASIVA DESDE GOOGLE SHEETS ───────────────────────────────────
+export async function importPagosBatch(items: Omit<InsertPago, "creadoEn">[]) {
+  if (items.length === 0) return 0;
+  let imported = 0;
+  for (const item of items) {
+    try {
+      await db.insert(pagos).values({ ...item, creadoEn: item.creadoEn ? new Date(item.creadoEn as any) : new Date() }).onConflictDoNothing();
+      imported++;
+    } catch { /* skip duplicates */ }
+  }
+  return imported;
+}
+
+export async function importPagosDivisasBatch(items: Omit<InsertPagoDivisa, "creadoEn" | "validadoEn">[]) {
+  if (items.length === 0) return 0;
+  let imported = 0;
+  for (const item of items) {
+    try {
+      await db.insert(pagosDivisas).values({
+        ...item,
+        creadoEn: item.creadoEn ? new Date(item.creadoEn as any) : new Date(),
+        validadoEn: item.validadoEn ? new Date(item.validadoEn as any) : undefined,
+      }).onConflictDoNothing();
+      imported++;
+    } catch { /* skip duplicates */ }
+  }
+  return imported;
+}
+
+export async function importSolicitudesBatch(items: Omit<InsertSolicitud, "creadoEn" | "actualizadoEn">[]) {
+  if (items.length === 0) return 0;
+  let imported = 0;
+  for (const item of items) {
+    try {
+      await db.insert(solicitudes).values({
+        ...item,
+        creadoEn: item.creadoEn ? new Date(item.creadoEn as any) : new Date(),
+        actualizadoEn: item.actualizadoEn ? new Date(item.actualizadoEn as any) : undefined,
+      }).onConflictDoNothing();
+      imported++;
+    } catch { /* skip duplicates */ }
+  }
+  return imported;
+}
+
+export async function importExtractosBatch(items: InsertExtracto[]) {
+  if (items.length === 0) return 0;
+  let imported = 0;
+  for (const item of items) {
+    try {
+      await db.insert(extractos).values(item).onConflictDoNothing();
+      imported++;
+    } catch { /* skip duplicates */ }
+  }
+  return imported;
+}
+
+export async function importUsuariosBatch(items: Omit<InsertUsuario, "creadoEn">[]) {
+  if (items.length === 0) return 0;
+  let imported = 0;
+  for (const item of items) {
+    try {
+      await db.insert(usuarios).values({ ...item, creadoEn: new Date() }).onConflictDoNothing();
+      imported++;
+    } catch { /* skip duplicates */ }
+  }
+  return imported;
+}
+
 // Re-export parseExtractoExcel from extractos.ts
 export { parseExtractoExcel } from "./extractos";
