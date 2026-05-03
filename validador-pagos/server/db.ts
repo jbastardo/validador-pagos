@@ -7,6 +7,7 @@ import {
 import { eq, and, or, like, sql } from "drizzle-orm";
 import { extractBancoCode } from "@shared/schema";
 
+// Database connection - exported for use in routes.ts
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool);
 
