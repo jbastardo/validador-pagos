@@ -770,6 +770,8 @@ Actualizado por: ${usuario || "Compras"}`;
 
       const result: Record<string, { imported: number; skipped: number }> = {};
 
+      const errors: Record<string, string> = {};
+
       // ── USUARIOS ──
       if (wb.Sheets["Usuarios"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Usuarios"], { header: 1 }) as any[][];
@@ -789,7 +791,7 @@ Actualizado por: ${usuario || "Compras"}`;
               telegramChatId: cv(r["bot telegram"]), creadoEn: new Date(),
             }).onConflictDoNothing();
             imported++;
-          } catch { skipped++; }
+          } catch (e: any) { if (!errors.usuarios) errors.usuarios = e.message; skipped++; }
         }
         result.usuarios = { imported, skipped };
       } else { result.usuarios = { imported: 0, skipped: 0 }; }
@@ -798,8 +800,7 @@ Actualizado por: ${usuario || "Compras"}`;
       if (wb.Sheets["Hoja 1"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Hoja 1"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        console.log("Hoja 1 headers:", headers);
-        let imported = 0, skipped = 0, errors = 0;
+        let imported = 0, skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
@@ -820,7 +821,7 @@ Actualizado por: ${usuario || "Compras"}`;
               validadoEn: megasoft === "Sí" && creadoEn ? new Date(creadoEn) : undefined,
             }).onConflictDoNothing();
             imported++;
-          } catch (e: any) { errors++; if (errors <= 3) console.error("Error inserting pago:", e.message); skipped++; }
+          } catch (e: any) { if (!errors.pagos) errors.pagos = e.message; skipped++; }
         }
         result.pagos = { imported, skipped };
       } else { result.pagos = { imported: 0, skipped: 0 }; }
@@ -848,7 +849,7 @@ Actualizado por: ${usuario || "Compras"}`;
               validadoEn: r["ValidadoEn"] ? new Date(r["ValidadoEn"]) : undefined,
             }).onConflictDoNothing();
             imported++;
-          } catch { skipped++; }
+          } catch (e: any) { if (!errors.pagos_divisas) errors.pagos_divisas = e.message; skipped++; }
         }
         result.pagos_divisas = { imported, skipped };
       } else { result.pagos_divisas = { imported: 0, skipped: 0 }; }
@@ -875,7 +876,7 @@ Actualizado por: ${usuario || "Compras"}`;
               respondidoPor: cv(r["RespondidoPor"]), categoria: cv(r["Categoria"]),
             }).onConflictDoNothing();
             imported++;
-          } catch { skipped++; }
+          } catch (e: any) { if (!errors.solicitudes) errors.solicitudes = e.message; skipped++; }
         }
         result.solicitudes = { imported, skipped };
       } else { result.solicitudes = { imported: 0, skipped: 0 }; }
@@ -899,12 +900,12 @@ Actualizado por: ${usuario || "Compras"}`;
               usado: cv(r["usado"]) || "false",
             }).onConflictDoNothing();
             imported++;
-          } catch { skipped++; }
+          } catch (e: any) { if (!errors.extractos) errors.extractos = e.message; skipped++; }
         }
         result.extractos = { imported, skipped };
       } else { result.extractos = { imported: 0, skipped: 0 }; }
 
-      res.json({ message: "Importación completada", sheets: wb.SheetNames, result, debug: { pagosHeaders: wb.Sheets["Hoja 1"] ? (XLSX.utils.sheet_to_json(wb.Sheets["Hoja 1"], { header: 1 }) as any[][])[0] : null } });
+      res.json({ message: "Importación completada", sheets: wb.SheetNames, result, errors });
     } catch (e: any) {
       console.error("Import error:", e.message);
       res.status(500).json({ message: "Error al importar: " + e.message });

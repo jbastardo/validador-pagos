@@ -8,7 +8,7 @@ import { eq, and, or, like, sql } from "drizzle-orm";
 import { extractBancoCode } from "@shared/schema";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle(pool);
+export const db = drizzle(pool);
 
 // Helper to convert string ID to number
 function toId(id: string | number): number {
