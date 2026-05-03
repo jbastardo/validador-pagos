@@ -9,7 +9,7 @@ import {
   updatePagoEdicion,
      getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
   importPagosBatch, importPagosDivisasBatch, importSolicitudesBatch, importExtractosBatch, importUsuariosBatch,
-  db,
+  db, pagos, usuarios, pagosDivisas, solicitudes, extractos,
 } from "./db";
 import {
   addMovimientos, getMovimientos, deleteMovimientosBanco,
