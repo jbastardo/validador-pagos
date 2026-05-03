@@ -10,7 +10,6 @@ import {
      getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
   importPagosBatch, importPagosDivisasBatch, importSolicitudesBatch, importExtractosBatch, importUsuariosBatch,
 } from "./db";
-import { db } from "./db";
 import {
   addMovimientos, getMovimientos, deleteMovimientosBanco,
   marcarUsado, tryMatch, getExtractosStats,
