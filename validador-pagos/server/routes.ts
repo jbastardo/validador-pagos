@@ -9,7 +9,6 @@ import {
   updatePagoEdicion,
      getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
   importPagosBatch, importPagosDivisasBatch, importSolicitudesBatch, importExtractosBatch, importUsuariosBatch,
-  db, pagos, usuarios, pagosDivisas, solicitudes, extractos,
 } from "./db";
 import {
   addMovimientos, getMovimientos, deleteMovimientosBanco,
@@ -758,50 +757,47 @@ Actualizado por: ${usuario || "Compras"}`;
 
   app.post("/api/import-from-sheets", async (_req, res) => {
     try {
-      // Download xlsx
       const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
       const sheetRes = await fetch(url);
       if (!sheetRes.ok) throw new Error(`Failed to download sheet: ${sheetRes.status}`);
       const buffer = Buffer.from(await sheetRes.arrayBuffer());
 
-      // Dynamically import xlsx
       const XLSX = (await import("xlsx")).default;
       const wb = XLSX.read(buffer, { type: "buffer" });
       console.log("Sheets found:", wb.SheetNames);
 
       const result: Record<string, { imported: number; skipped: number }> = {};
-
       const errors: Record<string, string> = {};
 
       // ── USUARIOS ──
       if (wb.Sheets["Usuarios"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Usuarios"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        let imported = 0, skipped = 0;
+        const items: any[] = [];
+        let skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
           const activo = String(r["Activo"] || "").trim();
           if (!id || activo === "ELIMINADO" || !r["Email"] || !r["Nombre"]) { skipped++; continue; }
-          try {
-            await db.insert(usuarios).values({
-              id, nombre: String(r["Nombre"] || "").trim(), email: String(r["Email"] || "").trim(),
-              password: String(r["Password"] || "").trim(), rol: cv(r["Rol"]) || "vendedor",
-              activo: activo === "true" ? "true" : "false",
-              solicitudes: String(r["solicitudes"] || "").trim() === "true" ? "true" : "false",
-              telegramChatId: cv(r["bot telegram"]), creadoEn: new Date(),
-            }).onConflictDoNothing();
-            imported++;
-          } catch (e: any) { if (!errors.usuarios) errors.usuarios = e.message; skipped++; }
+          items.push({
+            id, nombre: String(r["Nombre"] || "").trim(), email: String(r["Email"] || "").trim(),
+            password: String(r["Password"] || "").trim(), rol: cv(r["Rol"]) || "vendedor",
+            activo: activo === "true" ? "true" : "false",
+            solicitudes: String(r["solicitudes"] || "").trim() === "true" ? "true" : "false",
+            telegramChatId: cv(r["bot telegram"]),
+          });
         }
-        result.usuarios = { imported, skipped };
+        try { const imported = await importUsuariosBatch(items); result.usuarios = { imported, skipped }; }
+        catch (e: any) { errors.usuarios = e.message; result.usuarios = { imported: 0, skipped }; }
       } else { result.usuarios = { imported: 0, skipped: 0 }; }
 
       // ── PAGOS BS ──
       if (wb.Sheets["Hoja 1"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Hoja 1"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        let imported = 0, skipped = 0;
+        const items: any[] = [];
+        let skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
@@ -809,101 +805,96 @@ Actualizado por: ${usuario || "Compras"}`;
           if (!id || estado === "ELIMINADO" || !r["Fecha"]) { skipped++; continue; }
           const megasoft = cv(r["Megasoft"]);
           const creadoEn = cv(r["CreadoEn"]);
-          try {
-            await db.insert(pagos).values({
-              id, fechaPago: String(r["Fecha"] || "").trim(),
-              tipoPago: cv(r["Tipo"]) || "PagoMovil", bancoEmisor: cv(r["BancoEmisor"]) || "",
-              monto: cv(r["Monto"]) || "0", celular: cv(r["Celular"]),
-              bancoReceptor: cv(r["BancoReceptor"]) || "", referencia: cv(r["Referencia"]),
-              rif: cv(r["RIF"]), factura: cv(r["Factura"]), estado: estado || "Pendiente",
-              validadoPor: cv(r["ValidadoPor"]), vendedor: cv(r["Vendedor"]) || "",
-              observaciones: cv(r["Observaciones"]), creadoEn: creadoEn ? new Date(creadoEn) : new Date(),
-              cliente: cv(r["Cliente"]), megasoft,
-              validadoEn: megasoft === "Sí" && creadoEn ? new Date(creadoEn) : undefined,
-            }).onConflictDoNothing();
-            imported++;
-          } catch (e: any) { if (!errors.pagos) errors.pagos = e.message; skipped++; }
+          items.push({
+            id, fechaPago: String(r["Fecha"] || "").trim(),
+            tipoPago: cv(r["Tipo"]) || "PagoMovil", bancoEmisor: cv(r["BancoEmisor"]) || "",
+            monto: cv(r["Monto"]) || "0", celular: cv(r["Celular"]),
+            bancoReceptor: cv(r["BancoReceptor"]) || "", referencia: cv(r["Referencia"]),
+            rif: cv(r["RIF"]), factura: cv(r["Factura"]), estado: estado || "Pendiente",
+            validadoPor: cv(r["ValidadoPor"]), vendedor: cv(r["Vendedor"]) || "",
+            observaciones: cv(r["Observaciones"]), creadoEn: creadoEn ? new Date(creadoEn) : new Date(),
+            cliente: cv(r["Cliente"]), megasoft,
+            validadoEn: megasoft === "Sí" && creadoEn ? new Date(creadoEn) : undefined,
+          });
         }
-        result.pagos = { imported, skipped };
+        try { const imported = await importPagosBatch(items); result.pagos = { imported, skipped }; }
+        catch (e: any) { errors.pagos = e.message; result.pagos = { imported: 0, skipped }; }
       } else { result.pagos = { imported: 0, skipped: 0 }; }
 
       // ── PAGOS DIVISAS ──
       if (wb.Sheets["PagosDivisas"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["PagosDivisas"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        let imported = 0, skipped = 0;
+        const items: any[] = [];
+        let skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
           const estado = String(r["Estado"] || "").trim();
           if (!id || estado === "ELIMINADO" || !r["Fecha"]) { skipped++; continue; }
-          try {
-            await db.insert(pagosDivisas).values({
-              id, fecha: String(r["Fecha"] || "").trim(),
-              nombrePagador: cv(r["NombrePagador"]) || cv(r["Pagador"]) || "",
-              correo: cv(r["Correo"]), monto: cv(r["Monto"]) || "0",
-              tipo: cv(r["Tipo"]) || "", referencia: cv(r["Referencia"]),
-              cliente: cv(r["Cliente"]), rif: cv(r["RIF"]), factura: cv(r["Factura"]),
-              observaciones: cv(r["Observaciones"]), estado: estado || "Pendiente",
-              validadoPor: cv(r["ValidadoPor"]), vendedor: cv(r["Vendedor"]) || "",
-              creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
-              validadoEn: r["ValidadoEn"] ? new Date(r["ValidadoEn"]) : undefined,
-            }).onConflictDoNothing();
-            imported++;
-          } catch (e: any) { if (!errors.pagos_divisas) errors.pagos_divisas = e.message; skipped++; }
+          items.push({
+            id, fecha: String(r["Fecha"] || "").trim(),
+            nombrePagador: cv(r["NombrePagador"]) || cv(r["Pagador"]) || "",
+            correo: cv(r["Correo"]), monto: cv(r["Monto"]) || "0",
+            tipo: cv(r["Tipo"]) || "", referencia: cv(r["Referencia"]),
+            cliente: cv(r["Cliente"]), rif: cv(r["RIF"]), factura: cv(r["Factura"]),
+            observaciones: cv(r["Observaciones"]), estado: estado || "Pendiente",
+            validadoPor: cv(r["ValidadoPor"]), vendedor: cv(r["Vendedor"]) || "",
+            creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
+            validadoEn: r["ValidadoEn"] ? new Date(r["ValidadoEn"]) : undefined,
+          });
         }
-        result.pagos_divisas = { imported, skipped };
+        try { const imported = await importPagosDivisasBatch(items); result.pagos_divisas = { imported, skipped }; }
+        catch (e: any) { errors.pagos_divisas = e.message; result.pagos_divisas = { imported: 0, skipped }; }
       } else { result.pagos_divisas = { imported: 0, skipped: 0 }; }
 
       // ── SOLICITUDES ──
       if (wb.Sheets["Solicitudes"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Solicitudes"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        let imported = 0, skipped = 0;
+        const items: any[] = [];
+        let skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
           const estado = String(r["Estado"] || "").trim();
           if (!id || estado === "ELIMINADO" || !r["Vendedor"]) { skipped++; continue; }
-          try {
-            await db.insert(solicitudes).values({
-              id, vendedor: cv(r["Vendedor"]) || "", cliente: cv(r["Cliente"]) || "",
-              celular: cv(r["Celular"]), sku: cv(r["SKU"]),
-              producto: cv(r["Producto"]) || "", cantidad: cv(r["Cantidad"]) || "1",
-              fechaTope: cv(r["FechaTope"]), observaciones: cv(r["Observaciones"]),
-              estado: estado || "Pendiente", creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
-              observacionesCompras: cv(r["ObservacionesCompras"]),
-              actualizadoEn: r["ActualizadoEn"] ? new Date(r["ActualizadoEn"]) : undefined,
-              respondidoPor: cv(r["RespondidoPor"]), categoria: cv(r["Categoria"]),
-            }).onConflictDoNothing();
-            imported++;
-          } catch (e: any) { if (!errors.solicitudes) errors.solicitudes = e.message; skipped++; }
+          items.push({
+            id, vendedor: cv(r["Vendedor"]) || "", cliente: cv(r["Cliente"]) || "",
+            celular: cv(r["Celular"]), sku: cv(r["SKU"]),
+            producto: cv(r["Producto"]) || "", cantidad: cv(r["Cantidad"]) || "1",
+            fechaTope: cv(r["FechaTope"]), observaciones: cv(r["Observaciones"]),
+            estado: estado || "Pendiente", creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
+            observacionesCompras: cv(r["ObservacionesCompras"]),
+            actualizadoEn: r["ActualizadoEn"] ? new Date(r["ActualizadoEn"]) : undefined,
+            respondidoPor: cv(r["RespondidoPor"]), categoria: cv(r["Categoria"]),
+          });
         }
-        result.solicitudes = { imported, skipped };
+        try { const imported = await importSolicitudesBatch(items); result.solicitudes = { imported, skipped }; }
+        catch (e: any) { errors.solicitudes = e.message; result.solicitudes = { imported: 0, skipped }; }
       } else { result.solicitudes = { imported: 0, skipped: 0 }; }
 
       // ── EXTRACTOS ──
       if (wb.Sheets["Extractos"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Extractos"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        let imported = 0, skipped = 0;
+        const items: any[] = [];
+        let skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = cv(r["id"]);
           if (!id) { skipped++; continue; }
-          try {
-            await db.insert(extractos).values({
-              id, banco: cv(r["banco"]) || "", fecha: cv(r["fecha"]) || "",
-              monto: cv(r["monto"]) || "0", referencia: cv(r["referencia"]),
-              celular: cv(r["celular"]), descripcion: cv(r["descripcion"]),
-              subidoPor: cv(r["subidoPor"]) || "system",
-              subidoEn: cv(r["subidoEn"]) || new Date().toISOString(),
-              usado: cv(r["usado"]) || "false",
-            }).onConflictDoNothing();
-            imported++;
-          } catch (e: any) { if (!errors.extractos) errors.extractos = e.message; skipped++; }
+          items.push({
+            id, banco: cv(r["banco"]) || "", fecha: cv(r["fecha"]) || "",
+            monto: cv(r["monto"]) || "0", referencia: cv(r["referencia"]),
+            celular: cv(r["celular"]), descripcion: cv(r["descripcion"]),
+            subidoPor: cv(r["subidoPor"]) || "system",
+            subidoEn: cv(r["subidoEn"]) || new Date().toISOString(),
+            usado: cv(r["usado"]) || "false",
+          });
         }
-        result.extractos = { imported, skipped };
+        try { const imported = await importExtractosBatch(items); result.extractos = { imported, skipped }; }
+        catch (e: any) { errors.extractos = e.message; result.extractos = { imported: 0, skipped }; }
       } else { result.extractos = { imported: 0, skipped: 0 }; }
 
       res.json({ message: "Importación completada", sheets: wb.SheetNames, result, errors });

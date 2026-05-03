@@ -4,8 +4,6 @@ import {
   pagos, usuarios, pagosDivisas, solicitudes, extractos,
   InsertPago, InsertUsuario, InsertPagoDivisa, InsertSolicitud, InsertExtracto,
 } from "@shared/schema";
-
-export { pagos, usuarios, pagosDivisas, solicitudes, extractos };
 import { eq, and, or, like, sql } from "drizzle-orm";
 import { extractBancoCode } from "@shared/schema";
 
