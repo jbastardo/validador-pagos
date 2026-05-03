@@ -798,7 +798,8 @@ Actualizado por: ${usuario || "Compras"}`;
       if (wb.Sheets["Hoja 1"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Hoja 1"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        let imported = 0, skipped = 0;
+        console.log("Hoja 1 headers:", headers);
+        let imported = 0, skipped = 0, errors = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
@@ -819,7 +820,7 @@ Actualizado por: ${usuario || "Compras"}`;
               validadoEn: megasoft === "Sí" && creadoEn ? new Date(creadoEn) : undefined,
             }).onConflictDoNothing();
             imported++;
-          } catch { skipped++; }
+          } catch (e: any) { errors++; if (errors <= 3) console.error("Error inserting pago:", e.message); skipped++; }
         }
         result.pagos = { imported, skipped };
       } else { result.pagos = { imported: 0, skipped: 0 }; }
@@ -903,7 +904,7 @@ Actualizado por: ${usuario || "Compras"}`;
         result.extractos = { imported, skipped };
       } else { result.extractos = { imported: 0, skipped: 0 }; }
 
-      res.json({ message: "Importación completada", sheets: wb.SheetNames, result });
+      res.json({ message: "Importación completada", sheets: wb.SheetNames, result, debug: { pagosHeaders: wb.Sheets["Hoja 1"] ? (XLSX.utils.sheet_to_json(wb.Sheets["Hoja 1"], { header: 1 }) as any[][])[0] : null } });
     } catch (e: any) {
       console.error("Import error:", e.message);
       res.status(500).json({ message: "Error al importar: " + e.message });
