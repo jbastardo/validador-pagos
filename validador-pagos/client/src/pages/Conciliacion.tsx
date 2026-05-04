@@ -214,7 +214,7 @@ export default function Conciliacion() {
       qc.invalidateQueries({ queryKey: ["/api/pagos"] });
       qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setDialogOpen(false);
-      toast({ title: "Estado actualizado en Google Sheets" });
+      toast({ title: "Estado actualizado" });
     },
     onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
   });
@@ -229,8 +229,9 @@ export default function Conciliacion() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/pagos"] });
+      qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setCajeroOpen(false);
-      toast({ title: "Pago actualizado en Google Sheets" });
+      toast({ title: "Pago actualizado correctamente" });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
   });
@@ -248,10 +249,10 @@ export default function Conciliacion() {
       qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setCajPendOpen(false);
       const msg = data?.estado === "Verificado"
-        ? "Pago aprobado automáticamente por Megasoft ✅"
+        ? "Pago verificado"
         : data?.estado === "Rechazado Megasoft"
-        ? "Pago marcado como Rechazado por Megasoft"
-        : "Datos actualizados en Google Sheets";
+        ? "Pago rechazado"
+        : "Datos actualizados";
       toast({ title: msg });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
@@ -270,8 +271,8 @@ export default function Conciliacion() {
       qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setCajFCOpen(false);
       const msg = data?.estado === "Verificado"
-        ? "Pago validado automáticamente por Megasoft ✅"
-        : "Factura/cliente actualizado en Google Sheets";
+        ? "Pago verificado"
+        : "Factura/cliente actualizado";
       toast({ title: msg });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al actualizar", variant: "destructive" }),
@@ -289,7 +290,7 @@ export default function Conciliacion() {
       qc.invalidateQueries({ queryKey: ["/api/pagos"] });
       qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setEditBsOpen(false);
-      toast({ title: "Pago actualizado en Google Sheets" });
+      toast({ title: "Pago actualizado correctamente" });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al editar", variant: "destructive" }),
   });
@@ -305,7 +306,7 @@ export default function Conciliacion() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/pagos-divisas"] });
       setEditDivOpen(false);
-      toast({ title: "Pago en divisas actualizado en Google Sheets" });
+      toast({ title: "Pago en divisas actualizado" });
     },
     onError: (err: any) => toast({ title: err.message ?? "Error al editar", variant: "destructive" }),
   });
@@ -371,7 +372,7 @@ export default function Conciliacion() {
       qc.invalidateQueries({ queryKey: ["/api/pagos-divisas"] });
       qc.invalidateQueries({ queryKey: ["/api/stats"] });
       setDialogDivOpen(false);
-      toast({ title: "Estado actualizado en Google Sheets" });
+      toast({ title: "Estado actualizado" });
     },
     onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
   });
@@ -667,7 +668,7 @@ export default function Conciliacion() {
         <div>
           <h1 className="text-xl font-bold">Resumen de Pagos</h1>
           <p className="text-sm text-muted-foreground">
-            {(isCajero || isSupervisorCaja) ? "Agrega el número de factura y valida con Megasoft" : "Verifica y aprueba los pagos — sincronizado con Google Sheets"}
+            {(isCajero || isSupervisorCaja) ? "Agrega el número de factura y valida con Megasoft" : "Verifica y aprueba los pagos"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
