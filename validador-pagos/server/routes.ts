@@ -176,7 +176,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
       const pagos = await getPagos();
-      const pago = pagos.find(p => p.id === id);
+      const pago = pagos.find(p => p.id === Number(id));
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
       if (pago.estado !== "Verificado") return res.status(422).json({ message: "Solo se pueden editar pagos Verificados" });
       const updated = await updatePagoCajero(id, parsed.data.factura, parsed.data.megasoft, parsed.data.cliente);
@@ -200,7 +200,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
       const pagos = await getPagos();
-      const pago = pagos.find(p => p.id === id);
+      const pago = pagos.find(p => p.id === Number(id));
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
 
       const updated = await updatePagoCajeroPendiente(
@@ -470,7 +470,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { id } = req.params;
       const usuarios = await getUsuarios();
-      const usuario = usuarios.find(u => u.id === id);
+      const usuario = usuarios.find(u => u.id === Number(id));
       if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
       const updated = await updateUsuario(id, { ...usuario, ...req.body });
       res.json({ id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, activo: updated.activo, solicitudes: updated.solicitudes });
@@ -669,7 +669,7 @@ Actualizado por: ${usuario || "Compras"}`;
       const { vendedorEmail, respondidoPor } = req.body;
       if (!vendedorEmail) return res.status(400).json({ message: "Email requerido" });
       const solicitudes = await getSolicitudes();
-      const sol = solicitudes.find(s => s.id === id);
+      const sol = solicitudes.find(s => s.id === Number(id));
       if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
       // Notificar a compras (chat general) que el vendedor confirmo la compra
       const msg = `Compra CONFIRMADA por vendedor\nSolicitud #${sol.id}\nCliente: ${sol.cliente}\nProducto: ${sol.producto}\nCantidad: ${sol.cantidad}\nVendedor: ${vendedorEmail}`;
@@ -717,7 +717,7 @@ Actualizado por: ${usuario || "Compras"}`;
       const { vendedorEmail, motivo, respondidoPor } = req.body;
       if (!vendedorEmail || !motivo?.trim()) return res.status(400).json({ message: "Email y motivo requeridos" });
       const solicitudes = await getSolicitudes();
-      const sol = solicitudes.find(s => s.id === id);
+      const sol = solicitudes.find(s => s.id === Number(id));
       if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
       // Notificar a compras (chat general) que el vendedor solicita anulacion
       const msg = `SOLICITUD DE ANULACION\nSolicitud #${sol.id}\nCliente: ${sol.cliente}\nProducto: ${sol.producto}\nCantidad: ${sol.cantidad}\nVendedor: ${vendedorEmail}\nMotivo: ${motivo}`;
