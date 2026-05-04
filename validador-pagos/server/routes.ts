@@ -851,26 +851,32 @@ Actualizado por: ${usuario || "Compras"}`;
       // ── SOLICITUDES ──
       if (wb.Sheets["Solicitudes"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Solicitudes"], { header: 1 }) as any[][];
-        const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        console.log("Solicitudes headers:", headers);
         const items: any[] = [];
         let skipped = 0;
-        for (let i = 1; i < data.length; i++) {
-          const r = parseXlsxRow(data, headers, i);
-          const id = parseInt(r["ID"]);
-          const estado = String(r["Estado"] || "").trim();
-          const cliente = cv(r["Cliente"]);
-          const producto = cv(r["Producto"]);
-          if (!id || estado === "ELIMINADO" || !r["Vendedor"] || !cliente || !producto) { skipped++; continue; }
+        for (let i = 0; i < data.length; i++) {
+          const row = data[i];
+          const id = parseInt(row[0]);
+          const vendedor = String(row[1] || "").trim();
+          const cliente = String(row[2] || "").trim();
+          const estado = String(row[9] || "").trim();
+          const producto = String(row[5] || "").trim();
+          if (!id || estado === "ELIMINADO" || !vendedor || !cliente || !producto) { skipped++; continue; }
           items.push({
-            id, vendedor: cv(r["Vendedor"]) || "", cliente,
-            celular: cv(r["Celular"]), sku: cv(r["SKU"]),
-            producto, cantidad: cv(r["Cantidad"]) || "1",
-            fechaTope: cv(r["FechaTope"]), observaciones: cv(r["Observaciones"]),
-            estado: estado || "Pendiente", creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
-            observacionesCompras: cv(r["ObservacionesCompras"]),
-            actualizadoEn: r["ActualizadoEn"] ? new Date(r["ActualizadoEn"]) : undefined,
-            respondidoPor: cv(r["RespondidoPor"]), categoria: cv(r["Categoria"]),
+            id,
+            vendedor,
+            cliente,
+            celular: String(row[3] || "").trim() || undefined,
+            sku: String(row[4] || "").trim() || undefined,
+            producto,
+            cantidad: String(row[6] || "1").trim(),
+            fechaTope: String(row[7] || "").trim() || undefined,
+            observaciones: String(row[8] || "").trim() || undefined,
+            estado: estado || "Pendiente",
+            creadoEn: row[10] ? new Date(row[10]) : new Date(),
+            observacionesCompras: String(row[11] || "").trim() || undefined,
+            actualizadoEn: row[12] ? new Date(row[12]) : undefined,
+            respondidoPor: String(row[13] || "").trim() || undefined,
+            categoria: undefined,
           });
         }
         console.log(`Solicitudes: ${items.length} items to insert, ${skipped} skipped`);
@@ -881,26 +887,36 @@ Actualizado por: ${usuario || "Compras"}`;
       // ── EXTRACTOS ──
       if (wb.Sheets["Extractos"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Extractos"], { header: 1 }) as any[][];
-        const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        console.log("Extractos headers:", headers);
         const items: any[] = [];
         let skipped = 0;
-        for (let i = 1; i < data.length; i++) {
-          const r = parseXlsxRow(data, headers, i);
-          // Try multiple possible column name variations
-          const id = cv(r["id"]) || cv(r["ID"]) || cv(r["Id"]);
-          const banco = cv(r["banco"]) || cv(r["Banco"]);
-          const fecha = cv(r["fecha"]) || cv(r["Fecha"]);
-          const monto = cv(r["monto"]) || cv(r["Monto"]);
-          const subidoPor = cv(r["subidoPor"]) || cv(r["SubidoPor"]) || cv(r["subido_por"]) || "system";
-          const subidoEn = cv(r["subidoEn"]) || cv(r["SubidoEn"]) || cv(r["subido_en"]) || new Date().toISOString();
-          if (!id || !banco || !fecha || !monto) { skipped++; continue; }
+        for (let i = 0; i < data.length; i++) {
+          const row = data[i];
+          const id = String(row[0] || "").trim();
+          const banco = String(row[2] || "").trim();
+          const monto = String(row[4] || "").trim();
+          if (!id || !banco || !monto) { skipped++; continue; }
+          // Convert Excel serial date to ISO string
+          let fecha = "";
+          if (typeof row[1] === "number") {
+            const d = new Date((row[1] - 25569) * 86400 * 1000);
+            fecha = d.toISOString().split("T")[0];
+          } else if (row[1]) {
+            fecha = String(row[1]).trim();
+          }
+          if (!fecha) { skipped++; continue; }
+          const subidoPor = String(row[9] || row[8] || "system").trim();
+          const subidoEn = String(row[7] || new Date().toISOString()).trim();
           items.push({
-            id, banco, fecha,
-            monto, referencia: cv(r["referencia"]) || cv(r["Referencia"]),
-            celular: cv(r["celular"]) || cv(r["Celular"]), descripcion: cv(r["descripcion"]) || cv(r["Descripcion"]),
-            subidoPor, subidoEn,
-            usado: cv(r["usado"]) || cv(r["Usado"]) || "false",
+            id,
+            banco,
+            fecha,
+            monto,
+            referencia: String(row[3] || "").trim() || undefined,
+            celular: undefined,
+            descripcion: String(row[5] || "").trim() || undefined,
+            subidoPor: subidoPor || "system",
+            subidoEn: subidoEn || new Date().toISOString(),
+            usado: "false",
           });
         }
         console.log(`Extractos: ${items.length} items to insert, ${skipped} skipped`);
