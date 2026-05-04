@@ -218,6 +218,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/pagos/:id/factura-cliente", async (req, res) => {
     try {
       const { id } = req.params;
+      console.log(`[factura-cliente] PATCH /api/pagos/${id}/factura-cliente`, JSON.stringify(req.body));
       const schema = z.object({
         factura:     z.string().optional().default(""),
         cliente:     z.string().optional().default(""),
@@ -226,13 +227,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         rif:         z.string().optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
+      if (!parsed.success) {
+        console.error(`[factura-cliente] Validation error:`, JSON.stringify(parsed.error.flatten()));
+        return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+      }
+      console.log(`[factura-cliente] Calling updatePagoFacturaCliente id=${id}`, JSON.stringify(parsed.data));
       const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail, parsed.data.rif);
-      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+      if (!updated) {
+        console.error(`[factura-cliente] Pago no encontrado id=${id}`);
+        return res.status(404).json({ message: "Pago no encontrado" });
+      }
+      console.log(`[factura-cliente] Updated successfully id=${id}`);
       res.json(updated);
     } catch (e: any) {
-      console.error("Error updatePagoFacturaCliente:", e.message);
-      res.status(500).json({ message: "Error al actualizar factura/cliente" });
+      console.error("Error updatePagoFacturaCliente:", e.message, e.stack);
+      res.status(500).json({ message: "Error al actualizar factura/cliente: " + e.message });
     }
   });
 
