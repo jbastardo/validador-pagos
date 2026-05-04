@@ -348,23 +348,15 @@ export async function tryMatch(
   tipoPago: string, bancoReceptor: string, fechaPago: string, monto: string, referencia: string, celular: string
 ) {
   const bancoCodigo = extractBancoCode(bancoReceptor);
-  console.log(`[tryMatch] tipoPago=${tipoPago}, bancoReceptor="${bancoReceptor}" -> codigo="${bancoCodigo}", fecha="${fechaPago}", monto="${monto}", ref="${referencia}", cel="${celular}"`);
-
   const movs = await db.select().from(extractos).where(
     and(eq(extractos.banco, bancoCodigo), eq(extractos.usado, "false"))
   );
-  console.log(`[tryMatch] ${movs.length} extractos disponibles para banco ${bancoCodigo}`);
-
   const montoNum = parseFloat((monto || "0").replace(",", "."));
   const fechaNorm = normalizeDate(fechaPago);
-  if (!fechaNorm) { console.log(`[tryMatch] fecha no normalizable: "${fechaPago}"`); return null; }
+  if (!fechaNorm) return null;
   const fechaTarget = new Date(fechaNorm + "T12:00:00Z");
   const TOLERANCIA_MONTO = 5;
 
-  // Normalize celular for matching
-  const celNorm = (celular || "").replace(/\D/g, "").slice(-9);
-
-  // Phase 1: Exact match (referencia or celular)
   for (const m of movs) {
     const mFechaNorm = normalizeDate(m.fecha);
     if (!mFechaNorm) continue;
@@ -376,33 +368,14 @@ export async function tryMatch(
     if (tipoPago === "Transferencia") {
       const refPago = (referencia || "").replace(/\D/g, "").slice(-6);
       const refMov = (m.referencia || "").replace(/\D/g, "").slice(-6);
-      console.log(`[tryMatch] Phase1 Transferencia: refPago="${refPago}", refMov="${refMov}", match=${refPago === refMov}`);
       if (refPago && refMov && refPago === refMov) return m;
+      if (!refPago && !refMov) return m;
     }
     if (tipoPago === "PagoMovil") {
-      const mCel = (m.celular || "").replace(/\D/g, "").slice(-9);
-      console.log(`[tryMatch] Phase1 PagoMovil: celPago="${celNorm}", celMov="${mCel}", match=${celNorm === mCel}`);
-      if (celNorm && mCel && celNorm === mCel) return m;
+      if (celular && m.celular && celular.replace(/\D/g, "").slice(-9) === m.celular.replace(/\D/g, "").slice(-9)) return m;
     }
   }
 
-  // Phase 2: Fallback — match by monto + fecha only (within tighter tolerance)
-  for (const m of movs) {
-    const mFechaNorm = normalizeDate(m.fecha);
-    if (!mFechaNorm) continue;
-    const diffDias = Math.abs((fechaTarget.getTime() - new Date(mFechaNorm + "T12:00:00Z").getTime()) / 86400000);
-    if (diffDias > 0) continue; // Same day only for fallback
-    const mMonto = parseFloat((m.monto || "0").replace(",", "."));
-    if (Math.abs(mMonto - montoNum) > 0.5) continue; // Tighter tolerance for fallback
-    // Skip if this extracto has a reference that doesn't match (avoid false positives)
-    const refMov = (m.referencia || "").replace(/\D/g, "");
-    const refPago = (referencia || "").replace(/\D/g, "");
-    if (refMov && refPago && refMov.slice(-6) !== refPago.slice(-6)) continue;
-    console.log(`[tryMatch] Phase2 MATCH: extracto id=${m.id}`);
-    return m;
-  }
-
-  console.log(`[tryMatch] No match found`);
   return null;
 }
 
