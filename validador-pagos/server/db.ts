@@ -65,7 +65,7 @@ export async function updatePagoCajero(id: string | number, factura: string, meg
       megasoft,
       cliente: cliente !== undefined ? cliente : pago.cliente,
     })
-    .where(eq(pagos.id, id))
+    .where(eq(pagos.id, toId(id)))
     .returning();
   return updated;
 }
@@ -83,7 +83,7 @@ export async function updatePagoCajeroPendiente(id: string | number, factura: st
       validadoPor: autoAprueba ? cajeroEmail : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
     })
-    .where(eq(pagos.id, id))
+    .where(eq(pagos.id, toId(id)))
     .returning();
   return updated;
 }
@@ -103,7 +103,7 @@ export async function updatePagoFacturaCliente(id: string | number, factura: str
       validadoPor: autoAprueba ? `${cajeroEmail || "Cajero"} (Megasoft)` : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
     })
-    .where(eq(pagos.id, id))
+    .where(eq(pagos.id, toId(id)))
     .returning();
   return updated;
 }
@@ -333,31 +333,68 @@ export async function marcarUsado(movId: string) {
   await db.update(extractos).set({ usado: "true" }).where(eq(extractos.id, movId));
 }
 
+// Normaliza fecha a YYYY-MM-DD desde cualquier formato
+function normalizeDate(f: string): string {
+  if (!f) return "";
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(f)) return f.slice(0, 10);
+  // DD/MM/YYYY or DD-MM-YYYY
+  const m = f.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return f.slice(0, 10);
+}
+
 export async function tryMatch(
   tipoPago: string, bancoReceptor: string, fechaPago: string, monto: string, referencia: string, celular: string
 ) {
-  const bancoCodigo = bancoReceptor.slice(0, 4);
+  const bancoCodigo = extractBancoCode(bancoReceptor);
   const movs = await db.select().from(extractos).where(
     and(eq(extractos.banco, bancoCodigo), eq(extractos.usado, "false"))
   );
-  const montoNum = parseFloat(monto.replace(",", "."));
-  const fechaTarget = new Date(fechaPago + "T12:00:00Z");
+  const montoNum = parseFloat((monto || "0").replace(",", "."));
+  const fechaNorm = normalizeDate(fechaPago);
+  if (!fechaNorm) return null;
+  const fechaTarget = new Date(fechaNorm + "T12:00:00Z");
   const TOLERANCIA_MONTO = 5;
 
+  // Normalize celular for matching
+  const celNorm = (celular || "").replace(/\D/g, "").slice(-9);
+
+  // Phase 1: Exact match (referencia or celular)
   for (const m of movs) {
-    const diffDias = Math.abs((fechaTarget.getTime() - new Date(m.fecha + "T12:00:00Z").getTime()) / 86400000);
+    const mFechaNorm = normalizeDate(m.fecha);
+    if (!mFechaNorm) continue;
+    const diffDias = Math.abs((fechaTarget.getTime() - new Date(mFechaNorm + "T12:00:00Z").getTime()) / 86400000);
     if (diffDias > 1) continue;
-    if (Math.abs(parseFloat((m.monto || "0").replace(",", ".")) - montoNum) > TOLERANCIA_MONTO) continue;
+    const mMonto = parseFloat((m.monto || "0").replace(",", "."));
+    if (Math.abs(mMonto - montoNum) > TOLERANCIA_MONTO) continue;
+
     if (tipoPago === "Transferencia") {
       const refPago = (referencia || "").replace(/\D/g, "").slice(-6);
       const refMov = (m.referencia || "").replace(/\D/g, "").slice(-6);
       if (refPago && refMov && refPago === refMov) return m;
-      if (!refPago && !refMov) return m;
     }
     if (tipoPago === "PagoMovil") {
-      if (celular && m.celular && celular.replace(/\D/g, "").slice(-9) === (m.celular || "").replace(/\D/g, "").slice(-9)) return m;
+      const mCel = (m.celular || "").replace(/\D/g, "").slice(-9);
+      if (celNorm && mCel && celNorm === mCel) return m;
     }
   }
+
+  // Phase 2: Fallback — match by monto + fecha only (within tighter tolerance)
+  for (const m of movs) {
+    const mFechaNorm = normalizeDate(m.fecha);
+    if (!mFechaNorm) continue;
+    const diffDias = Math.abs((fechaTarget.getTime() - new Date(mFechaNorm + "T12:00:00Z").getTime()) / 86400000);
+    if (diffDias > 0) continue; // Same day only for fallback
+    const mMonto = parseFloat((m.monto || "0").replace(",", "."));
+    if (Math.abs(mMonto - montoNum) > 0.5) continue; // Tighter tolerance for fallback
+    // Skip if this extracto has a reference that doesn't match (avoid false positives)
+    const refMov = (m.referencia || "").replace(/\D/g, "");
+    const refPago = (referencia || "").replace(/\D/g, "");
+    if (refMov && refPago && refMov.slice(-6) !== refPago.slice(-6)) continue;
+    return m;
+  }
+
   return null;
 }
 

@@ -496,14 +496,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
       const file = req.file;
       if (!file) return res.status(400).json({ message: "Archivo requerido" });
-      const { movimientos, subidoPor } = await parseExtractoExcel(file.buffer, banco);
+      const subidoPor = (req.body.subidoPor as string) || "system";
+      const result = parseExtractoExcel(file.buffer, banco, subidoPor);
+      if (result.movimientos.length === 0) return res.status(400).json({ message: "No se encontraron movimientos válidos", warnings: result.warnings });
       await deleteMovimientosBanco(banco);
-      await addMovimientos(movimientos);
+      await addMovimientos(result.movimientos);
+      console.log(`Extracto ${banco}: ${result.movimientos.length} movimientos cargados, ${result.skipped} saltados`);
 
       // ── Re-conciliar pagos pendientes contra los nuevos extractos ──
       let conciliados = 0;
       const allPagos = await getPagos();
       const pendientes = allPagos.filter(p => p.estado === "Pendiente");
+      console.log(`Re-conciliando ${pendientes.length} pagos pendientes contra extractos...`);
       for (const pago of pendientes) {
         const match = await tryMatch(pago.tipoPago, pago.bancoReceptor, pago.fechaPago, pago.monto, pago.referencia || "", pago.celular || "");
         if (match) {
@@ -512,14 +516,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             validadoPor: "Auto-conciliado (Extracto)",
             validadoEn: new Date(),
             conciliadoEn: new Date(),
-            conciliadoPor: subidoPor || "system",
+            conciliadoPor: subidoPor,
           }).where(eq(pagos.id, pago.id));
           await marcarUsado(match.id);
           conciliados++;
+          console.log(`  ✓ Pago #${pago.id} conciliado con extracto ${match.id}`);
         }
       }
+      console.log(`Conciliación completada: ${conciliados} pagos conciliados`);
 
-      res.json({ message: `Extracto cargado: ${movimientos.length} movimientos${conciliados > 0 ? `, ${conciliados} pagos conciliados` : ""}` });
+      res.json({ message: `Extracto cargado: ${result.movimientos.length} movimientos${conciliados > 0 ? `, ${conciliados} pagos conciliados` : ""}`, conciliados, warnings: result.warnings });
     } catch (e: any) {
       console.error("Error upload extracto:", e.message);
       res.status(500).json({ message: "Error al procesar extracto: " + e.message });
