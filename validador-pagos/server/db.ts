@@ -59,7 +59,6 @@ export async function updatePagoEstado(id: string | number, estado: string, vali
 export async function updatePagoCajero(id: string | number, factura: string, megasoft: string, cliente?: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
-  console.log(`[updatePagoCajero] id=${id}, factura="${factura}", cliente="${cliente}", megasoft="${megasoft}"`);
   const [updated] = await db.update(pagos)
     .set({
       factura: factura || pago.factura,
@@ -74,7 +73,6 @@ export async function updatePagoCajero(id: string | number, factura: string, meg
 export async function updatePagoCajeroPendiente(id: string | number, factura: string, cliente: string, megasoft: string, cajeroEmail: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
-  console.log(`[updatePagoCajeroPendiente] id=${id}, factura="${factura}", cliente="${cliente}", megasoft="${megasoft}"`);
   const autoAprueba = isMegaSi(megasoft);
   const [updated] = await db.update(pagos)
     .set({
@@ -93,7 +91,6 @@ export async function updatePagoCajeroPendiente(id: string | number, factura: st
 export async function updatePagoFacturaCliente(id: string | number, factura: string, cliente: string, megasoft?: string, cajeroEmail?: string, rif?: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
-  console.log(`[updatePagoFacturaCliente] id=${id}, factura="${factura}", cliente="${cliente}", megasoft="${megasoft}", rif="${rif}"`);
   const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
   const autoAprueba = isMegaSi(newMegasoft);
   const [updated] = await db.update(pagos)
@@ -103,7 +100,7 @@ export async function updatePagoFacturaCliente(id: string | number, factura: str
       megasoft: newMegasoft,
       rif: rif !== undefined ? rif : pago.rif,
       estado: autoAprueba ? "Verificado" : pago.estado,
-      validadoPor: autoAprueba ? `${cajeroEmail || "Cajero"} (Megasoft)" : pago.validadoPor,
+      validadoPor: autoAprueba ? `${cajeroEmail || "Cajero"} (Megasoft)` : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
     })
     .where(eq(pagos.id, toId(id)))
