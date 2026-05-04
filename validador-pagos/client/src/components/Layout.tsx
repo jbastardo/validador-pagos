@@ -23,7 +23,7 @@ const navItems = [
   { href: "/registrar", label: "Pagos en Bs", icon: PlusCircle, roles: ["admin", "vendedor", "supervisor_caja"] },
   { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor", "supervisor_caja"] },
   { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor", "supervisor_caja"] },
-  // { href: "/extractos", label: "Extractos", icon: FileSpreadsheet, roles: ["admin", "contabilidad"] }, // DESACTIVADO TEMPORALMENTE
+  { href: "/extractos", label: "Extractos", icon: FileSpreadsheet, roles: ["admin", "contabilidad"] },
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
     { href: "/solicitudes", label: "Solicitudes", icon: ClipboardList, roles: ["admin", "vendedor", "compras"] },   { href: "/dashboard-solicitudes", label: "Dashboard Solicitudes", icon: BarChart3, roles: ["admin", "compras"] },
 ];

@@ -88,7 +88,7 @@ export async function updatePagoCajeroPendiente(id: string | number, factura: st
   return updated;
 }
 
-export async function updatePagoFacturaCliente(id: string | number, factura: string, cliente: string, megasoft?: string, cajeroEmail?: string) {
+export async function updatePagoFacturaCliente(id: string | number, factura: string, cliente: string, megasoft?: string, cajeroEmail?: string, rif?: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
   const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
@@ -98,6 +98,7 @@ export async function updatePagoFacturaCliente(id: string | number, factura: str
       factura: factura || pago.factura,
       cliente: cliente || pago.cliente,
       megasoft: newMegasoft,
+      rif: rif !== undefined ? rif : pago.rif,
       estado: autoAprueba ? "Verificado" : pago.estado,
       validadoPor: autoAprueba ? `${cajeroEmail || "Cajero"} (Megasoft)` : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,

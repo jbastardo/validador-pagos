@@ -13,10 +13,12 @@ import {
 import {
   addMovimientos, getMovimientos, deleteMovimientosBanco,
   marcarUsado, tryMatch, getExtractosStats,
+  db,
 } from "./db";
 import { parseExtractoExcel } from "./extractos";
 import { z } from "zod";
-import { BANCOS_RECEPTOR_META } from "../shared/schema";
+import { BANCOS_RECEPTOR_META, pagos } from "../shared/schema";
+import { eq } from "drizzle-orm";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -101,10 +103,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
       });
 
-      // ── Auto-conciliación DESACTIVADA TEMPORALMENTE ────────────────────────
-      const estadoInicial = "Pendiente";
-      const validadoPorInicial = "";
-      const matchId: string | null = null;
+      // ── Auto-conciliación contra extractos bancarios ──
+      const match = await tryMatch(data.tipoPago, data.bancoReceptor, data.fechaPago, data.monto, data.referencia || "", data.celular || "");
+      const estadoInicial = match ? "Verificado" : "Pendiente";
+      const validadoPorInicial = match ? "Auto-conciliado (Extracto)" : "";
+      const matchId = match ? match.id : null;
 
       const nuevo = await addPago({
         ...data,
@@ -471,14 +474,66 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ===== EXTRACTOS BANCARIOS =====
   const BANCOS_VALIDOS = BANCOS_RECEPTOR_META.map(b => b.codigo);
 
-  // ── EXTRACTOS DESACTIVADOS TEMPORALMENTE ─────────────────────────────────────
-  // Re-activar cuando se retome el desarrollo de esta funcionalidad.
-  const EXTRACTOS_DISABLED = { message: "Función de extractos desactivada temporalmente" };
-  app.get("/api/extractos/:banco",      (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
-  app.get("/api/extractos-stats",       (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
-  app.post("/api/extractos/:banco",     (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
-  app.delete("/api/extractos/:banco",   (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
-  // ─────────────────────────────────────────────────────────────────────────────
+  app.get("/api/extractos/:banco", async (req, res) => {
+    try {
+      const { banco } = req.params;
+      if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
+      const movimientos = await getMovimientos(banco);
+      res.json(movimientos);
+    } catch (e: any) { res.status(500).json({ message: "Error al obtener extractos" }); }
+  });
+
+  app.get("/api/extractos-stats", async (_req, res) => {
+    try {
+      const stats = await getExtractosStats();
+      res.json(stats);
+    } catch (e: any) { res.status(500).json({ message: "Error al obtener estadísticas" }); }
+  });
+
+  app.post("/api/extractos/:banco", upload.single("file"), async (req, res) => {
+    try {
+      const { banco } = req.params;
+      if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
+      const file = req.file;
+      if (!file) return res.status(400).json({ message: "Archivo requerido" });
+      const { movimientos, subidoPor } = await parseExtractoExcel(file.buffer, banco);
+      await deleteMovimientosBanco(banco);
+      await addMovimientos(movimientos);
+
+      // ── Re-conciliar pagos pendientes contra los nuevos extractos ──
+      let conciliados = 0;
+      const allPagos = await getPagos();
+      const pendientes = allPagos.filter(p => p.estado === "Pendiente");
+      for (const pago of pendientes) {
+        const match = await tryMatch(pago.tipoPago, pago.bancoReceptor, pago.fechaPago, pago.monto, pago.referencia || "", pago.celular || "");
+        if (match) {
+          await db.update(pagos).set({
+            estado: "Verificado",
+            validadoPor: "Auto-conciliado (Extracto)",
+            validadoEn: new Date(),
+            conciliadoEn: new Date(),
+            conciliadoPor: subidoPor || "system",
+          }).where(eq(pagos.id, pago.id));
+          await marcarUsado(match.id);
+          conciliados++;
+        }
+      }
+
+      res.json({ message: `Extracto cargado: ${movimientos.length} movimientos${conciliados > 0 ? `, ${conciliados} pagos conciliados` : ""}` });
+    } catch (e: any) {
+      console.error("Error upload extracto:", e.message);
+      res.status(500).json({ message: "Error al procesar extracto: " + e.message });
+    }
+  });
+
+  app.delete("/api/extractos/:banco", async (req, res) => {
+    try {
+      const { banco } = req.params;
+      if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
+      const deleted = await deleteMovimientosBanco(banco);
+      res.json({ message: `${deleted} movimientos eliminados` });
+    } catch (e: any) { res.status(500).json({ message: "Error al eliminar extractos" }); }
+  });
 // ===== SOLICITUDES =====
 
 app.get("/api/solicitudes", async (_req, res) => {
