@@ -807,17 +807,12 @@ Actualizado por: ${usuario || "Compras"}`;
       await updateUsuario(u.id, { ...u, password: passwordNueva });
       res.json({ message: "Contraseña actualizada correctamente" });
     } catch (e: any) {
-      res.status(500).json({ message: "Error al cambiar contraseña" });
+       res.status(500).json({ message: "Error al cambiar contraseña" });
     }
   });
-  // ===== IMPORTAR DESDE GOOGLE SHEETS =====
-  const SHEET_ID = "1l2PODqxJeecLP7ZhNMtDmMXBIkIGgkYWhI5hKgr4kKY";
 
-  function cv(v: any): string | undefined {
-    if (v === undefined || v === null || v === "") return undefined;
-    const s = String(v).trim();
-    return s === "" ? undefined : s;
-  }
+  return httpServer;
+}
 
   function safeDate(v: any): Date | undefined {
     if (!v) return undefined;
