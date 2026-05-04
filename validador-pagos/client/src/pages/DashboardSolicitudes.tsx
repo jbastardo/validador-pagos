@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Clock, CheckCircle2, XCircle, Loader2, Timer, Users } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle2, XCircle, Loader2, Timer, Users, PackageX } from "lucide-react";
 
 interface Solicitud {
   id: string; vendedor: string; cliente: string; celular: string; sku: string;
@@ -70,6 +70,7 @@ export default function DashboardSolicitudes() {
     const enProceso = filtradas.filter(s => s.estado === "En Proceso").length;
     const completadas = filtradas.filter(s => s.estado === "Completada").length;
     const canceladas = filtradas.filter(s => s.estado === "Cancelada").length;
+    const agotados = filtradas.filter(s => s.estado === "Agotado").length;
     const tiempos = filtradas
       .filter(s => s.actualizadoEn && s.estado !== "Pendiente")
       .map(s => diffHours(s.creadoEn, s.actualizadoEn!))
@@ -78,9 +79,9 @@ export default function DashboardSolicitudes() {
     const porVendedor = vendedores.map(v => {
       const sus = filtradas.filter(s => s.vendedor === v);
       const susT = sus.filter(s => s.actualizadoEn && s.estado !== "Pendiente").map(s => diffHours(s.creadoEn, s.actualizadoEn!)).filter((h): h is number => h !== null);
-      return { vendedor: v, total: sus.length, pendientes: sus.filter(s => s.estado === "Pendiente").length, completadas: sus.filter(s => s.estado === "Completada").length, canceladas: sus.filter(s => s.estado === "Cancelada").length, avgHoras: susT.length > 0 ? susT.reduce((a, b) => a + b, 0) / susT.length : null };
+      return { vendedor: v, total: sus.length, pendientes: sus.filter(s => s.estado === "Pendiente").length, completadas: sus.filter(s => s.estado === "Completada").length, canceladas: sus.filter(s => s.estado === "Cancelada").length, agotados: sus.filter(s => s.estado === "Agotado").length, avgHoras: susT.length > 0 ? susT.reduce((a, b) => a + b, 0) / susT.length : null };
     });
-    return { total, pendientes, enProceso, completadas, canceladas, avgRespuesta, porVendedor };
+    return { total, pendientes, enProceso, completadas, canceladas, agotados, avgRespuesta, porVendedor };
   }, [filtradas, vendedores]);
 
   if (isLoading) return <p className="p-6">Cargando...</p>;
@@ -98,12 +99,13 @@ export default function DashboardSolicitudes() {
           </Select>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card icon={<ClipboardList className="h-5 w-5 text-blue-600" />} label="Total" value={stats.total} color="blue" />
         <Card icon={<Clock className="h-5 w-5 text-yellow-600" />} label="Pendientes" value={stats.pendientes} color="yellow" />
         <Card icon={<Loader2 className="h-5 w-5 text-indigo-600" />} label="En Proceso" value={stats.enProceso} color="indigo" />
         <Card icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Completadas" value={stats.completadas} color="green" />
         <Card icon={<XCircle className="h-5 w-5 text-red-600" />} label="Canceladas" value={stats.canceladas} color="red" />
+        <Card icon={<PackageX className="h-5 w-5 text-orange-600" />} label="Agotados" value={stats.agotados} color="orange" />
       </div>
       <div className="rounded-lg border p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex items-center gap-2 mb-2"><Timer className="h-5 w-5 text-indigo-600" /><h2 className="text-lg font-semibold">Eficiencia de Respuesta</h2></div>
@@ -119,6 +121,7 @@ export default function DashboardSolicitudes() {
             <th className="p-3 text-center">Pendientes</th>
             <th className="p-3 text-center">Completadas</th>
             <th className="p-3 text-center">Canceladas</th>
+            <th className="p-3 text-center">Agotados</th>
             <th className="p-3 text-center">Tiempo Prom. Respuesta</th>
           </tr></thead>
           <tbody>
@@ -129,6 +132,7 @@ export default function DashboardSolicitudes() {
                 <td className="p-3 text-center"><Badge variant="default">{v.pendientes}</Badge></td>
                 <td className="p-3 text-center"><Badge variant="outline">{v.completadas}</Badge></td>
                 <td className="p-3 text-center"><Badge variant="destructive">{v.canceladas}</Badge></td>
+                <td className="p-3 text-center"><Badge variant="secondary">{v.agotados}</Badge></td>
                 <td className="p-3 text-center font-medium">{v.avgHoras !== null ? formatDuration(v.avgHoras) : "\u2014"}</td>
               </tr>
             ))}
