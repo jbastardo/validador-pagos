@@ -103,7 +103,7 @@ export async function updatePagoFacturaCliente(id: string | number, factura: str
       megasoft: newMegasoft,
       rif: rif !== undefined ? rif : pago.rif,
       estado: autoAprueba ? "Verificado" : pago.estado,
-      validadoPor: autoAprueba ? `${cajeroEmail || "Cajero"} (Megasoft)` : pago.validadoPor,
+      validadoPor: autoAprueba ? (cajeroEmail || "Cajero") + " (Megasoft)" : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
     })
     .where(eq(pagos.id, toId(id)))
@@ -134,7 +134,7 @@ export async function updatePagoEdicion(id: string | number, data: {
       factura: data.factura !== undefined ? data.factura : pago.factura,
       megasoft: newMegasoft,
       estado: autoAprueba ? "Verificado" : pago.estado,
-      validadoPor: autoAprueba ? `${data.cajeroEmail || "Admin"} (Megasoft)` : pago.validadoPor,
+      validadoPor: autoAprueba ? (data.cajeroEmail || "Admin") + " (Megasoft)" : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
     })
     .where(eq(pagos.id, toId(id)))
