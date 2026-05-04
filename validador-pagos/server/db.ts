@@ -394,7 +394,6 @@ export async function getExtractosStats() {
   return { byBanco };
 }
 
-// ─── IMPORTACIÓN MASIVA DESDE GOOGLE SHEETS ───────────────────────────────────
 export async function importPagosBatch(items: Omit<InsertPago, "creadoEn">[]) {
   if (items.length === 0) return 0;
   let imported = 0;

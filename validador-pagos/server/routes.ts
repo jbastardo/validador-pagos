@@ -71,7 +71,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(pagos.sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime()));
     } catch (e: any) {
       console.error("Error getPagos:", e.message);
-      res.status(500).json({ message: "Error al obtener pagos de Google Sheets" });
+      res.status(500).json({ message: "Error al obtener pagos" });
     }
   });
 
@@ -137,7 +137,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(201).json({ ...nuevo, autoConciliado: !!matchId });
     } catch (e: any) {
       console.error("Error addPago:", e.message);
-      res.status(500).json({ message: "Error al guardar pago en Google Sheets" });
+      res.status(500).json({ message: "Error al guardar pago" });
     }
   });
 
@@ -156,7 +156,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(updated);
     } catch (e: any) {
       console.error("Error updateEstado:", e.message);
-      res.status(500).json({ message: "Error al actualizar estado en Google Sheets" });
+      res.status(500).json({ message: "Error al actualizar estado" });
     }
   });
 
@@ -428,7 +428,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // ===== USUARIOS (persistidos en Sheets) =====
+  // ===== USUARIOS (persistidos en PostgreSQL) =====
   app.get("/api/usuarios", async (_req, res) => {
     try {
       const usuarios = await getUsuarios();
