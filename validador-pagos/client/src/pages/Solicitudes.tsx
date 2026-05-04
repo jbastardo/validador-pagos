@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, Edit2, Trash2, Filter, RefreshCw, Info, CheckCircle, XCircle, CheckSquare, Square } from "lucide-react";
+import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink,
+  PaginationPrevious, PaginationNext, PaginationEllipsis,
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -44,6 +48,10 @@ export default function Solicitudes() {
   const [filtroVendedor, setFiltroVendedor] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const debouncedBusqueda = useDebounce(busqueda, 300);
+
+  // --- Paginación ---
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   // --- Selección múltiple (compras/admin) ---
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
@@ -392,6 +400,47 @@ export default function Solicitudes() {
     grupos[grupoMap.get(key)!].items.push(s);
   });
 
+  // --- Paginación de grupos ---
+  const totalGroups = grupos.length;
+  const totalPages = Math.ceil(totalGroups / pageSize);
+  const paginatedGrupos = grupos.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [filtroEstado, filtroVendedor, debouncedBusqueda]);
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
+    else {
+      pages.push(1);
+      if (page > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+      if (page < totalPages - 2) pages.push("ellipsis");
+      pages.push(totalPages);
+    }
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious href="#" onClick={e => { e.preventDefault(); setPage(page - 1); }} className={page <= 1 ? "pointer-events-none opacity-50" : ""} />
+            </PaginationItem>
+            {pages.map((p, i) => (
+              <PaginationItem key={i}>
+                {p === "ellipsis" ? <PaginationEllipsis /> : (
+                  <PaginationLink href="#" isActive={p === page} onClick={e => { e.preventDefault(); setPage(p); }}>{p}</PaginationLink>
+                )}
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext href="#" onClick={e => { e.preventDefault(); setPage(page + 1); }} className={page >= totalPages ? "pointer-events-none opacity-50" : ""} />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+        <span className="text-xs text-muted-foreground">Página {page} de {totalPages}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -577,27 +626,41 @@ export default function Solicitudes() {
         </div>
       )}
       {isLoading ? <p>Cargando...</p> : (
-        <div className="rounded-md border">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b bg-muted/50">
-              {isCompras && <th className="p-2 text-center w-8">
-                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={toggleTodos} title={seleccionados.size === solicitudesFiltradas.length ? "Deseleccionar todos" : "Seleccionar todos"}>
-                  {seleccionados.size === solicitudesFiltradas.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-                </Button>
-              </th>}
-              <th className="p-3 text-left">ID</th>
-              <th className="p-3 text-left">Cliente</th>
-              <th className="p-3 text-left">Producto</th>
-              <th className="p-3 text-left">Cant.</th>
-              <th className="p-3 text-left">Categoría</th>
-              <th className="p-3 text-left">Fecha Tope</th>
-              <th className="p-3 text-left">Estado</th>
-              <th className="p-3 text-left">Vendedor</th>
-              <th className="p-3 text-left">Obs. Compras</th>
-              <th className="p-3 text-left">Acciones</th>
-            </tr></thead>
-            <tbody>
-              {grupos.map((grupo, gIdx) => (
+        <>
+          {totalGroups > 0 && (
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} solicitudes encontradas ({totalGroups} grupos)</span>
+              <Select value={String(pageSize)} onValueChange={v => setPageSize(parseInt(v))}>
+                <SelectTrigger className="w-[120px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25 por página</SelectItem>
+                  <SelectItem value="50">50 por página</SelectItem>
+                  <SelectItem value="100">100 por página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="rounded-md border">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b bg-muted/50">
+                {isCompras && <th className="p-2 text-center w-8">
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={toggleTodos} title={seleccionados.size === solicitudesFiltradas.length ? "Deseleccionar todos" : "Seleccionar todos"}>
+                    {seleccionados.size === solicitudesFiltradas.length ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                  </Button>
+                </th>}
+                <th className="p-3 text-left">ID</th>
+                <th className="p-3 text-left">Cliente</th>
+                <th className="p-3 text-left">Producto</th>
+                <th className="p-3 text-left">Cant.</th>
+                <th className="p-3 text-left">Categoría</th>
+                <th className="p-3 text-left">Fecha Tope</th>
+                <th className="p-3 text-left">Estado</th>
+                <th className="p-3 text-left">Vendedor</th>
+                <th className="p-3 text-left">Obs. Compras</th>
+                <th className="p-3 text-left">Acciones</th>
+              </tr></thead>
+              <tbody>
+                {paginatedGrupos.map((grupo, gIdx) => (
                 <>
                   {grupo.items.map((s, iIdx) => (
                     <tr key={`${s.id}-${iIdx}`} className={`border-b ${iIdx === 0 ? "bg-blue-50/50" : ""} ${seleccionados.has(s.id) ? "bg-yellow-50" : ""}`}>
@@ -671,6 +734,8 @@ export default function Solicitudes() {
             </tbody>
           </table>
         </div>
+        {renderPagination()}
+        </>
       )}
       {/* DIALOG EDITAR SOLICITUD (compras/admin) */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

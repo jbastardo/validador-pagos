@@ -10,6 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink,
+  PaginationPrevious, PaginationNext, PaginationEllipsis,
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -110,6 +114,12 @@ export default function Conciliacion() {
   const [filtroEstDiv,   setFiltroEstDiv]   = useState("todos");
   const [filtroTipoDiv,  setFiltroTipoDiv]  = useState("todos");
   const [filtroCajaDiv,  setFiltroCajaDiv]  = useState("todos");
+
+  // ── Paginación ──
+  const [pageBs, setPageBs] = useState(1);
+  const [pageDiv, setPageDiv] = useState(1);
+  const [pageSizeBs, setPageSizeBs] = useState(50);
+  const [pageSizeDiv, setPageSizeDiv] = useState(50);
 
   // ── Modal aprobación Bs ──
   const [selected,    setSelected]    = useState<Pago | null>(null);
@@ -511,6 +521,51 @@ export default function Conciliacion() {
 
   const pendientesBs  = (pagos   ?? []).filter(p => p.estado === "Pendiente").length;
   const pendientesDiv = (divisas ?? []).filter(p => p.estado === "Pendiente").length;
+
+  // ── Paginación Bs ──
+  const totalBsPages = Math.ceil(filtradosBs.length / pageSizeBs);
+  const paginatedBs = filtradosBs.slice((pageBs - 1) * pageSizeBs, pageBs * pageSizeBs);
+  useEffect(() => { setPageBs(1); }, [busqueda, filtroEstado, filtroTipo, filtroBanco, filtroVendedor, filtroFactura, filtroCaja, filtroConciliado, fechaDesde, fechaHasta]);
+
+  // ── Paginación Divisas ──
+  const totalDivPages = Math.ceil(filtradosDiv.length / pageSizeDiv);
+  const paginatedDiv = filtradosDiv.slice((pageDiv - 1) * pageSizeDiv, pageDiv * pageSizeDiv);
+  useEffect(() => { setPageDiv(1); }, [busqDiv, filtroEstDiv, filtroTipoDiv, filtroCajaDiv, fechaDesde, fechaHasta]);
+
+  const renderPagination = (page: number, total: number, setPage: (p: number) => void) => {
+    if (total <= 1) return null;
+    const pages: (number | "ellipsis")[] = [];
+    if (total <= 7) { for (let i = 1; i <= total; i++) pages.push(i); }
+    else {
+      pages.push(1);
+      if (page > 3) pages.push("ellipsis");
+      for (let i = Math.max(2, page - 1); i <= Math.min(total - 1, page + 1); i++) pages.push(i);
+      if (page < total - 2) pages.push("ellipsis");
+      pages.push(total);
+    }
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious href="#" onClick={e => { e.preventDefault(); setPage(page - 1); }} className={page <= 1 ? "pointer-events-none opacity-50" : ""} />
+            </PaginationItem>
+            {pages.map((p, i) => (
+              <PaginationItem key={i}>
+                {p === "ellipsis" ? <PaginationEllipsis /> : (
+                  <PaginationLink href="#" isActive={p === page} onClick={e => { e.preventDefault(); setPage(p); }}>{p}</PaginationLink>
+                )}
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext href="#" onClick={e => { e.preventDefault(); setPage(page + 1); }} className={page >= total ? "pointer-events-none opacity-50" : ""} />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+        <span className="text-xs text-muted-foreground">Página {page} de {total}</span>
+      </div>
+    );
+  };
   const isCajero           = user?.rol === "cajero";
   const isVendedor         = user?.rol === "vendedor";
   const isContabilidad     = user?.rol === "contabilidad";
@@ -732,10 +787,20 @@ export default function Conciliacion() {
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}</div>
           ) : filtradosBs.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">No se encontraron pagos</CardContent></Card>
-
-
           ) : (
-            filtradosBs.map(p => {
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">{filtradosBs.length} pagos encontrados</span>
+                <Select value={String(pageSizeBs)} onValueChange={v => setPageSizeBs(parseInt(v))}>
+                  <SelectTrigger className="w-[120px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25 por página</SelectItem>
+                    <SelectItem value="50">50 por página</SelectItem>
+                    <SelectItem value="100">100 por página</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paginatedBs.map(p => {
               const Icon = estadoIcon[p.estado] ?? Clock;
               const colorClass = estadoColors[p.estado] ?? "bg-gray-100 text-gray-700 border-gray-200";
               const esPendiente         = p.estado === "Pendiente";
@@ -835,13 +900,12 @@ export default function Conciliacion() {
                   </CardContent>
                 </Card>
               );
-            })
-          )}
+            })}
+              </>
+            )}
           </div>
+          {renderPagination(pageBs, totalBsPages, setPageBs)}
         </TabsContent>
-
-
-        {/* ══════════════ PESTAÑA DIVISAS ══════════════ */}
         <TabsContent value="divisas" className="space-y-4">
           <Card>
             <CardContent className="pt-4 pb-4">
@@ -897,7 +961,19 @@ export default function Conciliacion() {
           ) : filtradosDiv.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">No se encontraron pagos en divisas</CardContent></Card>
           ) : (
-            filtradosDiv.map(p => {
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">{filtradosDiv.length} pagos encontrados</span>
+                <Select value={String(pageSizeDiv)} onValueChange={v => setPageSizeDiv(parseInt(v))}>
+                  <SelectTrigger className="w-[120px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25 por página</SelectItem>
+                    <SelectItem value="50">50 por página</SelectItem>
+                    <SelectItem value="100">100 por página</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paginatedDiv.map(p => {
               const Icon = estadoIcon[p.estado] ?? Clock;
               const colorClass = estadoColors[p.estado] ?? "bg-gray-100 text-gray-700 border-gray-200";
               return (
@@ -962,9 +1038,11 @@ export default function Conciliacion() {
                   </CardContent>
                 </Card>
               );
-            })
-          )}
+            })}
+              </>
+            )}
           </div>
+          {renderPagination(pageDiv, totalDivPages, setPageDiv)}
         </TabsContent>
       </Tabs>
 
