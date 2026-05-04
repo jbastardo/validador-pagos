@@ -59,6 +59,7 @@ export async function updatePagoEstado(id: string | number, estado: string, vali
 export async function updatePagoCajero(id: string | number, factura: string, megasoft: string, cliente?: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
+  console.log("[updatePagoCajero] id=" + id + ", factura=" + factura + ", cliente=" + cliente + ", megasoft=" + megasoft);
   const [updated] = await db.update(pagos)
     .set({
       factura: factura || pago.factura,
@@ -73,6 +74,7 @@ export async function updatePagoCajero(id: string | number, factura: string, meg
 export async function updatePagoCajeroPendiente(id: string | number, factura: string, cliente: string, megasoft: string, cajeroEmail: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
+  console.log("[updatePagoCajeroPendiente] id=" + id + ", factura=" + factura + ", cliente=" + cliente + ", megasoft=" + megasoft);
   const autoAprueba = isMegaSi(megasoft);
   const [updated] = await db.update(pagos)
     .set({
@@ -91,6 +93,7 @@ export async function updatePagoCajeroPendiente(id: string | number, factura: st
 export async function updatePagoFacturaCliente(id: string | number, factura: string, cliente: string, megasoft?: string, cajeroEmail?: string, rif?: string) {
   const [pago] = await db.select().from(pagos).where(eq(pagos.id, toId(id)));
   if (!pago) return null;
+  console.log("[updatePagoFacturaCliente] id=" + id + ", factura=" + factura + ", cliente=" + cliente + ", megasoft=" + megasoft + ", rif=" + rif);
   const newMegasoft = (megasoft !== undefined && megasoft !== "") ? megasoft : (pago.megasoft ?? "");
   const autoAprueba = isMegaSi(newMegasoft);
   const [updated] = await db.update(pagos)
@@ -134,7 +137,7 @@ export async function updatePagoEdicion(id: string | number, data: {
       validadoPor: autoAprueba ? `${data.cajeroEmail || "Admin"} (Megasoft)` : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
     })
-    .where(eq(pagos.id, id))
+    .where(eq(pagos.id, toId(id)))
     .returning();
   return updated;
 }
@@ -248,7 +251,7 @@ export async function updatePagoDivisaEdicion(id: string | number, data: { fecha
     tipo: data.tipo,
     referencia: data.referencia,
     observaciones: data.observaciones !== undefined ? data.observaciones : pago.observaciones,
-  }).where(eq(pagosDivisas.id, id)).returning();
+  }).where(eq(pagosDivisas.id, toId(id))).returning();
   return updated;
 }
 
@@ -299,7 +302,7 @@ export async function updateSolicitudEdicion(
     celular: data.celular !== undefined ? data.celular : s.celular,
     actualizadoEn: new Date(),
     respondidoPor: usuario || s.respondidoPor,
-  }).where(eq(solicitudes.id, id)).returning();
+  }).where(eq(solicitudes.id, toId(id))).returning();
   return updated;
 }
 
@@ -353,9 +356,14 @@ export async function tryMatch(
   );
   const montoNum = parseFloat((monto || "0").replace(",", "."));
   const fechaNorm = normalizeDate(fechaPago);
-  if (!fechaNorm) return null;
+  if (!fechaNorm) {
+    console.log("[tryMatch] fechaPago invalida:", fechaPago);
+    return null;
+  }
   const fechaTarget = new Date(fechaNorm + "T12:00:00Z");
   const TOLERANCIA_MONTO = 5;
+
+  console.log("[tryMatch] tipo=" + tipoPago + " banco=" + bancoCodigo + " fecha=" + fechaNorm + " monto=" + montoNum + " ref=" + referencia + " cel=" + celular + " | extractos disponibles: " + movs.length);
 
   for (const m of movs) {
     const mFechaNorm = normalizeDate(m.fecha);
@@ -368,15 +376,37 @@ export async function tryMatch(
     if (tipoPago === "Transferencia") {
       const refPago = (referencia || "").replace(/\D/g, "").slice(-6);
       const refMov = (m.referencia || "").replace(/\D/g, "").slice(-6);
-      if (refPago && refMov && refPago === refMov) return m;
-      if (!refPago && !refMov) return m;
+      if (refPago && refMov && refPago === refMov) {
+        console.log("[tryMatch] MATCH por referencia: pago ref=" + refPago + " mov ref=" + refMov + " movId=" + m.id);
+        return m;
+      }
+      if (!refPago && !refMov) {
+        console.log("[tryMatch] MATCH sin referencia (ambos vacios) movId=" + m.id);
+        return m;
+      }
     }
     if (tipoPago === "PagoMovil") {
-      if (celular && m.celular && celular.replace(/\D/g, "").slice(-9) === m.celular.replace(/\D/g, "").slice(-9)) return m;
+      const celPago = celular ? celular.replace(/\D/g, "").slice(-9) : "";
+      const celMov = m.celular ? m.celular.replace(/\D/g, "").slice(-9) : "";
+      if (celPago && celMov && celPago === celMov) {
+        console.log("[tryMatch] MATCH por celular: pago cel=" + celPago + " mov cel=" + celMov + " movId=" + m.id);
+        return m;
+      }
     }
   }
 
+  console.log("[tryMatch] NO MATCH encontrado");
   return null;
+}
+
+export async function conciliarPago(pagoId: number, conciliadoPor: string) {
+  await db.update(pagos).set({
+    estado: "Verificado",
+    validadoPor: "Auto-conciliado (Extracto)",
+    validadoEn: new Date(),
+    conciliadoEn: new Date(),
+    conciliadoPor,
+  }).where(eq(pagos.id, pagoId));
 }
 
 export async function getExtractosStats() {
