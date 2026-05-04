@@ -859,11 +859,13 @@ Actualizado por: ${usuario || "Compras"}`;
           const r = parseXlsxRow(data, headers, i);
           const id = parseInt(r["ID"]);
           const estado = String(r["Estado"] || "").trim();
-          if (!id || estado === "ELIMINADO" || !r["Vendedor"]) { skipped++; continue; }
+          const cliente = cv(r["Cliente"]);
+          const producto = cv(r["Producto"]);
+          if (!id || estado === "ELIMINADO" || !r["Vendedor"] || !cliente || !producto) { skipped++; continue; }
           items.push({
-            id, vendedor: cv(r["Vendedor"]) || "", cliente: cv(r["Cliente"]) || "",
+            id, vendedor: cv(r["Vendedor"]) || "", cliente,
             celular: cv(r["Celular"]), sku: cv(r["SKU"]),
-            producto: cv(r["Producto"]) || "", cantidad: cv(r["Cantidad"]) || "1",
+            producto, cantidad: cv(r["Cantidad"]) || "1",
             fechaTope: cv(r["FechaTope"]), observaciones: cv(r["Observaciones"]),
             estado: estado || "Pendiente", creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
             observacionesCompras: cv(r["ObservacionesCompras"]),
@@ -871,7 +873,7 @@ Actualizado por: ${usuario || "Compras"}`;
             respondidoPor: cv(r["RespondidoPor"]), categoria: cv(r["Categoria"]),
           });
         }
-        console.log(`Solicitudes: ${items.length} items to insert`);
+        console.log(`Solicitudes: ${items.length} items to insert, ${skipped} skipped`);
         try { const imported = await importSolicitudesBatch(items); result.solicitudes = { imported, skipped }; }
         catch (e: any) { errors.solicitudes = e.message; result.solicitudes = { imported: 0, skipped }; console.error("Solicitudes import error:", e.message); }
       } else { result.solicitudes = { imported: 0, skipped: 0 }; }
@@ -885,18 +887,23 @@ Actualizado por: ${usuario || "Compras"}`;
         let skipped = 0;
         for (let i = 1; i < data.length; i++) {
           const r = parseXlsxRow(data, headers, i);
-          const id = cv(r["id"]);
-          if (!id) { skipped++; continue; }
+          // Try multiple possible column name variations
+          const id = cv(r["id"]) || cv(r["ID"]) || cv(r["Id"]);
+          const banco = cv(r["banco"]) || cv(r["Banco"]);
+          const fecha = cv(r["fecha"]) || cv(r["Fecha"]);
+          const monto = cv(r["monto"]) || cv(r["Monto"]);
+          const subidoPor = cv(r["subidoPor"]) || cv(r["SubidoPor"]) || cv(r["subido_por"]) || "system";
+          const subidoEn = cv(r["subidoEn"]) || cv(r["SubidoEn"]) || cv(r["subido_en"]) || new Date().toISOString();
+          if (!id || !banco || !fecha || !monto) { skipped++; continue; }
           items.push({
-            id, banco: cv(r["banco"]) || "", fecha: cv(r["fecha"]) || "",
-            monto: cv(r["monto"]) || "0", referencia: cv(r["referencia"]),
-            celular: cv(r["celular"]), descripcion: cv(r["descripcion"]),
-            subidoPor: cv(r["subidoPor"]) || "system",
-            subidoEn: cv(r["subidoEn"]) || new Date().toISOString(),
-            usado: cv(r["usado"]) || "false",
+            id, banco, fecha,
+            monto, referencia: cv(r["referencia"]) || cv(r["Referencia"]),
+            celular: cv(r["celular"]) || cv(r["Celular"]), descripcion: cv(r["descripcion"]) || cv(r["Descripcion"]),
+            subidoPor, subidoEn,
+            usado: cv(r["usado"]) || cv(r["Usado"]) || "false",
           });
         }
-        console.log(`Extractos: ${items.length} items to insert`);
+        console.log(`Extractos: ${items.length} items to insert, ${skipped} skipped`);
         try { const imported = await importExtractosBatch(items); result.extractos = { imported, skipped }; }
         catch (e: any) { errors.extractos = e.message; result.extractos = { imported: 0, skipped }; console.error("Extractos import error:", e.message); }
       } else { result.extractos = { imported: 0, skipped: 0 }; }

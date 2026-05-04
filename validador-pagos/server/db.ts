@@ -408,6 +408,7 @@ export async function importSolicitudesBatch(items: Omit<InsertSolicitud, "cread
   if (items.length === 0) return 0;
   let imported = 0;
   let firstError = "";
+  let firstFailingItem: any = null;
   for (const item of items) {
     try {
       await db.insert(solicitudes).values({
@@ -417,10 +418,13 @@ export async function importSolicitudesBatch(items: Omit<InsertSolicitud, "cread
       }).onConflictDoNothing();
       imported++;
     } catch (e: any) {
-      if (!firstError) firstError = e.message;
+      if (!firstError) {
+        firstError = e.message;
+        firstFailingItem = item;
+      }
     }
   }
-  if (firstError) console.error(`importSolicitudesBatch: ${firstError} (first of ${items.length - imported} failures)`);
+  if (firstError) console.error(`importSolicitudesBatch: ${firstError} | First failing item:`, JSON.stringify(firstFailingItem));
   return imported;
 }
 
@@ -428,15 +432,19 @@ export async function importExtractosBatch(items: InsertExtracto[]) {
   if (items.length === 0) return 0;
   let imported = 0;
   let firstError = "";
+  let firstFailingItem: any = null;
   for (const item of items) {
     try {
       await db.insert(extractos).values(item).onConflictDoNothing();
       imported++;
     } catch (e: any) {
-      if (!firstError) firstError = e.message;
+      if (!firstError) {
+        firstError = e.message;
+        firstFailingItem = item;
+      }
     }
   }
-  if (firstError) console.error(`importExtractosBatch: ${firstError} (first of ${items.length - imported} failures)`);
+  if (firstError) console.error(`importExtractosBatch: ${firstError} | First failing item:`, JSON.stringify(firstFailingItem));
   return imported;
 }
 
