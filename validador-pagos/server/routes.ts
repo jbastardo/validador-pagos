@@ -8,17 +8,14 @@ import {
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
      getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
-  importPagosBatch, importPagosDivisasBatch, importSolicitudesBatch, importExtractosBatch, importUsuariosBatch,
 } from "./db";
 import {
   addMovimientos, getMovimientos, deleteMovimientosBanco,
   marcarUsado, tryMatch, getExtractosStats,
-  db,
 } from "./db";
 import { parseExtractoExcel } from "./extractos";
 import { z } from "zod";
-import { BANCOS_RECEPTOR_META, pagos } from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { BANCOS_RECEPTOR_META } from "../shared/schema";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -103,11 +100,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
       });
 
-      // ── Auto-conciliación contra extractos bancarios ──
-      const match = await tryMatch(data.tipoPago, data.bancoReceptor, data.fechaPago, data.monto, data.referencia || "", data.celular || "");
-      const estadoInicial = match ? "Verificado" : "Pendiente";
-      const validadoPorInicial = match ? "Auto-conciliado (Extracto)" : "";
-      const matchId = match ? match.id : null;
+      // ── Auto-conciliación DESACTIVADA TEMPORALMENTE ────────────────────────
+      const estadoInicial = "Pendiente";
+      const validadoPorInicial = "";
+      const matchId: string | null = null;
 
       const nuevo = await addPago({
         ...data,
@@ -176,7 +172,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
       const pagos = await getPagos();
-      const pago = pagos.find(p => p.id === Number(id));
+      const pago = pagos.find(p => p.id === id);
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
       if (pago.estado !== "Verificado") return res.status(422).json({ message: "Solo se pueden editar pagos Verificados" });
       const updated = await updatePagoCajero(id, parsed.data.factura, parsed.data.megasoft, parsed.data.cliente);
@@ -200,7 +196,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
       const pagos = await getPagos();
-      const pago = pagos.find(p => p.id === Number(id));
+      const pago = pagos.find(p => p.id === id);
       if (!pago) return res.status(404).json({ message: "Pago no encontrado" });
 
       const updated = await updatePagoCajeroPendiente(
@@ -218,7 +214,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/pagos/:id/factura-cliente", async (req, res) => {
     try {
       const { id } = req.params;
-      console.log(`[factura-cliente] PATCH /api/pagos/${id}/factura-cliente`, JSON.stringify(req.body));
       const schema = z.object({
         factura:     z.string().optional().default(""),
         cliente:     z.string().optional().default(""),
@@ -227,21 +222,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         rif:         z.string().optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
-      if (!parsed.success) {
-        console.error(`[factura-cliente] Validation error:`, JSON.stringify(parsed.error.flatten()));
-        return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
-      }
-      console.log(`[factura-cliente] Calling updatePagoFacturaCliente id=${id}`, JSON.stringify(parsed.data));
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
       const updated = await updatePagoFacturaCliente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.cajeroEmail, parsed.data.rif);
-      if (!updated) {
-        console.error(`[factura-cliente] Pago no encontrado id=${id}`);
-        return res.status(404).json({ message: "Pago no encontrado" });
-      }
-      console.log(`[factura-cliente] Updated successfully id=${id}`);
+      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
     } catch (e: any) {
-      console.error("Error updatePagoFacturaCliente:", e.message, e.stack);
-      res.status(500).json({ message: "Error al actualizar factura/cliente: " + e.message });
+      console.error("Error updatePagoFacturaCliente:", e.message);
+      res.status(500).json({ message: "Error al actualizar factura/cliente" });
     }
   });
 
@@ -470,7 +457,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { id } = req.params;
       const usuarios = await getUsuarios();
-      const usuario = usuarios.find(u => u.id === Number(id));
+      const usuario = usuarios.find(u => u.id === id);
       if (!usuario) return res.status(404).json({ message: "Usuario no encontrado" });
       const updated = await updateUsuario(id, { ...usuario, ...req.body });
       res.json({ id: updated.id, nombre: updated.nombre, email: updated.email, rol: updated.rol, activo: updated.activo, solicitudes: updated.solicitudes });
@@ -483,72 +470,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ===== EXTRACTOS BANCARIOS =====
   const BANCOS_VALIDOS = BANCOS_RECEPTOR_META.map(b => b.codigo);
 
-  app.get("/api/extractos/:banco", async (req, res) => {
-    try {
-      const { banco } = req.params;
-      if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
-      const movimientos = await getMovimientos(banco);
-      res.json(movimientos);
-    } catch (e: any) { res.status(500).json({ message: "Error al obtener extractos" }); }
-  });
-
-  app.get("/api/extractos-stats", async (_req, res) => {
-    try {
-      const stats = await getExtractosStats();
-      res.json(stats);
-    } catch (e: any) { res.status(500).json({ message: "Error al obtener estadísticas" }); }
-  });
-
-  app.post("/api/extractos/:banco", upload.single("file"), async (req, res) => {
-    try {
-      const { banco } = req.params;
-      if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
-      const file = req.file;
-      if (!file) return res.status(400).json({ message: "Archivo requerido" });
-      const subidoPor = (req.body.subidoPor as string) || "system";
-      const result = parseExtractoExcel(file.buffer, banco, subidoPor);
-      if (result.movimientos.length === 0) return res.status(400).json({ message: "No se encontraron movimientos válidos", warnings: result.warnings });
-      await deleteMovimientosBanco(banco);
-      await addMovimientos(result.movimientos);
-      console.log(`Extracto ${banco}: ${result.movimientos.length} movimientos cargados, ${result.skipped} saltados`);
-
-      // ── Re-conciliar pagos pendientes contra los nuevos extractos ──
-      let conciliados = 0;
-      const allPagos = await getPagos();
-      const pendientes = allPagos.filter(p => p.estado === "Pendiente");
-      console.log(`Re-conciliando ${pendientes.length} pagos pendientes contra extractos...`);
-      for (const pago of pendientes) {
-        const match = await tryMatch(pago.tipoPago, pago.bancoReceptor, pago.fechaPago, pago.monto, pago.referencia || "", pago.celular || "");
-        if (match) {
-          await db.update(pagos).set({
-            estado: "Verificado",
-            validadoPor: "Auto-conciliado (Extracto)",
-            validadoEn: new Date(),
-            conciliadoEn: new Date(),
-            conciliadoPor: subidoPor,
-          }).where(eq(pagos.id, pago.id));
-          await marcarUsado(match.id);
-          conciliados++;
-          console.log(`  ✓ Pago #${pago.id} conciliado con extracto ${match.id}`);
-        }
-      }
-      console.log(`Conciliación completada: ${conciliados} pagos conciliados`);
-
-      res.json({ message: `Extracto cargado: ${result.movimientos.length} movimientos${conciliados > 0 ? `, ${conciliados} pagos conciliados` : ""}`, conciliados, warnings: result.warnings });
-    } catch (e: any) {
-      console.error("Error upload extracto:", e.message);
-      res.status(500).json({ message: "Error al procesar extracto: " + e.message });
-    }
-  });
-
-  app.delete("/api/extractos/:banco", async (req, res) => {
-    try {
-      const { banco } = req.params;
-      if (!BANCOS_VALIDOS.includes(banco)) return res.status(400).json({ message: "Banco no válido" });
-      const deleted = await deleteMovimientosBanco(banco);
-      res.json({ message: `${deleted} movimientos eliminados` });
-    } catch (e: any) { res.status(500).json({ message: "Error al eliminar extractos" }); }
-  });
+  // ── EXTRACTOS DESACTIVADOS TEMPORALMENTE ─────────────────────────────────────
+  // Re-activar cuando se retome el desarrollo de esta funcionalidad.
+  const EXTRACTOS_DISABLED = { message: "Función de extractos desactivada temporalmente" };
+  app.get("/api/extractos/:banco",      (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  app.get("/api/extractos-stats",       (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  app.post("/api/extractos/:banco",     (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  app.delete("/api/extractos/:banco",   (_req, res) => res.status(503).json(EXTRACTOS_DISABLED));
+  // ─────────────────────────────────────────────────────────────────────────────
 // ===== SOLICITUDES =====
 
 app.get("/api/solicitudes", async (_req, res) => {
@@ -669,7 +598,7 @@ Actualizado por: ${usuario || "Compras"}`;
       const { vendedorEmail, respondidoPor } = req.body;
       if (!vendedorEmail) return res.status(400).json({ message: "Email requerido" });
       const solicitudes = await getSolicitudes();
-      const sol = solicitudes.find(s => s.id === Number(id));
+      const sol = solicitudes.find(s => s.id === id);
       if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
       // Notificar a compras (chat general) que el vendedor confirmo la compra
       const msg = `Compra CONFIRMADA por vendedor\nSolicitud #${sol.id}\nCliente: ${sol.cliente}\nProducto: ${sol.producto}\nCantidad: ${sol.cantidad}\nVendedor: ${vendedorEmail}`;
@@ -717,7 +646,7 @@ Actualizado por: ${usuario || "Compras"}`;
       const { vendedorEmail, motivo, respondidoPor } = req.body;
       if (!vendedorEmail || !motivo?.trim()) return res.status(400).json({ message: "Email y motivo requeridos" });
       const solicitudes = await getSolicitudes();
-      const sol = solicitudes.find(s => s.id === Number(id));
+      const sol = solicitudes.find(s => s.id === id);
       if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
       // Notificar a compras (chat general) que el vendedor solicita anulacion
       const msg = `SOLICITUD DE ANULACION\nSolicitud #${sol.id}\nCliente: ${sol.cliente}\nProducto: ${sol.producto}\nCantidad: ${sol.cantidad}\nVendedor: ${vendedorEmail}\nMotivo: ${motivo}`;
@@ -807,233 +736,8 @@ Actualizado por: ${usuario || "Compras"}`;
       await updateUsuario(u.id, { ...u, password: passwordNueva });
       res.json({ message: "Contraseña actualizada correctamente" });
     } catch (e: any) {
-       res.status(500).json({ message: "Error al cambiar contraseña" });
+      res.status(500).json({ message: "Error al cambiar contraseña" });
     }
   });
-
-  return httpServer;
-}
-
-  function safeDate(v: any): Date | undefined {
-    if (!v) return undefined;
-    try {
-      if (typeof v === "number") {
-        const d = new Date((v - 25569) * 86400 * 1000);
-        if (isNaN(d.getTime())) return undefined;
-        return d;
-      }
-      const d = new Date(v);
-      if (isNaN(d.getTime())) return undefined;
-      return d;
-    } catch { return undefined; }
-  }
-
-  function safeDateStr(v: any): string | undefined {
-    const d = safeDate(v);
-    return d ? d.toISOString() : undefined;
-  }
-
-  function parseXlsxRow(data: any[][], headers: string[], idx: number): Record<string, any> {
-    const row: Record<string, any> = {};
-    headers.forEach((h, i) => { row[h] = data[idx]?.[i]; });
-    return row;
-  }
-
-  app.post("/api/import-from-sheets", async (_req, res) => {
-    try {
-      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
-      const sheetRes = await fetch(url);
-      if (!sheetRes.ok) throw new Error(`Failed to download sheet: ${sheetRes.status}`);
-      const buffer = Buffer.from(await sheetRes.arrayBuffer());
-
-      const XLSX = (await import("xlsx")).default;
-      const wb = XLSX.read(buffer, { type: "buffer" });
-      console.log("Sheets found:", wb.SheetNames);
-
-      const result: Record<string, { imported: number; skipped: number }> = {};
-      const errors: Record<string, string> = {};
-
-      // ── USUARIOS ──
-      if (wb.Sheets["Usuarios"]) {
-        const data = XLSX.utils.sheet_to_json(wb.Sheets["Usuarios"], { header: 1 }) as any[][];
-        const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        const items: any[] = [];
-        let skipped = 0;
-        for (let i = 1; i < data.length; i++) {
-          const r = parseXlsxRow(data, headers, i);
-          const id = parseInt(r["ID"]);
-          const activo = String(r["Activo"] || "").trim();
-          if (!id || activo === "ELIMINADO" || !r["Email"] || !r["Nombre"]) { skipped++; continue; }
-          items.push({
-            id, nombre: String(r["Nombre"] || "").trim(), email: String(r["Email"] || "").trim(),
-            password: String(r["Password"] || "").trim(), rol: cv(r["Rol"]) || "vendedor",
-            activo: activo === "true" ? "true" : "false",
-            solicitudes: String(r["solicitudes"] || "").trim() === "true" ? "true" : "false",
-            telegramChatId: cv(r["bot telegram"]),
-          });
-        }
-        try { const imported = await importUsuariosBatch(items); result.usuarios = { imported, skipped }; }
-        catch (e: any) { errors.usuarios = e.message; result.usuarios = { imported: 0, skipped }; }
-      } else { result.usuarios = { imported: 0, skipped: 0 }; }
-
-      // ── PAGOS BS ──
-      if (wb.Sheets["Hoja 1"]) {
-        const data = XLSX.utils.sheet_to_json(wb.Sheets["Hoja 1"], { header: 1 }) as any[][];
-        const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        const items: any[] = [];
-        let skipped = 0;
-        for (let i = 1; i < data.length; i++) {
-          const r = parseXlsxRow(data, headers, i);
-          const id = parseInt(r["ID"]);
-          const estado = String(r["Estado"] || "").trim();
-          if (!id || estado === "ELIMINADO" || !r["Fecha"]) { skipped++; continue; }
-          const megasoft = cv(r["Megasoft"]);
-          const creadoEn = cv(r["CreadoEn"]);
-          items.push({
-            id, fechaPago: String(r["Fecha"] || "").trim(),
-            tipoPago: cv(r["Tipo"]) || "PagoMovil", bancoEmisor: cv(r["BancoEmisor"]) || "",
-            monto: cv(r["Monto"]) || "0", celular: cv(r["Celular"]),
-            bancoReceptor: cv(r["BancoReceptor"]) || "", referencia: cv(r["Referencia"]),
-            rif: cv(r["RIF"]), factura: cv(r["Factura"]), estado: estado || "Pendiente",
-            validadoPor: cv(r["ValidadoPor"]), vendedor: cv(r["Vendedor"]) || "",
-            observaciones: cv(r["Observaciones"]), creadoEn: creadoEn ? new Date(creadoEn) : new Date(),
-            cliente: cv(r["Cliente"]), megasoft,
-            validadoEn: megasoft === "Sí" && creadoEn ? new Date(creadoEn) : undefined,
-          });
-        }
-        try { const imported = await importPagosBatch(items); result.pagos = { imported, skipped }; }
-        catch (e: any) { errors.pagos = e.message; result.pagos = { imported: 0, skipped }; }
-      } else { result.pagos = { imported: 0, skipped: 0 }; }
-
-      // ── PAGOS DIVISAS ──
-      if (wb.Sheets["PagosDivisas"]) {
-        const data = XLSX.utils.sheet_to_json(wb.Sheets["PagosDivisas"], { header: 1 }) as any[][];
-        const headers = data[0]?.map((h: any) => String(h).trim()) || [];
-        const items: any[] = [];
-        let skipped = 0;
-        for (let i = 1; i < data.length; i++) {
-          const r = parseXlsxRow(data, headers, i);
-          const id = parseInt(r["ID"]);
-          const estado = String(r["Estado"] || "").trim();
-          if (!id || estado === "ELIMINADO" || !r["Fecha"]) { skipped++; continue; }
-          items.push({
-            id, fecha: String(r["Fecha"] || "").trim(),
-            nombrePagador: cv(r["NombrePagador"]) || cv(r["Pagador"]) || "",
-            correo: cv(r["Correo"]), monto: cv(r["Monto"]) || "0",
-            tipo: cv(r["Tipo"]) || "", referencia: cv(r["Referencia"]),
-            cliente: cv(r["Cliente"]), rif: cv(r["RIF"]), factura: cv(r["Factura"]),
-            observaciones: cv(r["Observaciones"]), estado: estado || "Pendiente",
-            validadoPor: cv(r["ValidadoPor"]), vendedor: cv(r["Vendedor"]) || "",
-            creadoEn: r["CreadoEn"] ? new Date(r["CreadoEn"]) : new Date(),
-            validadoEn: r["ValidadoEn"] ? new Date(r["ValidadoEn"]) : undefined,
-          });
-        }
-        try { const imported = await importPagosDivisasBatch(items); result.pagos_divisas = { imported, skipped }; }
-        catch (e: any) { errors.pagos_divisas = e.message; result.pagos_divisas = { imported: 0, skipped }; }
-      } else { result.pagos_divisas = { imported: 0, skipped: 0 }; }
-
-      // ── SOLICITUDES ──
-      if (wb.Sheets["Solicitudes"]) {
-        const data = XLSX.utils.sheet_to_json(wb.Sheets["Solicitudes"], { header: 1 }) as any[][];
-        const items: any[] = [];
-        let skipped = 0;
-        for (let i = 0; i < data.length; i++) {
-          const row = data[i];
-          const id = parseInt(row[0]);
-          const vendedor = String(row[1] || "").trim();
-          const cliente = String(row[2] || "").trim();
-          const estado = String(row[9] || "").trim();
-          const producto = String(row[5] || "").trim();
-          if (!id || estado === "ELIMINADO" || !vendedor || !cliente || !producto) { skipped++; continue; }
-          const creadoEn = safeDate(row[10]) || new Date();
-          const actualizadoEn = safeDate(row[12]);
-          items.push({
-            id,
-            vendedor,
-            cliente,
-            celular: String(row[3] || "").trim() || undefined,
-            sku: String(row[4] || "").trim() || undefined,
-            producto,
-            cantidad: String(row[6] || "1").trim(),
-            fechaTope: String(row[7] || "").trim() || undefined,
-            observaciones: String(row[8] || "").trim() || undefined,
-            estado: estado || "Pendiente",
-            creadoEn,
-            observacionesCompras: String(row[11] || "").trim() || undefined,
-            actualizadoEn,
-            respondidoPor: String(row[13] || "").trim() || undefined,
-            categoria: undefined,
-          });
-        }
-        console.log(`Solicitudes: ${items.length} items to insert, ${skipped} skipped`);
-        try { const imported = await importSolicitudesBatch(items); result.solicitudes = { imported, skipped }; }
-        catch (e: any) { errors.solicitudes = e.message; result.solicitudes = { imported: 0, skipped }; console.error("Solicitudes import error:", e.message); }
-      } else { result.solicitudes = { imported: 0, skipped: 0 }; }
-
-      // ── EXTRACTOS ──
-      if (wb.Sheets["Extractos"]) {
-        const data = XLSX.utils.sheet_to_json(wb.Sheets["Extractos"], { header: 1 }) as any[][];
-        const items: any[] = [];
-        let skipped = 0;
-        for (let i = 0; i < data.length; i++) {
-          const row = data[i];
-          if (!Array.isArray(row) || row.length === 0) { skipped++; continue; }
-          const id = String(row[0] || "").trim();
-          const banco = String(row[2] || "").trim();
-          const monto = String(row[4] || "").trim();
-          if (!id || !banco || !monto) { skipped++; continue; }
-          // Parse date from col[1]: Excel serial, milliseconds timestamp, or string
-          let fecha = "";
-          if (typeof row[1] === "number") {
-            if (row[1] > 100000 && row[1] < 60000) {
-              // Excel serial date
-              const d = new Date((row[1] - 25569) * 86400 * 1000);
-              if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
-            } else if (row[1] > 1000000000000) {
-              // Milliseconds timestamp
-              const d = new Date(row[1]);
-              if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
-            } else if (row[1] > 1000000000) {
-              // Seconds timestamp
-              const d = new Date(row[1] * 1000);
-              if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
-            }
-          } else if (row[1]) {
-            const d = new Date(row[1]);
-            if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
-          }
-          // Fallback: use subidoEn (col[7]) if available
-          if (!fecha && row[7]) {
-            const d = new Date(row[7]);
-            if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
-          }
-          if (!fecha) { skipped++; continue; }
-          const subidoPor = String(row[9] || row[8] || "system").trim() || "system";
-          const subidoEn = safeDateStr(row[7]) || new Date().toISOString();
-          items.push({
-            id,
-            banco,
-            fecha,
-            monto,
-            referencia: String(row[3] || "").trim() || undefined,
-            celular: undefined,
-            descripcion: String(row[5] || "").trim() || undefined,
-            subidoPor,
-            subidoEn,
-            usado: "false",
-          });
-        }
-        console.log(`Extractos: ${items.length} items to insert, ${skipped} skipped`);
-        try { const imported = await importExtractosBatch(items); result.extractos = { imported, skipped }; }
-        catch (e: any) { errors.extractos = e.message; result.extractos = { imported: 0, skipped }; console.error("Extractos import error:", e.message); }
-      } else { result.extractos = { imported: 0, skipped: 0 }; }
-
-      res.json({ message: "Importación completada", sheets: wb.SheetNames, result, errors });
-    } catch (e: any) {
-      console.error("Import error:", e.message);
-      res.status(500).json({ message: "Error al importar: " + e.message });
-    }
-  });
-
   return httpServer;
 }
