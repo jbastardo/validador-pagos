@@ -912,19 +912,35 @@ Actualizado por: ${usuario || "Compras"}`;
         let skipped = 0;
         for (let i = 0; i < data.length; i++) {
           const row = data[i];
+          if (!Array.isArray(row) || row.length === 0) { skipped++; continue; }
           const id = String(row[0] || "").trim();
           const banco = String(row[2] || "").trim();
           const monto = String(row[4] || "").trim();
           if (!id || !banco || !monto) { skipped++; continue; }
-          // Convert Excel serial date or parse string
+          // Parse date from col[1]: Excel serial, milliseconds timestamp, or string
           let fecha = "";
           if (typeof row[1] === "number") {
-            const d = new Date((row[1] - 25569) * 86400 * 1000);
-            if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
+            if (row[1] > 100000 && row[1] < 60000) {
+              // Excel serial date
+              const d = new Date((row[1] - 25569) * 86400 * 1000);
+              if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
+            } else if (row[1] > 1000000000000) {
+              // Milliseconds timestamp
+              const d = new Date(row[1]);
+              if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
+            } else if (row[1] > 1000000000) {
+              // Seconds timestamp
+              const d = new Date(row[1] * 1000);
+              if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
+            }
           } else if (row[1]) {
             const d = new Date(row[1]);
             if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
-            else fecha = String(row[1]).trim();
+          }
+          // Fallback: use subidoEn (col[7]) if available
+          if (!fecha && row[7]) {
+            const d = new Date(row[7]);
+            if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
           }
           if (!fecha) { skipped++; continue; }
           const subidoPor = String(row[9] || row[8] || "system").trim() || "system";
