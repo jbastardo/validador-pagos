@@ -749,6 +749,25 @@ Actualizado por: ${usuario || "Compras"}`;
     return s === "" ? undefined : s;
   }
 
+  function safeDate(v: any): Date | undefined {
+    if (!v) return undefined;
+    try {
+      if (typeof v === "number") {
+        const d = new Date((v - 25569) * 86400 * 1000);
+        if (isNaN(d.getTime())) return undefined;
+        return d;
+      }
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return undefined;
+      return d;
+    } catch { return undefined; }
+  }
+
+  function safeDateStr(v: any): string | undefined {
+    const d = safeDate(v);
+    return d ? d.toISOString() : undefined;
+  }
+
   function parseXlsxRow(data: any[][], headers: string[], idx: number): Record<string, any> {
     const row: Record<string, any> = {};
     headers.forEach((h, i) => { row[h] = data[idx]?.[i]; });
@@ -861,6 +880,8 @@ Actualizado por: ${usuario || "Compras"}`;
           const estado = String(row[9] || "").trim();
           const producto = String(row[5] || "").trim();
           if (!id || estado === "ELIMINADO" || !vendedor || !cliente || !producto) { skipped++; continue; }
+          const creadoEn = safeDate(row[10]) || new Date();
+          const actualizadoEn = safeDate(row[12]);
           items.push({
             id,
             vendedor,
@@ -872,9 +893,9 @@ Actualizado por: ${usuario || "Compras"}`;
             fechaTope: String(row[7] || "").trim() || undefined,
             observaciones: String(row[8] || "").trim() || undefined,
             estado: estado || "Pendiente",
-            creadoEn: row[10] ? new Date(row[10]) : new Date(),
+            creadoEn,
             observacionesCompras: String(row[11] || "").trim() || undefined,
-            actualizadoEn: row[12] ? new Date(row[12]) : undefined,
+            actualizadoEn,
             respondidoPor: String(row[13] || "").trim() || undefined,
             categoria: undefined,
           });
@@ -895,17 +916,19 @@ Actualizado por: ${usuario || "Compras"}`;
           const banco = String(row[2] || "").trim();
           const monto = String(row[4] || "").trim();
           if (!id || !banco || !monto) { skipped++; continue; }
-          // Convert Excel serial date to ISO string
+          // Convert Excel serial date or parse string
           let fecha = "";
           if (typeof row[1] === "number") {
             const d = new Date((row[1] - 25569) * 86400 * 1000);
-            fecha = d.toISOString().split("T")[0];
+            if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
           } else if (row[1]) {
-            fecha = String(row[1]).trim();
+            const d = new Date(row[1]);
+            if (!isNaN(d.getTime())) fecha = d.toISOString().split("T")[0];
+            else fecha = String(row[1]).trim();
           }
           if (!fecha) { skipped++; continue; }
-          const subidoPor = String(row[9] || row[8] || "system").trim();
-          const subidoEn = String(row[7] || new Date().toISOString()).trim();
+          const subidoPor = String(row[9] || row[8] || "system").trim() || "system";
+          const subidoEn = safeDateStr(row[7]) || new Date().toISOString();
           items.push({
             id,
             banco,
@@ -914,8 +937,8 @@ Actualizado por: ${usuario || "Compras"}`;
             referencia: String(row[3] || "").trim() || undefined,
             celular: undefined,
             descripcion: String(row[5] || "").trim() || undefined,
-            subidoPor: subidoPor || "system",
-            subidoEn: subidoEn || new Date().toISOString(),
+            subidoPor,
+            subidoEn,
             usado: "false",
           });
         }
