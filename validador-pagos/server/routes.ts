@@ -852,6 +852,7 @@ Actualizado por: ${usuario || "Compras"}`;
       if (wb.Sheets["Solicitudes"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Solicitudes"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
+        console.log("Solicitudes headers:", headers);
         const items: any[] = [];
         let skipped = 0;
         for (let i = 1; i < data.length; i++) {
@@ -870,14 +871,16 @@ Actualizado por: ${usuario || "Compras"}`;
             respondidoPor: cv(r["RespondidoPor"]), categoria: cv(r["Categoria"]),
           });
         }
+        console.log(`Solicitudes: ${items.length} items to insert`);
         try { const imported = await importSolicitudesBatch(items); result.solicitudes = { imported, skipped }; }
-        catch (e: any) { errors.solicitudes = e.message; result.solicitudes = { imported: 0, skipped }; }
+        catch (e: any) { errors.solicitudes = e.message; result.solicitudes = { imported: 0, skipped }; console.error("Solicitudes import error:", e.message); }
       } else { result.solicitudes = { imported: 0, skipped: 0 }; }
 
       // ── EXTRACTOS ──
       if (wb.Sheets["Extractos"]) {
         const data = XLSX.utils.sheet_to_json(wb.Sheets["Extractos"], { header: 1 }) as any[][];
         const headers = data[0]?.map((h: any) => String(h).trim()) || [];
+        console.log("Extractos headers:", headers);
         const items: any[] = [];
         let skipped = 0;
         for (let i = 1; i < data.length; i++) {
@@ -893,8 +896,9 @@ Actualizado por: ${usuario || "Compras"}`;
             usado: cv(r["usado"]) || "false",
           });
         }
+        console.log(`Extractos: ${items.length} items to insert`);
         try { const imported = await importExtractosBatch(items); result.extractos = { imported, skipped }; }
-        catch (e: any) { errors.extractos = e.message; result.extractos = { imported: 0, skipped }; }
+        catch (e: any) { errors.extractos = e.message; result.extractos = { imported: 0, skipped }; console.error("Extractos import error:", e.message); }
       } else { result.extractos = { imported: 0, skipped: 0 }; }
 
       res.json({ message: "Importación completada", sheets: wb.SheetNames, result, errors });

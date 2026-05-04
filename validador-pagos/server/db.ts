@@ -407,6 +407,7 @@ export async function importPagosDivisasBatch(items: Omit<InsertPagoDivisa, "cre
 export async function importSolicitudesBatch(items: Omit<InsertSolicitud, "creadoEn" | "actualizadoEn">[]) {
   if (items.length === 0) return 0;
   let imported = 0;
+  let firstError = "";
   for (const item of items) {
     try {
       await db.insert(solicitudes).values({
@@ -415,20 +416,27 @@ export async function importSolicitudesBatch(items: Omit<InsertSolicitud, "cread
         actualizadoEn: item.actualizadoEn ? new Date(item.actualizadoEn as any) : undefined,
       }).onConflictDoNothing();
       imported++;
-    } catch { /* skip duplicates */ }
+    } catch (e: any) {
+      if (!firstError) firstError = e.message;
+    }
   }
+  if (firstError) console.error(`importSolicitudesBatch: ${firstError} (first of ${items.length - imported} failures)`);
   return imported;
 }
 
 export async function importExtractosBatch(items: InsertExtracto[]) {
   if (items.length === 0) return 0;
   let imported = 0;
+  let firstError = "";
   for (const item of items) {
     try {
       await db.insert(extractos).values(item).onConflictDoNothing();
       imported++;
-    } catch { /* skip duplicates */ }
+    } catch (e: any) {
+      if (!firstError) firstError = e.message;
+    }
   }
+  if (firstError) console.error(`importExtractosBatch: ${firstError} (first of ${items.length - imported} failures)`);
   return imported;
 }
 
