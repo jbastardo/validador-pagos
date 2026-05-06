@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, Clock, Search, Download, AlertCircle, Receipt, Pencil, Info, Trash2, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -812,15 +813,25 @@ export default function Conciliacion() {
                     <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${colorClass}`}>
-                            <Icon className="w-3.5 h-3.5"/>{p.estado}
-                          </span>
-                          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{p.tipoPago}</span>
-                          {p.megasoft && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">Mega: {p.megasoft}</span>}
-                          {p.conciliadoEn && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-200">
-                              Conciliado
-                            </span>
+                          {/* Conciliation badge */}
+                          {(p.conciliadoEn && p.conciliadoEn.trim() !== "") ? (
+                            <Badge className="bg-teal-100 text-teal-700 border border-teal-200 hover:bg-teal-100">Conciliado</Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-100">No conciliado</Badge>
+                          )}
+                          {/* Validation status badge */}
+                          <Badge className={`border ${colorClass} hover:opacity-90`}>
+                            <Icon className="w-3 h-3 mr-1"/>{p.estado}
+                          </Badge>
+                          {/* Payment type badge */}
+                          <Badge className="bg-secondary text-secondary-foreground border border-border hover:bg-secondary">{p.tipoPago}</Badge>
+                          {/* Megasoft badge */}
+                          {p.megasoft && p.megasoft.trim() !== "" && (
+                            p.megasoft === "Sí" ? (
+                              <Badge className="bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-100">Megasoft Sí</Badge>
+                            ) : (
+                              <Badge className="bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-100">Megasoft No</Badge>
+                            )
                           )}
                           {canSeeValidacion && (
                             <AuditTooltip
