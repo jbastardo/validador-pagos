@@ -1,6 +1,7 @@
 import multer from "multer";
 import { eq, and } from "drizzle-orm";
 import {
+  db,
   getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado,
   deletePago, deletePagoDivisa, deleteUsuario,
   getUsuarios, addUsuario, updateUsuario, updateUsuarioTelegramChatId,
@@ -10,11 +11,9 @@ import {
   getNextId,
   addMovimientos, getMovimientos, getExtractosStats, marcarUsado, tryMatch, deleteMovimientosBanco, conciliarPago, crearPagoDesdeConciliador,
 } from "./db";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
 import { parseExtractoExcel } from "./extractos";
 import { z } from "zod";
-import { BANCOS_RECEPTOR_META } from "../shared/schema";
+import { BANCOS_RECEPTOR_META, extractos, pagos } from "../shared/schema";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
 
 // Bancos válidos para extractos (solo usado por app de conciliaciones)
@@ -189,8 +188,8 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   // ===== PAGOS DIVISAS =====
   app.get("/api/pagos-divisas", async (_req: any, res: any) => {
     try {
-      const pagos = await getPagosDivisas();
-      res.json(pagos.sort((a: any, b: any) => new Date(b.creadoEn ?? 0).getTime() - new Date(a.creadoEn ?? 0).getTime()));
+      const todos = await getPagosDivisas();
+      res.json(todos.sort((a: any, b: any) => new Date(b.creadoEn ?? 0).getTime() - new Date(a.creadoEn ?? 0).getTime()));
     } catch (e: any) {
       console.error("Error getPagosDivisas:", e.message);
       res.status(500).json({ message: "Error al obtener pagos en divisas" });
@@ -207,18 +206,68 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
         tipo:          z.string().min(1),
         referencia:    z.string().optional().default(""),
         cliente:       z.string().optional().default(""),
-        rif:           z.string().min(1, "CI / RIF es obligatorio"),
+        rif:           z.string().optional().default(""),
         factura:       z.string().optional().default(""),
         observaciones: z.string().optional().default(""),
         vendedor:      z.string().min(1),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+      console.log("[addPagoDivisa] guardando:", JSON.stringify(parsed.data));
       const nuevo = await addPagoDivisa({ ...parsed.data, estado: "Pendiente", validadoPor: "" });
+      console.log("[addPagoDivisa] creado id=" + nuevo.id + " vendedor=" + nuevo.vendedor + " monto=" + nuevo.monto);
       res.status(201).json(nuevo);
     } catch (e: any) {
-      console.error("Error addPagoDivisa:", e.message);
+      console.error("Error addPagoDivisa:", e.message, e.stack);
       res.status(500).json({ message: "Error al guardar pago en divisas" });
+    }
+  });
+
+  // GET /api/pagos-divisas/:id — obtener un pago divisa por ID
+  app.get("/api/pagos-divisas/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const todos = await getPagosDivisas();
+      const pago = todos.find((p: any) => String(p.id) === String(id));
+      if (!pago) return res.status(404).json({ message: "Pago en divisas no encontrado" });
+      res.json(pago);
+    } catch (e: any) {
+      console.error("Error getPagoDivisa:", e.message);
+      res.status(500).json({ message: "Error al obtener pago en divisas" });
+    }
+  });
+
+  // PATCH /api/pagos-divisas/:id/estado (contabilidad / admin)
+  app.patch("/api/pagos-divisas/:id/estado", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const schema = z.object({
+        estado:        z.enum(["Pendiente", "Verificado", "Rechazado"]),
+        validadoPor:   z.string().min(1),
+        observaciones: z.string().optional().default(""),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+      console.log("[updatePagoDivisaEstado] id=" + id + " estado=" + parsed.data.estado + " por=" + parsed.data.validadoPor);
+      const updated = await updatePagoDivisaEstado(id, parsed.data.estado, parsed.data.validadoPor, parsed.data.observaciones);
+      if (!updated) return res.status(404).json({ message: "Pago en divisas no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoDivisaEstado:", e.message, e.stack);
+      res.status(500).json({ message: "Error al actualizar estado del pago en divisas" });
+    }
+  });
+
+  // DELETE /api/pagos-divisas/:id
+  app.delete("/api/pagos-divisas/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      if (!id) return res.status(400).json({ message: "ID requerido" });
+      const deleted = await deletePagoDivisa(id);
+      res.json({ message: deleted ? "Pago en divisas eliminado" : "No se pudo eliminar" });
+    } catch (e: any) {
+      console.error("Error deletePagoDivisa:", e.message);
+      res.status(500).json({ message: "Error al eliminar pago en divisas" });
     }
   });
 
@@ -258,14 +307,16 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fecha, nombrePagador, monto, tipo, referencia, observaciones } = req.body;
       if (!fecha || !monto) return res.status(400).json({ message: "Campos requeridos" });
+      console.log("[updatePagoDivisaEdicion] id=" + id + " fecha=" + fecha + " monto=" + monto + " tipo=" + tipo + " por=" + email);
       const updated = await updatePagoDivisaEdicion(id, {
         fecha, nombrePagador, monto, tipo, referencia: referencia ?? undefined, observaciones: observaciones ?? undefined,
       });
-      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+      if (!updated) return res.status(404).json({ message: "Pago en divisas no encontrado" });
+      console.log("[updatePagoDivisaEdicion] actualizado id=" + updated.id);
       res.json(updated);
     } catch (e: any) {
-      console.error("Error updatePagoDivisaEdicion:", e.message);
-      res.status(500).json({ message: "Error al editar pago" });
+      console.error("Error updatePagoDivisaEdicion:", e.message, e.stack);
+      res.status(500).json({ message: "Error al editar pago en divisas" });
     }
   });
 
