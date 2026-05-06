@@ -758,16 +758,14 @@ export default function Conciliacion() {
                     <SelectItem value="CAJA 02">CAJA 02</SelectItem>
                   </SelectContent>
                 </Select>
-                {isAdmin && (
-                  <Select value={filtroConciliado} onValueChange={setFiltroConciliado}>
-                    <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Conciliación"/></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas las operaciones</SelectItem>
-                      <SelectItem value="conciliadas">Conciliadas</SelectItem>
-                      <SelectItem value="no-conciliadas">No conciliadas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select value={filtroConciliado} onValueChange={setFiltroConciliado}>
+                  <SelectTrigger className="w-full md:w-44"><SelectValue placeholder="Conciliación"/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas las operaciones</SelectItem>
+                    <SelectItem value="conciliadas">Conciliadas</SelectItem>
+                    <SelectItem value="no-conciliadas">No conciliadas</SelectItem>
+                  </SelectContent>
+                </Select>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Desde</Label>
                   <Input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="w-36 text-xs"/>
