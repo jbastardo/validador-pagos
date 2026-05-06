@@ -281,12 +281,19 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "contabilidad" || x.rol === "vendedor" || x.rol === "compras") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular, cliente, observaciones, rif, factura, megasoft, cajeroEmail } = req.body;
-      if (!fechaPago || !monto) return res.status(400).json({ message: "Campos requeridos" });
+      const pagos = await getPagos();
+      const pago = pagos.find((p: any) => String(p.id) === String(id));
+      const fechaPagoFinal = fechaPago ?? pago?.fechaPago;
+      const montoFinal = monto ?? pago?.monto;
+      if (!fechaPagoFinal || !montoFinal) return res.status(400).json({ message: "Campos requeridos" });
       const updated = await updatePagoEdicion(id, {
-        fechaPago, bancoEmisor: bancoEmisor ?? "", bancoReceptor: bancoReceptor ?? "", monto,
-        referencia: referencia ?? "", celular: celular ?? "", cliente: cliente ?? undefined,
-        observaciones: observaciones ?? undefined, rif: rif ?? undefined,
-        factura: factura ?? undefined, megasoft: megasoft ?? undefined, cajeroEmail: cajeroEmail ?? undefined,
+        fechaPago: fechaPagoFinal, bancoEmisor: (bancoEmisor ?? pago?.bancoEmisor) ?? "", bancoReceptor: (bancoReceptor ?? pago?.bancoReceptor) ?? "",
+        monto: montoFinal,
+        referencia: (referencia ?? pago?.referencia) ?? "", celular: (celular ?? pago?.celular) ?? "",
+        cliente: (cliente ?? pago?.cliente) ?? undefined,
+        observaciones: (observaciones ?? pago?.observaciones) ?? undefined, rif: (rif ?? pago?.rif) ?? undefined,
+        factura: (factura ?? pago?.factura) ?? undefined, megasoft: (megasoft ?? pago?.megasoft) ?? undefined,
+        cajeroEmail: (cajeroEmail ?? undefined),
       });
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
