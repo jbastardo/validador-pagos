@@ -230,7 +230,9 @@ export async function getPagosDivisas() {
 export async function addPagoDivisa(pago: Omit<InsertPagoDivisa, "id" | "creadoEn" | "validadoEn">) {
   const result = await db.select({ maxId: sql<number>`MAX(${pagosDivisas.id})` }).from(pagosDivisas);
   const id = (result[0]?.maxId ?? 0) + 1;
+  console.log("[addPagoDivisa] insertando id=" + id + " vendedor=" + pago.vendedor + " monto=" + pago.monto + " tipo=" + pago.tipo);
   const [created] = await db.insert(pagosDivisas).values({ ...pago, id, creadoEn: new Date() }).returning();
+  console.log("[addPagoDivisa] insertado id=" + created?.id);
   return created;
 }
 
