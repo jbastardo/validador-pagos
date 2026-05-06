@@ -814,10 +814,14 @@ export default function Conciliacion() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           {/* Conciliation badge */}
-                          {(p.conciliadoEn && p.conciliadoEn.trim() !== "") ? (
-                            <Badge className="bg-teal-100 text-teal-700 border border-teal-200 hover:bg-teal-100">Conciliado</Badge>
+                          {p.conciliadoEn && p.conciliadoEn.trim() !== "" ? (
+                            <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                              Conciliado
+                            </Badge>
                           ) : (
-                            <Badge className="bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-100">No conciliado</Badge>
+                            <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                              No conciliado
+                            </Badge>
                           )}
                           {/* Validation status badge */}
                           <Badge className={`border ${colorClass} hover:opacity-90`}>
