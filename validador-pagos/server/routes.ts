@@ -185,6 +185,31 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
+  // Cajero edita factura/cliente/megasoft/rif en CUALQUIER estado
+  app.patch("/api/pagos/:id/factura-cliente", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const schema = z.object({
+        factura:     z.string().optional().default(""),
+        cliente:     z.string().optional().default(""),
+        megasoft:    z.enum(["Sí", "No", ""]).optional().default(""),
+        rif:         z.string().optional().default(""),
+        cajeroEmail: z.string().optional().default(""),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
+      const updated = await updatePagoFacturaCliente(
+        id, parsed.data.factura, parsed.data.cliente,
+        parsed.data.megasoft, parsed.data.cajeroEmail, parsed.data.rif
+      );
+      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error updatePagoFacturaCliente:", e.message);
+      res.status(500).json({ message: "Error al actualizar factura/cliente" });
+    }
+  });
+
   // ===== PAGOS DIVISAS =====
   app.get("/api/pagos-divisas", async (_req: any, res: any) => {
     try {

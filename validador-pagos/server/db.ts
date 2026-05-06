@@ -98,10 +98,10 @@ export async function updatePagoFacturaCliente(id: string | number, factura: str
   const autoAprueba = isMegaSi(newMegasoft);
   const [updated] = await db.update(pagos)
     .set({
-      factura: factura || pago.factura,
-      cliente: cliente || pago.cliente,
+      factura: factura !== undefined && factura !== "" ? factura : pago.factura,
+      cliente: cliente !== undefined && cliente !== "" ? cliente : pago.cliente,
       megasoft: newMegasoft,
-      rif: rif !== undefined ? rif : pago.rif,
+      rif: rif !== undefined && rif !== "" ? rif : pago.rif,
       estado: autoAprueba ? "Verificado" : pago.estado,
       validadoPor: autoAprueba ? (cajeroEmail || "Cajero") + " (Megasoft)" : pago.validadoPor,
       validadoEn: autoAprueba ? new Date() : pago.validadoEn,
