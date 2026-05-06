@@ -42,7 +42,15 @@ export class MemStorage implements IStorage {
     ];
     defaultUsuarios.forEach(u => {
       const id = this.usuarioIdCounter++;
-      this.usuariosData.set(id, { ...u, id, creadoEn: new Date() });
+      this.usuariosData.set(id, {
+        ...u,
+        id,
+        creadoEn: new Date(),
+        rol: u.rol ?? "vendedor",
+        activo: u.activo ?? "true",
+        solicitudes: "false",
+        telegramChatId: null,
+      });
     });
   }
 
@@ -111,7 +119,23 @@ export class MemStorage implements IStorage {
     ];
     samplePagos.forEach(p => {
       const id = this.pagoIdCounter++;
-      this.pagosData.set(id, { ...p, id, creadoEn: new Date() });
+      this.pagosData.set(id, {
+        ...p,
+        id,
+        creadoEn: new Date(),
+        celular: p.celular ?? null,
+        referencia: p.referencia ?? null,
+        rif: p.rif ?? null,
+        factura: p.factura ?? null,
+        observaciones: p.observaciones ?? null,
+        cliente: null,
+        megasoft: null,
+        validadoPor: p.validadoPor ?? null,
+        validadoEn: null,
+        conciliadoEn: null,
+        conciliadoPor: null,
+        estado: p.estado ?? "Pendiente",
+      });
     });
   }
 
@@ -127,7 +151,23 @@ export class MemStorage implements IStorage {
 
   async createPago(pago: InsertPago): Promise<Pago> {
     const id = this.pagoIdCounter++;
-    const newPago: Pago = { ...pago, id, creadoEn: new Date() };
+    const newPago: Pago = {
+      ...pago,
+      id,
+      creadoEn: new Date(),
+      celular: pago.celular ?? null,
+      referencia: pago.referencia ?? null,
+      rif: pago.rif ?? null,
+      factura: pago.factura ?? null,
+      observaciones: pago.observaciones ?? null,
+      cliente: pago.cliente ?? null,
+      megasoft: pago.megasoft ?? null,
+      validadoPor: pago.validadoPor ?? null,
+      validadoEn: null,
+      conciliadoEn: null,
+      conciliadoPor: pago.conciliadoPor ?? null,
+      estado: pago.estado ?? "Pendiente",
+    };
     this.pagosData.set(id, newPago);
     return newPago;
   }
@@ -181,7 +221,15 @@ export class MemStorage implements IStorage {
 
   async createUsuario(usuario: InsertUsuario): Promise<Usuario> {
     const id = this.usuarioIdCounter++;
-    const newUsuario: Usuario = { ...usuario, id, creadoEn: new Date() };
+    const newUsuario: Usuario = {
+      ...usuario,
+      id,
+      creadoEn: new Date(),
+      rol: usuario.rol ?? "vendedor",
+      activo: usuario.activo ?? "true",
+      solicitudes: usuario.solicitudes ?? "false",
+      telegramChatId: usuario.telegramChatId ?? null,
+    };
     this.usuariosData.set(id, newUsuario);
     return newUsuario;
   }

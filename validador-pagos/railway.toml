@@ -1,6 +1,0 @@
-[build]
-build = ["npm", "install", "--include=dev", "&&", "npm", "run", "build"]
-start = "node dist/index.cjs"
-
-[deploy]
-numReplicas = 1

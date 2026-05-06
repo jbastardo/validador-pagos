@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pagos, usuarios, pagosDivisas, solicitudes, extractos } from "@shared/schema";
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -24,39 +24,79 @@ async function downloadSheet(): Promise<string> {
   return tmpPath;
 }
 
+/** Convierte valor de celda ExcelJS a primitivo (text para hyperlink/richText, Date directo, etc.). */
+function cellToPrimitive(raw: unknown): unknown {
+  if (raw === null || raw === undefined) return undefined;
+  if (raw instanceof Date) return raw;
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if ("text" in obj && typeof obj.text === "string") return obj.text;
+    if (Array.isArray(obj.richText)) {
+      return (obj.richText as Array<{ text?: unknown }>).map(r => String(r.text ?? "")).join("");
+    }
+    if ("result" in obj) return cellToPrimitive(obj.result);
+    if ("error" in obj) return undefined;
+  }
+  return raw;
+}
+
 function cleanVal(v: any): string | undefined {
-  if (v === undefined || v === null || v === "") return undefined;
-  const s = String(v).trim();
+  const p = cellToPrimitive(v);
+  if (p === undefined || p === null || p === "") return undefined;
+  if (p instanceof Date) return p.toISOString();
+  const s = String(p).trim();
   return s === "" ? undefined : s;
 }
 
-async function importUsuarios(wb: XLSX.WorkBook) {
+/** Lee una hoja de ExcelJS y la convierte a `{ headers, rows }` donde cada row es un Record<string, any>. */
+function sheetToRows(ws: ExcelJS.Worksheet | undefined): { headers: string[]; rows: Record<string, any>[] } {
+  if (!ws) return { headers: [], rows: [] };
+  const headers: string[] = [];
+  const rows: Record<string, any>[] = [];
+  let lastCol = ws.actualColumnCount || ws.columnCount || 0;
+  let isFirst = true;
+  ws.eachRow({ includeEmpty: true }, (row) => {
+    if (isFirst) {
+      for (let c = 1; c <= lastCol; c++) {
+        const v = cellToPrimitive(row.getCell(c).value);
+        headers.push(String(v ?? "").trim());
+      }
+      isFirst = false;
+      return;
+    }
+    const obj: Record<string, any> = {};
+    for (let c = 1; c <= lastCol; c++) {
+      const h = headers[c - 1];
+      if (!h) continue;
+      obj[h] = cellToPrimitive(row.getCell(c).value);
+    }
+    rows.push(obj);
+  });
+  return { headers, rows };
+}
+
+async function importUsuarios(wb: ExcelJS.Workbook) {
   console.log("=== Importing Usuarios ===");
-  const ws = wb.Sheets["Usuarios"];
-  if (!ws) { console.log("  Sheet not found"); return { imported: 0, skipped: 0 }; }
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-  const headers = data[0]?.map(h => String(h).trim()) || [];
+  const { rows } = sheetToRows(wb.getWorksheet("Usuarios"));
+  if (rows.length === 0) { console.log("  Sheet not found or empty"); return { imported: 0, skipped: 0 }; }
 
   let imported = 0;
   let skipped = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const row: Record<string, any> = {};
-    headers.forEach((h, idx) => { row[h] = data[i]?.[idx]; });
-
-    const id = parseInt(row["ID"]);
-    const activo = String(row["Activo"] || "").trim();
+  for (const row of rows) {
+    const id = parseInt(String(row["ID"] ?? ""));
+    const activo = String(row["Activo"] ?? "").trim();
     if (!id || activo === "ELIMINADO" || !row["Email"] || !row["Nombre"]) { skipped++; continue; }
 
     try {
       await db.insert(usuarios).values({
         id,
-        nombre: String(row["Nombre"] || "").trim(),
-        email: String(row["Email"] || "").trim(),
-        password: String(row["Password"] || "").trim(),
+        nombre: String(row["Nombre"] ?? "").trim(),
+        email: String(row["Email"] ?? "").trim(),
+        password: String(row["Password"] ?? "").trim(),
         rol: cleanVal(row["Rol"]) || "vendedor",
         activo: activo === "true" ? "true" : "false",
-        solicitudes: String(row["solicitudes"] || "").trim() === "true" ? "true" : "false",
+        solicitudes: String(row["solicitudes"] ?? "").trim() === "true" ? "true" : "false",
         telegramChatId: cleanVal(row["bot telegram"]),
         creadoEn: new Date(),
       }).onConflictDoNothing();
@@ -68,22 +108,17 @@ async function importUsuarios(wb: XLSX.WorkBook) {
   return { imported, skipped };
 }
 
-async function importPagos(wb: XLSX.WorkBook) {
+async function importPagos(wb: ExcelJS.Workbook) {
   console.log("=== Importing Pagos ===");
-  const ws = wb.Sheets["Hoja 1"];
-  if (!ws) { console.log("  Sheet not found"); return { imported: 0, skipped: 0 }; }
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-  const headers = data[0]?.map(h => String(h).trim()) || [];
+  const { rows } = sheetToRows(wb.getWorksheet("Hoja 1"));
+  if (rows.length === 0) { console.log("  Sheet not found or empty"); return { imported: 0, skipped: 0 }; }
 
   let imported = 0;
   let skipped = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const row: Record<string, any> = {};
-    headers.forEach((h, idx) => { row[h] = data[i]?.[idx]; });
-
-    const id = parseInt(row["ID"]);
-    const estado = String(row["Estado"] || "").trim();
+  for (const row of rows) {
+    const id = parseInt(String(row["ID"] ?? ""));
+    const estado = String(row["Estado"] ?? "").trim();
     if (!id || estado === "ELIMINADO" || !row["Fecha"]) { skipped++; continue; }
 
     const megasoft = cleanVal(row["Megasoft"]);
@@ -92,7 +127,7 @@ async function importPagos(wb: XLSX.WorkBook) {
     try {
       await db.insert(pagos).values({
         id,
-        fechaPago: String(row["Fecha"] || "").trim(),
+        fechaPago: String(cleanVal(row["Fecha"]) ?? "").trim(),
         tipoPago: cleanVal(row["Tipo"]) || "PagoMovil",
         bancoEmisor: cleanVal(row["BancoEmisor"]) || "",
         monto: cleanVal(row["Monto"]) || "0",
@@ -118,28 +153,26 @@ async function importPagos(wb: XLSX.WorkBook) {
   return { imported, skipped };
 }
 
-async function importPagosDivisas(wb: XLSX.WorkBook) {
+async function importPagosDivisas(wb: ExcelJS.Workbook) {
   console.log("=== Importing Pagos Divisas ===");
-  const ws = wb.Sheets["PagosDivisas"];
-  if (!ws) { console.log("  Sheet not found"); return { imported: 0, skipped: 0 }; }
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-  const headers = data[0]?.map(h => String(h).trim()) || [];
+  const { rows } = sheetToRows(wb.getWorksheet("PagosDivisas"));
+  if (rows.length === 0) { console.log("  Sheet not found or empty"); return { imported: 0, skipped: 0 }; }
 
   let imported = 0;
   let skipped = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const row: Record<string, any> = {};
-    headers.forEach((h, idx) => { row[h] = data[i]?.[idx]; });
-
-    const id = parseInt(row["ID"]);
-    const estado = String(row["Estado"] || "").trim();
+  for (const row of rows) {
+    const id = parseInt(String(row["ID"] ?? ""));
+    const estado = String(row["Estado"] ?? "").trim();
     if (!id || estado === "ELIMINADO" || !row["Fecha"]) { skipped++; continue; }
+
+    const creadoEnRaw = cleanVal(row["CreadoEn"]);
+    const validadoEnRaw = cleanVal(row["ValidadoEn"]);
 
     try {
       await db.insert(pagosDivisas).values({
         id,
-        fecha: String(row["Fecha"] || "").trim(),
+        fecha: String(cleanVal(row["Fecha"]) ?? "").trim(),
         nombrePagador: cleanVal(row["NombrePagador"]) || cleanVal(row["Pagador"]) || "",
         correo: cleanVal(row["Correo"]),
         monto: cleanVal(row["Monto"]) || "0",
@@ -152,8 +185,8 @@ async function importPagosDivisas(wb: XLSX.WorkBook) {
         estado: estado || "Pendiente",
         validadoPor: cleanVal(row["ValidadoPor"]),
         vendedor: cleanVal(row["Vendedor"]) || "",
-        creadoEn: row["CreadoEn"] ? new Date(row["CreadoEn"]) : new Date(),
-        validadoEn: row["ValidadoEn"] ? new Date(row["ValidadoEn"]) : undefined,
+        creadoEn: creadoEnRaw ? new Date(creadoEnRaw) : new Date(),
+        validadoEn: validadoEnRaw ? new Date(validadoEnRaw) : undefined,
       }).onConflictDoNothing();
       imported++;
     } catch { skipped++; }
@@ -163,23 +196,21 @@ async function importPagosDivisas(wb: XLSX.WorkBook) {
   return { imported, skipped };
 }
 
-async function importSolicitudes(wb: XLSX.WorkBook) {
+async function importSolicitudes(wb: ExcelJS.Workbook) {
   console.log("=== Importing Solicitudes ===");
-  const ws = wb.Sheets["Solicitudes"];
-  if (!ws) { console.log("  Sheet not found"); return { imported: 0, skipped: 0 }; }
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-  const headers = data[0]?.map(h => String(h).trim()) || [];
+  const { rows } = sheetToRows(wb.getWorksheet("Solicitudes"));
+  if (rows.length === 0) { console.log("  Sheet not found or empty"); return { imported: 0, skipped: 0 }; }
 
   let imported = 0;
   let skipped = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const row: Record<string, any> = {};
-    headers.forEach((h, idx) => { row[h] = data[i]?.[idx]; });
-
-    const id = parseInt(row["ID"]);
-    const estado = String(row["Estado"] || "").trim();
+  for (const row of rows) {
+    const id = parseInt(String(row["ID"] ?? ""));
+    const estado = String(row["Estado"] ?? "").trim();
     if (!id || estado === "ELIMINADO" || !row["Vendedor"]) { skipped++; continue; }
+
+    const creadoEnRaw = cleanVal(row["CreadoEn"]);
+    const actualizadoEnRaw = cleanVal(row["ActualizadoEn"]);
 
     try {
       await db.insert(solicitudes).values({
@@ -193,9 +224,9 @@ async function importSolicitudes(wb: XLSX.WorkBook) {
         fechaTope: cleanVal(row["FechaTope"]),
         observaciones: cleanVal(row["Observaciones"]),
         estado: estado || "Pendiente",
-        creadoEn: row["CreadoEn"] ? new Date(row["CreadoEn"]) : new Date(),
+        creadoEn: creadoEnRaw ? new Date(creadoEnRaw) : new Date(),
         observacionesCompras: cleanVal(row["ObservacionesCompras"]),
-        actualizadoEn: row["ActualizadoEn"] ? new Date(row["ActualizadoEn"]) : undefined,
+        actualizadoEn: actualizadoEnRaw ? new Date(actualizadoEnRaw) : undefined,
         respondidoPor: cleanVal(row["RespondidoPor"]),
         categoria: cleanVal(row["Categoria"]),
       }).onConflictDoNothing();
@@ -207,20 +238,15 @@ async function importSolicitudes(wb: XLSX.WorkBook) {
   return { imported, skipped };
 }
 
-async function importExtractos(wb: XLSX.WorkBook) {
+async function importExtractos(wb: ExcelJS.Workbook) {
   console.log("=== Importing Extractos ===");
-  const ws = wb.Sheets["Extractos"];
-  if (!ws) { console.log("  Sheet not found"); return { imported: 0, skipped: 0 }; }
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-  const headers = data[0]?.map(h => String(h).trim()) || [];
+  const { rows } = sheetToRows(wb.getWorksheet("Extractos"));
+  if (rows.length === 0) { console.log("  Sheet not found or empty"); return { imported: 0, skipped: 0 }; }
 
   let imported = 0;
   let skipped = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const row: Record<string, any> = {};
-    headers.forEach((h, idx) => { row[h] = data[i]?.[idx]; });
-
+  for (const row of rows) {
     const id = cleanVal(row["id"]);
     if (!id) { skipped++; continue; }
 
@@ -250,8 +276,9 @@ async function main() {
   const xlsxPath = await downloadSheet();
   console.log(`Downloaded to: ${xlsxPath}`);
 
-  const wb = XLSX.readFile(xlsxPath);
-  console.log("Sheets found:", wb.SheetNames);
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(xlsxPath);
+  console.log("Sheets found:", wb.worksheets.map(w => w.name));
 
   const result: Record<string, { imported: number; skipped: number }> = {};
 

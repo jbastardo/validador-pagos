@@ -400,13 +400,58 @@ export async function tryMatch(
 }
 
 export async function conciliarPago(pagoId: number, conciliadoPor: string) {
-  await db.update(pagos).set({
-    estado: "Verificado",
-    validadoPor: "Auto-conciliado (Extracto)",
-    validadoEn: new Date(),
+  // Leer el pago actual para respetar su estado
+  const [pago] = await db.select().from(pagos).where(eq(pagos.id, pagoId));
+  if (!pago) return;
+
+  const updateData: Partial<typeof pagos.$inferInsert> = {
     conciliadoEn: new Date(),
     conciliadoPor,
-  }).where(eq(pagos.id, pagoId));
+  };
+
+  // Si ya está verificado: mantener "Verificado", no cambiar validadoPor/validadoEn
+  // Si está pendiente: marcar como verificado y conciliado
+  if (pago.estado === "Pendiente") {
+    updateData.estado = "Verificado";
+    updateData.validadoPor = conciliadoPor;
+    updateData.validadoEn = new Date();
+  }
+
+  await db.update(pagos).set(updateData).where(eq(pagos.id, pagoId));
+}
+
+// Crea un pago desde la app de conciliaciones (cuando no existe en la BD de pagos)
+export async function crearPagoDesdeConciliador(
+  data: {
+    fechaPago: string; bancoEmisor: string; monto: string; celular: string;
+    bancoReceptor: string; referencia: string; tipoPago: string;
+    vendedor: string; // usuario que subió el extracto
+  }
+) {
+  const id = await getNextId();
+  const [created] = await db.insert(pagos).values({
+    id,
+    fechaPago: data.fechaPago,
+    tipoPago: data.tipoPago,
+    bancoEmisor: data.bancoEmisor,
+    monto: data.monto,
+    celular: data.celular || null,
+    bancoReceptor: data.bancoReceptor,
+    referencia: data.referencia || null,
+    rif: null,
+    factura: "",
+    estado: "Verificado",
+    validadoPor: data.vendedor,
+    vendedor: data.vendedor,
+    observaciones: "Creado automáticamente por conciliación",
+    creadoEn: new Date(),
+    cliente: null,
+    megasoft: null,
+    validadoEn: new Date(),
+    conciliadoEn: new Date(),
+    conciliadoPor: data.vendedor,
+  }).returning();
+  return created;
 }
 
 export async function getExtractosStats() {
@@ -424,27 +469,15 @@ export async function getExtractosStats() {
   return { byBanco };
 }
 
-export async function importPagosBatch(items: Omit<InsertPago, "creadoEn">[]) {
+export async function importPagosBatch(items: (InsertPago & { creadoEn?: string | Date | null })[]) {
   if (items.length === 0) return 0;
   let imported = 0;
   for (const item of items) {
     try {
-      await db.insert(pagos).values({ ...item, creadoEn: item.creadoEn ? new Date(item.creadoEn as any) : new Date() }).onConflictDoNothing();
-      imported++;
-    } catch { /* skip duplicates */ }
-  }
-  return imported;
-}
-
-export async function importPagosDivisasBatch(items: Omit<InsertPagoDivisa, "creadoEn" | "validadoEn">[]) {
-  if (items.length === 0) return 0;
-  let imported = 0;
-  for (const item of items) {
-    try {
-      await db.insert(pagosDivisas).values({
-        ...item,
-        creadoEn: item.creadoEn ? new Date(item.creadoEn as any) : new Date(),
-        validadoEn: item.validadoEn ? new Date(item.validadoEn as any) : undefined,
+      const { creadoEn, ...rest } = item as any;
+      await db.insert(pagos).values({
+        ...rest,
+        creadoEn: creadoEn ? new Date(creadoEn) : new Date(),
       }).onConflictDoNothing();
       imported++;
     } catch { /* skip duplicates */ }
@@ -452,17 +485,35 @@ export async function importPagosDivisasBatch(items: Omit<InsertPagoDivisa, "cre
   return imported;
 }
 
-export async function importSolicitudesBatch(items: Omit<InsertSolicitud, "creadoEn" | "actualizadoEn">[]) {
+export async function importPagosDivisasBatch(items: (InsertPagoDivisa & { creadoEn?: string | Date | null; validadoEn?: string | Date | null })[]) {
+  if (items.length === 0) return 0;
+  let imported = 0;
+  for (const item of items) {
+    try {
+      const { creadoEn, validadoEn, ...rest } = item as any;
+      await db.insert(pagosDivisas).values({
+        ...rest,
+        creadoEn: creadoEn ? new Date(creadoEn) : new Date(),
+        validadoEn: validadoEn ? new Date(validadoEn) : undefined,
+      }).onConflictDoNothing();
+      imported++;
+    } catch { /* skip duplicates */ }
+  }
+  return imported;
+}
+
+export async function importSolicitudesBatch(items: (InsertSolicitud & { creadoEn?: string | Date | null; actualizadoEn?: string | Date | null })[]) {
   if (items.length === 0) return 0;
   let imported = 0;
   let firstError = "";
   let firstFailingItem: any = null;
   for (const item of items) {
     try {
+      const { creadoEn, actualizadoEn, ...rest } = item as any;
       await db.insert(solicitudes).values({
-        ...item,
-        creadoEn: item.creadoEn ? new Date(item.creadoEn as any) : new Date(),
-        actualizadoEn: item.actualizadoEn ? new Date(item.actualizadoEn as any) : undefined,
+        ...rest,
+        creadoEn: creadoEn ? new Date(creadoEn) : new Date(),
+        actualizadoEn: actualizadoEn ? new Date(actualizadoEn) : undefined,
       }).onConflictDoNothing();
       imported++;
     } catch (e: any) {

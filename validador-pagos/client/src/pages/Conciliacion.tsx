@@ -1283,8 +1283,8 @@ export default function Conciliacion() {
             <Button variant="outline" onClick={() => setEditBsOpen(false)}>Cancelar</Button>
             <Button
               onClick={() => editBsPago && editBsMutation.mutate({ id: editBsPago.id, campos: {
-                email: user?.email,
-                rol: user?.rol,
+                email: user?.email ?? "",
+                rol: user?.rol ?? "",
                 fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor,
                 monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente,
                 observaciones: editBsObs,
@@ -1326,7 +1326,7 @@ export default function Conciliacion() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDivOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => editDivPago && editDivMutation.mutate({ id: editDivPago.id, campos: { email: user?.email, fecha: editDivFecha, nombrePagador: editDivPagador, monto: editDivMonto, tipo: editDivTipo, referencia: editDivRef, observaciones: editDivObs } })}
+              onClick={() => editDivPago && editDivMutation.mutate({ id: editDivPago.id, campos: { email: user?.email ?? "", fecha: editDivFecha, nombrePagador: editDivPagador, monto: editDivMonto, tipo: editDivTipo, referencia: editDivRef, observaciones: editDivObs } })}
               disabled={editDivMutation.isPending}
             >
               {editDivMutation.isPending ? "Guardando..." : "Guardar cambios"}

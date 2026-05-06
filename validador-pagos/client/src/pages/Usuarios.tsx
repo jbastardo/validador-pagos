@@ -65,7 +65,7 @@ export default function Usuarios() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, body }: { id: number; body: Partial<Usuario> }) => {
+    mutationFn: async ({ id, body }: { id: number; body: Partial<Usuario> & { password?: string } }) => {
       const res = await apiRequest("PATCH", `/api/usuarios/${id}`, body);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message ?? "Error al actualizar usuario");
@@ -135,7 +135,7 @@ export default function Usuarios() {
       return;
     }
     if (editUser) {
-      const body: Partial<Usuario> = {
+      const body: Partial<Usuario> & { password?: string } = {
         nombre: form.nombre,
         rol: form.rol,
       };
