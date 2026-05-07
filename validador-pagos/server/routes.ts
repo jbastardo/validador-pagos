@@ -120,10 +120,15 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            banco: data.bancoReceptor,
+            pagoId: String(nuevo.id),
+            bancoReceptor: data.bancoReceptor,
+            bancoEmisor: data.bancoEmisor,
             referencia: data.referencia,
             monto: data.monto,
-            fecha: data.fechaPago,
+            fechaPago: data.fechaPago,
+            celular: data.celular,
+            tipoPago: data.tipoPago,
+            vendedor: data.vendedor,
           }),
         }).catch(err => console.warn("[webhook conciliador] Error:", err.message));
       }
@@ -188,7 +193,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos" });
-      const updated = await updatePagoCajeroPendiente(id, parsed.data.factura, parsed.data.megasoft, parsed.data.cliente, parsed.data.megasoft === "Sí" ? (req.body.cajeroEmail || "") : "");
+      const updated = await updatePagoCajeroPendiente(id, parsed.data.factura, parsed.data.cliente, parsed.data.megasoft, parsed.data.megasoft === "Sí" ? (req.body.cajeroEmail || "") : "");
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
       res.json(updated);
     } catch (e: any) {
@@ -292,6 +297,25 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     } catch (e: any) {
       console.error("Error updatePagoDivisaEstado:", e.message, e.stack);
       res.status(500).json({ message: "Error al actualizar estado del pago en divisas" });
+    }
+  });
+
+  // DELETE /api/pagos/:id (admin / contabilidad)
+  app.delete("/api/pagos/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find((x: any) => x.email === email && x.password === password && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas" });
+      if (u.rol !== "admin" && u.rol !== "contabilidad") return res.status(403).json({ message: "Sin permisos para eliminar" });
+      const deleted = await deletePago(id);
+      if (!deleted) return res.status(404).json({ message: "Pago no encontrado" });
+      res.json({ message: "Pago eliminado" });
+    } catch (e: any) {
+      console.error("Error deletePago:", e.message);
+      res.status(500).json({ message: "Error al eliminar pago" });
     }
   });
 
@@ -623,6 +647,22 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
+  app.post("/api/usuarios/cambiar-password", async (req: any, res: any) => {
+    try {
+      const { email, passwordActual, passwordNueva } = req.body;
+      if (!email || !passwordActual || !passwordNueva) return res.status(400).json({ message: "Campos requeridos" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find((x: any) => x.email === email && x.password === passwordActual && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Contraseña actual incorrecta" });
+      if (passwordNueva.length < 4) return res.status(400).json({ message: "La nueva contraseña debe tener al menos 4 caracteres" });
+      await updateUsuario(u.id, { password: passwordNueva });
+      res.json({ message: "Contraseña actualizada correctamente" });
+    } catch (e: any) {
+      console.error("Error cambiar-password:", e.message);
+      res.status(500).json({ message: "Error al cambiar contraseña" });
+    }
+  });
+
   app.patch("/api/usuarios/:id", async (req: any, res: any) => {
     try {
       const { id } = req.params;
@@ -653,7 +693,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       if (text.startsWith("/vincular")) {
         const nuevoChatId = text.split(" ")[1];
         if (nuevoChatId) {
-          await updateUsuarioTelegramChatId(u.id, nuevoChatId);
+          await updateUsuarioTelegramChatId(u.email, nuevoChatId);
           await sendTelegram(`¡Vinculado! Recibirás notificaciones de pagos.`, chatId);
         }
         return res.json({ ok: true });
