@@ -2,7 +2,7 @@ import multer from "multer";
 import { eq, and } from "drizzle-orm";
 import {
   db,
-  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado,
+  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado, getStats,
   deletePago, deletePagoDivisa, deleteUsuario,
   getUsuarios, addUsuario, updateUsuario, updateUsuarioTelegramChatId,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
@@ -48,6 +48,18 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     } catch (e: any) {
       console.error("Error login:", e.message);
       res.status(500).json({ message: "Error al verificar credenciales" });
+    }
+  });
+
+  // ===== STATS / DASHBOARD =====
+  app.get("/api/stats", async (req: any, res: any) => {
+    try {
+      const { fechaDesde, fechaHasta } = req.query;
+      const stats = await getStats(fechaDesde as string | undefined, fechaHasta as string | undefined);
+      res.json(stats);
+    } catch (e: any) {
+      console.error("Error getStats:", e.message);
+      res.status(500).json({ message: "Error al obtener estadísticas" });
     }
   });
 

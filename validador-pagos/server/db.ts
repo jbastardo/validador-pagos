@@ -456,6 +456,47 @@ export async function crearPagoDesdeConciliador(
   return created;
 }
 
+export async function getStats(fechaDesde?: string, fechaHasta?: string) {
+  let allPagos = await db.select().from(pagos);
+  let allDivisas = await db.select().from(pagosDivisas);
+
+  if (fechaDesde) {
+    allPagos  = allPagos.filter(p  => p.fechaPago >= fechaDesde!);
+    allDivisas = allDivisas.filter(p => (p.fecha ?? "") >= fechaDesde!);
+  }
+  if (fechaHasta) {
+    allPagos  = allPagos.filter(p  => p.fechaPago <= fechaHasta!);
+    allDivisas = allDivisas.filter(p => (p.fecha ?? "") <= fechaHasta!);
+  }
+
+  const total        = allPagos.length;
+  const pendientes   = allPagos.filter(p => p.estado === "Pendiente").length;
+  const verificados  = allPagos.filter(p => p.estado === "Verificado").length;
+  const rechazados   = allPagos.filter(p => p.estado?.startsWith("Rechazado")).length;
+  const pagoMovil    = allPagos.filter(p => p.tipoPago === "PagoMovil").length;
+  const transferencias = allPagos.filter(p => p.tipoPago === "Transferencia").length;
+  const montoTotal   = allPagos.reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
+  const megasoftSi   = allPagos.filter(p => isMegaSi(p.megasoft)).length;
+  const megasoftNo   = allPagos.filter(p => p.megasoft === "No").length;
+  const megasoftPendiente = allPagos.filter(p => !p.megasoft || p.megasoft === "").length;
+  const montoMegasoftSi = allPagos.filter(p => isMegaSi(p.megasoft)).reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
+  const rechazadosMegasoft = allPagos.filter(p => p.estado === "Rechazado Megasoft").length;
+  const sinFactura   = allPagos.filter(p => !p.factura || p.factura.trim() === "").length;
+  const montoPendientesBs = allPagos.filter(p => p.estado === "Pendiente").reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
+
+  const totalDivisas    = allDivisas.length;
+  const pendientesDivisas = allDivisas.filter(p => p.estado === "Pendiente").length;
+  const montoDivisas    = allDivisas.reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
+  const montoPendientesDivisas = allDivisas.filter(p => p.estado === "Pendiente").reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
+
+  return {
+    total, pendientes, verificados, rechazados, pagoMovil, transferencias, montoTotal,
+    megasoftSi, megasoftNo, megasoftPendiente, montoMegasoftSi, rechazadosMegasoft,
+    sinFactura, montoPendientesBs,
+    totalDivisas, pendientesDivisas, montoDivisas, montoPendientesDivisas,
+  };
+}
+
 export async function getExtractosStats() {
   const todos = await db.select().from(extractos);
   const byBanco: Record<string, { total: number; usados: number; disponibles: number; ultimaSubida: string }> = {};
