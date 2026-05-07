@@ -32,10 +32,18 @@ export default function Dashboard() {
   const [pwdActual, setPwdActual] = useState("");
   const [pwdNueva, setPwdNueva] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
-  const queryKey = fechaDesde || fechaHasta
-    ? [`/api/stats?${new URLSearchParams({ ...(fechaDesde && { fechaDesde }), ...(fechaHasta && { fechaHasta }) }).toString()}`]
-    : ["/api/stats"];
-  const { data: stats, isLoading: sL } = useQuery<Stats>({ queryKey });
+  const queryKey = ["/api/stats", fechaDesde, fechaHasta];
+  const { data: stats, isLoading: sL } = useQuery<Stats>({
+    queryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (fechaDesde) params.append("fechaDesde", fechaDesde);
+      if (fechaHasta) params.append("fechaHasta", fechaHasta);
+      const res = await fetch(`/api/stats?${params.toString()}`);
+      if (!res.ok) throw new Error("Error al cargar estadísticas");
+      return res.json();
+    },
+  });
 
   // ⚠️ WARNING: wouter pone query params en window.location.search, no en el hash.
   // Conciliacion.tsx debe leer de window.location.search para obtener los filtros.

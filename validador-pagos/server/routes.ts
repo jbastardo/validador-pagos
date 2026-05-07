@@ -411,6 +411,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
         celular: z.string().optional().default(""),
         fechaTope: z.string().optional().default(""),
         observaciones: z.string().optional().default(""),
+        categoria: z.string().optional().default(""),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
@@ -424,13 +425,76 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   app.patch("/api/solicitudes/:id/estado", async (req: any, res: any) => {
     try {
       const { id } = req.params;
-      const { estado } = req.body;
-      if (!estado) return res.status(400).json({ message: "Estado requerido" });
-      const updated = await updateSolicitudEstado(id, estado);
+      const schema = z.object({
+        estado: z.enum(["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"]),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Estado inválido" });
+      const updated = await updateSolicitudEstado(id, parsed.data.estado);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       res.json(updated);
     } catch (e: any) {
+      console.error("Error updateSolicitudEstado:", e.message);
       res.status(500).json({ message: "Error al actualizar solicitud" });
+    }
+  });
+
+  // Vendedor edita sus propias observaciones
+  app.patch("/api/solicitudes/:id/observaciones-vendedor", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { observaciones, vendedorEmail } = req.body;
+      if (!vendedorEmail) return res.status(400).json({ message: "vendedorEmail requerido" });
+      const sols = await getSolicitudes();
+      const sol = sols.find((s: any) => String(s.id) === String(id));
+      if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
+      if (sol.vendedor !== vendedorEmail) return res.status(403).json({ message: "Solo puedes editar tus propias solicitudes" });
+      const updated = await updateSolicitudEdicion(id, { observaciones: observaciones ?? "" }, vendedorEmail);
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error observaciones-vendedor:", e.message);
+      res.status(500).json({ message: "Error al actualizar observaciones" });
+    }
+  });
+
+  // Vendedor confirma recepción/compra
+  app.patch("/api/solicitudes/:id/confirmar-vendedor", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { vendedorEmail } = req.body;
+      if (!vendedorEmail) return res.status(400).json({ message: "vendedorEmail requerido" });
+      const sols = await getSolicitudes();
+      const sol = sols.find((s: any) => String(s.id) === String(id));
+      if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
+      if (sol.vendedor !== vendedorEmail) return res.status(403).json({ message: "Solo puedes confirmar tus propias solicitudes" });
+      const nuevoEstado = sol.estado === "En Proceso" ? "Completada" : sol.estado;
+      const updated = await updateSolicitudEdicion(id, { estado: nuevoEstado }, vendedorEmail);
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error confirmar-vendedor:", e.message);
+      res.status(500).json({ message: "Error al confirmar solicitud" });
+    }
+  });
+
+  // Vendedor solicita anulación
+  app.patch("/api/solicitudes/:id/anular-vendedor", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { vendedorEmail, motivo } = req.body;
+      if (!vendedorEmail) return res.status(400).json({ message: "vendedorEmail requerido" });
+      if (!motivo?.trim()) return res.status(400).json({ message: "Motivo de anulación requerido" });
+      const sols = await getSolicitudes();
+      const sol = sols.find((s: any) => String(s.id) === String(id));
+      if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
+      if (sol.vendedor !== vendedorEmail) return res.status(403).json({ message: "Solo puedes anular tus propias solicitudes" });
+      const updated = await updateSolicitudEdicion(id, {
+        estado: "Cancelada",
+        observacionesCompras: `Anulación solicitada por vendedor: ${motivo}`,
+      }, vendedorEmail);
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error anular-vendedor:", e.message);
+      res.status(500).json({ message: "Error al anular solicitud" });
     }
   });
 
