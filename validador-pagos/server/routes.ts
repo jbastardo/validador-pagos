@@ -523,11 +523,55 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   app.delete("/api/solicitudes/:id", async (req: any, res: any) => {
     try {
       const { id } = req.params;
-      if (!id) return res.status(400).json({ message: "ID requerido" });
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const u = usuarios.find((x: any) => x.email === email && x.password === password && x.activo?.toLowerCase() === "true");
+      if (!u) return res.status(401).json({ message: "Credenciales incorrectas" });
+      if (u.rol !== "admin" && u.rol !== "compras") return res.status(403).json({ message: "Sin permisos para eliminar" });
       const deleted = await deleteSolicitud(id);
-      res.json({ message: deleted ? "Solicitud eliminada" : "No se pudo eliminar" });
+      if (!deleted) return res.status(404).json({ message: "Solicitud no encontrada" });
+      res.json({ message: "Solicitud eliminada" });
     } catch (e: any) {
+      console.error("Error deleteSolicitud:", e.message);
       res.status(500).json({ message: "Error al eliminar solicitud" });
+    }
+  });
+
+  // ===== ODOO =====
+  app.get("/api/odoo/clientes", async (req: any, res: any) => {
+    try {
+      const q = String(req.query.q || "");
+      if (!q) return res.json([]);
+      const result = await searchClientes(q);
+      res.json(result);
+    } catch (e: any) {
+      console.error("Error odoo clientes:", e.message);
+      res.status(500).json({ message: "Error al buscar clientes en Odoo" });
+    }
+  });
+
+  app.get("/api/odoo/productos", async (req: any, res: any) => {
+    try {
+      const q = String(req.query.q || "");
+      if (!q) return res.json([]);
+      const result = await searchProductos(q);
+      res.json(result);
+    } catch (e: any) {
+      console.error("Error odoo productos:", e.message);
+      res.status(500).json({ message: "Error al buscar productos en Odoo" });
+    }
+  });
+
+  app.post("/api/odoo/clientes", async (req: any, res: any) => {
+    try {
+      const { name, vat, phone, mobile, email } = req.body;
+      if (!name) return res.status(400).json({ message: "Nombre requerido" });
+      const result = await createCliente({ name, vat, phone, mobile, email });
+      res.status(201).json(result);
+    } catch (e: any) {
+      console.error("Error odoo crear cliente:", e.message);
+      res.status(500).json({ message: "Error al crear cliente en Odoo" });
     }
   });
 
@@ -639,11 +683,20 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
+  // Middleware de autenticación para endpoints del conciliador
+  const CONCILIADOR_SECRET = process.env.CONCILIADOR_SECRET || "";
+  function requireConciliadorToken(req: any, res: any, next: any) {
+    if (!CONCILIADOR_SECRET) return next(); // si no está configurado, se permite (retrocompatibilidad)
+    const token = req.headers["x-conciliador-token"] || req.body?.conciliadorToken;
+    if (token !== CONCILIADOR_SECRET) return res.status(401).json({ message: "Token de conciliador inválido" });
+    next();
+  }
+
   // ── Conciliador: POST /api/pagos/:id/conciliar ──
-  app.post("/api/pagos/:id/conciliar", async (req: any, res: any) => {
+  app.post("/api/pagos/:id/conciliar", requireConciliadorToken, async (req: any, res: any) => {
     try {
       const { id } = req.params;
-      const { accion, conciliadoEn, conciliadoPor } = req.body;
+      const { accion, conciliadoPor } = req.body;
       if (accion !== "conciliar") return res.status(400).json({ message: "accion debe ser 'conciliar'" });
       await conciliarPago(Number(id), conciliadoPor || "conciliador");
       res.json({ ok: true, id });
@@ -654,15 +707,15 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   });
 
   // ── Conciliador: PUT /api/pagos/:id — actualizar estado + conciliadoEn/conciliadoPor ──
-  app.put("/api/pagos/:id", async (req: any, res: any) => {
+  app.put("/api/pagos/:id", requireConciliadorToken, async (req: any, res: any) => {
     try {
       const { id } = req.params;
       const { estado, validadoPor, validadoEn, conciliadoEn, conciliadoPor } = req.body;
       const updateData: Record<string, any> = {};
-      if (estado)       updateData.estado       = estado;
-      if (validadoPor)  updateData.validadoPor  = validadoPor;
-      if (validadoEn)   updateData.validadoEn   = new Date(validadoEn);
-      if (conciliadoEn) updateData.conciliadoEn = new Date(conciliadoEn);
+      if (estado)        updateData.estado        = estado;
+      if (validadoPor)   updateData.validadoPor   = validadoPor;
+      if (validadoEn)    updateData.validadoEn    = new Date(validadoEn);
+      if (conciliadoEn)  updateData.conciliadoEn  = new Date(conciliadoEn);
       if (conciliadoPor) updateData.conciliadoPor = conciliadoPor;
       if (Object.keys(updateData).length === 0) return res.status(400).json({ message: "Sin campos a actualizar" });
       const [updated] = await db.update(pagos).set(updateData).where(eq(pagos.id, Number(id))).returning();
@@ -674,8 +727,8 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
-  // ── Webhook legado: POST /api/auto-validar-pago ──
-  app.post("/api/auto-validar-pago", async (req: any, res: any) => {
+  // ── Webhook: POST /api/auto-validar-pago ──
+  app.post("/api/auto-validar-pago", requireConciliadorToken, async (req: any, res: any) => {
     try {
       const { pagoId, conciliadoPor } = req.body;
       if (!pagoId) return res.status(400).json({ message: "pagoId requerido" });

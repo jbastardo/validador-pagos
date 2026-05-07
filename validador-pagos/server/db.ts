@@ -460,13 +460,25 @@ export async function getStats(fechaDesde?: string, fechaHasta?: string) {
   let allPagos = await db.select().from(pagos);
   let allDivisas = await db.select().from(pagosDivisas);
 
+  // Normaliza a YYYY-MM-DD para comparación segura independiente del formato
+  const toISO = (f: string) => {
+    if (!f) return "";
+    // Soporta DD/MM/YYYY y YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(f)) {
+      const [d, m, y] = f.split("/");
+      return `${y}-${m}-${d}`;
+    }
+    return f.slice(0, 10);
+  };
   if (fechaDesde) {
-    allPagos  = allPagos.filter(p  => p.fechaPago >= fechaDesde!);
-    allDivisas = allDivisas.filter(p => (p.fecha ?? "") >= fechaDesde!);
+    const desde = fechaDesde.slice(0, 10);
+    allPagos   = allPagos.filter(p  => toISO(p.fechaPago ?? "") >= desde);
+    allDivisas = allDivisas.filter(p => toISO(p.fecha ?? "")    >= desde);
   }
   if (fechaHasta) {
-    allPagos  = allPagos.filter(p  => p.fechaPago <= fechaHasta!);
-    allDivisas = allDivisas.filter(p => (p.fecha ?? "") <= fechaHasta!);
+    const hasta = fechaHasta.slice(0, 10);
+    allPagos   = allPagos.filter(p  => toISO(p.fechaPago ?? "") <= hasta);
+    allDivisas = allDivisas.filter(p => toISO(p.fecha ?? "")    <= hasta);
   }
 
   const total        = allPagos.length;
