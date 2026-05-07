@@ -551,7 +551,42 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
-  // ── Webhook: el conciliador notifica que un pago fue conciliado ──
+  // ── Conciliador: POST /api/pagos/:id/conciliar ──
+  app.post("/api/pagos/:id/conciliar", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { accion, conciliadoEn, conciliadoPor } = req.body;
+      if (accion !== "conciliar") return res.status(400).json({ message: "accion debe ser 'conciliar'" });
+      await conciliarPago(Number(id), conciliadoPor || "conciliador");
+      res.json({ ok: true, id });
+    } catch (e: any) {
+      console.error("Error conciliar pago:", e.message);
+      res.status(500).json({ message: "Error al conciliar pago" });
+    }
+  });
+
+  // ── Conciliador: PUT /api/pagos/:id — actualizar estado + conciliadoEn/conciliadoPor ──
+  app.put("/api/pagos/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { estado, validadoPor, validadoEn, conciliadoEn, conciliadoPor } = req.body;
+      const updateData: Record<string, any> = {};
+      if (estado)       updateData.estado       = estado;
+      if (validadoPor)  updateData.validadoPor  = validadoPor;
+      if (validadoEn)   updateData.validadoEn   = new Date(validadoEn);
+      if (conciliadoEn) updateData.conciliadoEn = new Date(conciliadoEn);
+      if (conciliadoPor) updateData.conciliadoPor = conciliadoPor;
+      if (Object.keys(updateData).length === 0) return res.status(400).json({ message: "Sin campos a actualizar" });
+      const [updated] = await db.update(pagos).set(updateData).where(eq(pagos.id, Number(id))).returning();
+      if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+      res.json(updated);
+    } catch (e: any) {
+      console.error("Error PUT pago:", e.message);
+      res.status(500).json({ message: "Error al actualizar pago" });
+    }
+  });
+
+  // ── Webhook legado: POST /api/auto-validar-pago ──
   app.post("/api/auto-validar-pago", async (req: any, res: any) => {
     try {
       const { pagoId, conciliadoPor } = req.body;
