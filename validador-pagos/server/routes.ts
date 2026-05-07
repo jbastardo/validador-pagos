@@ -551,6 +551,19 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
+  // ── Webhook: el conciliador notifica que un pago fue conciliado ──
+  app.post("/api/auto-validar-pago", async (req: any, res: any) => {
+    try {
+      const { pagoId, conciliadoPor } = req.body;
+      if (!pagoId) return res.status(400).json({ message: "pagoId requerido" });
+      await conciliarPago(Number(pagoId), conciliadoPor || "conciliador");
+      res.json({ ok: true });
+    } catch (e: any) {
+      console.error("Error auto-validar-pago:", e.message);
+      res.status(500).json({ message: "Error al conciliar pago" });
+    }
+  });
+
   // ===== USUARIOS =====
   app.get("/api/usuarios", async (_req: any, res: any) => {
     try {
