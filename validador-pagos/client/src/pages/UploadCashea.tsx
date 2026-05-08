@@ -122,7 +122,7 @@ export default function UploadCashea() {
             Subir Archivo Excel
           </CardTitle>
           <CardDescription>
-            El archivo debe contener las siguientes columnas: Fecha, Referencia, Monto, Banco Emisor, Celular, Cliente/RIF (opcional)
+            Sube el archivo "marketplace-orders.xlsx" exportado directamente desde Cashea (sin modificaciones)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -239,21 +239,22 @@ export default function UploadCashea() {
 
       <Card className="bg-muted/50">
         <CardHeader>
-          <CardTitle className="text-base">Formato del Archivo Excel</CardTitle>
+          <CardTitle className="text-base">Formato del Archivo</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm space-y-2">
-            <p>El archivo debe tener las siguientes columnas (en orden):</p>
-            <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li><strong>Fecha:</strong> Formato DD/MM/YYYY o fecha de Excel</li>
-              <li><strong>Referencia:</strong> Número único del pago (obligatorio)</li>
-              <li><strong>Monto:</strong> Cantidad en bolívares</li>
-              <li><strong>Banco Emisor:</strong> Código de 4 dígitos (ej: 0102, 0134)</li>
-              <li><strong>Celular:</strong> Número de celular 04XX-XXXXXXX</li>
-              <li><strong>Cliente/RIF:</strong> Nombre del cliente o RIF (opcional)</li>
-            </ol>
+            <p className="font-medium">Archivo: <code className="bg-muted px-1.5 py-0.5 rounded">marketplace-orders.xlsx</code></p>
+            <p>Este es el archivo exportado directamente desde el sistema Cashea Marketplace con las siguientes columnas:</p>
+            <ul className="list-disc list-inside space-y-1 ml-2 text-muted-foreground">
+              <li>Cédula, Teléfono, Email del cliente</li>
+              <li>Fecha de la orden (ISO 8601)</li>
+              <li># Orden (identificador interno)</li>
+              <li><strong># Referencia</strong> (referencia bancaria - usado como identificador único)</li>
+              <li><strong>Monto en Bs</strong> (monto del pago)</li>
+            </ul>
             <p className="text-muted-foreground mt-3">
-              La primera fila debe contener los encabezados y será omitida.
+              ⚠️ <strong>Importante:</strong> Sube el archivo tal cual como se exporta desde Cashea, sin modificar la estructura.
+              La primera fila (encabezados) será omitida automáticamente.
             </p>
           </div>
         </CardContent>

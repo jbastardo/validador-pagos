@@ -202,7 +202,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
             estado: "Pendiente",
             validadoPor: "",
             vendedor,
-            observaciones: "Importado desde archivo Cashea",
+            observaciones: `Cashea - Orden ${pagoCashea.ordenId || "N/A"}`,
             cliente: pagoCashea.cliente || "",
             megasoft: "",
             conciliadoPor: "",

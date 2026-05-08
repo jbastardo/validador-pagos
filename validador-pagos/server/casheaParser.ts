@@ -1,17 +1,19 @@
 /**
  * Parser de archivos Excel de Cashea para importación masiva de pagos.
  * 
- * Formato esperado del Excel:
- * - Columna A (0): Fecha (DD/MM/YYYY o serial Excel)
- * - Columna B (1): Referencia (único)
- * - Columna C (2): Monto
- * - Columna D (3): Banco Emisor (código 4 dígitos)
- * - Columna E (4): Celular
- * - Columna F (5): Cliente/RIF (opcional)
+ * Formato del archivo marketplace-orders.xlsx de Cashea:
+ * - Columna 0: Cédula (RIF del cliente)
+ * - Columna 1: Teléfono (celular del cliente)
+ * - Columna 2: Email
+ * - Columna 6: Fecha (ISO 8601)
+ * - Columna 10: # Orden
+ * - Columna 15: # Referencia (referencia bancaria - único)
+ * - Columna 16: Monto en Bs
  * 
  * Características:
  * - Todos los pagos son PagoMovil
  * - Banco receptor: 0191 (BNC)
+ * - Banco emisor: 0191 (BNC - se asume que viene del mismo banco)
  * - Vendedor: "Cashea" (fijo)
  */
 
@@ -19,12 +21,13 @@ import ExcelJS from "exceljs";
 
 export interface PagoCashea {
   fechaPago: string;      // YYYY-MM-DD
-  referencia: string;
-  monto: string;
-  bancoEmisor: string;    // código de 4 dígitos
-  celular: string;
-  rif: string;            // opcional
-  cliente: string;        // opcional
+  referencia: string;     // # Referencia (columna 15)
+  monto: string;          // Monto en Bs (columna 16)
+  bancoEmisor: string;    // código de 4 dígitos (asumido BNC 0191)
+  celular: string;        // Teléfono (columna 1)
+  rif: string;            // Cédula (columna 0)
+  cliente: string;        // Email (columna 2)
+  ordenId: string;        // # Orden (columna 10) - opcional
 }
 
 export interface ParseResult {
@@ -150,7 +153,7 @@ function normalizeCelular(val: unknown): string {
 }
 
 /**
- * Parsea un archivo Excel de Cashea y extrae los pagos
+ * Parsea un archivo Excel de Cashea (marketplace-orders.xlsx) y extrae los pagos
  */
 export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
   const resultado: ParseResult = {
@@ -172,7 +175,7 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
       return resultado;
     }
     
-    // Iterar desde la fila 2 (asumiendo fila 1 es encabezado)
+    // Iterar desde la fila 2 (fila 1 es encabezado)
     worksheet.eachRow((row, rowNumber) => {
       // Saltar encabezado
       if (rowNumber === 1) return;
@@ -180,12 +183,32 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
       resultado.total++;
       
       try {
-        const fecha = parseDate(row.getCell(1).value);
-        const referencia = String(row.getCell(2).value || "").trim();
-        const monto = parseMonto(row.getCell(3).value);
-        const bancoEmisor = normalizeBanco(row.getCell(4).value);
-        const celular = normalizeCelular(row.getCell(5).value);
-        const rifOCliente = String(row.getCell(6).value || "").trim();
+        // Extraer datos según el formato real de Cashea
+        const cedula = String(row.getCell(1).value || "").trim();  // Columna 0 (Cédula)
+        const telefono = String(row.getCell(2).value || "").trim(); // Columna 1 (Teléfono)
+        const email = String(row.getCell(3).value || "").trim();    // Columna 2 (Email)
+        const fechaRaw = row.getCell(7).value;                      // Columna 6 (Fecha)
+        const ordenId = String(row.getCell(11).value || "").trim(); // Columna 10 (# Orden)
+        const referencia = String(row.getCell(16).value || "").trim(); // Columna 15 (# Referencia)
+        const montoRaw = row.getCell(17).value;                     // Columna 16 (Monto en Bs)
+        
+        // Parsear fecha (viene en formato ISO 8601)
+        let fecha = "";
+        if (fechaRaw) {
+          if (fechaRaw instanceof Date) {
+            fecha = fechaRaw.toISOString().split("T")[0];
+          } else if (typeof fechaRaw === "string") {
+            // Si es string ISO, extraer la fecha
+            const match = fechaRaw.match(/^(\d{4}-\d{2}-\d{2})/);
+            if (match) fecha = match[1];
+          }
+        }
+        
+        // Normalizar celular
+        const celular = normalizeCelular(telefono);
+        
+        // Parsear monto
+        const monto = parseMonto(montoRaw);
         
         // Validaciones
         const erroresRow: string[] = [];
@@ -193,8 +216,8 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
         if (!fecha) erroresRow.push("fecha inválida");
         if (!referencia) erroresRow.push("referencia vacía");
         if (!monto || parseFloat(monto) <= 0) erroresRow.push("monto inválido");
-        if (!bancoEmisor || bancoEmisor.length !== 4) erroresRow.push("banco emisor inválido");
-        if (!celular || celular.length !== 11) erroresRow.push("celular inválido");
+        if (!celular || celular.length < 10) erroresRow.push("celular inválido");
+        if (!cedula) erroresRow.push("cédula vacía");
         
         if (erroresRow.length > 0) {
           resultado.errores.push(`Fila ${rowNumber}: ${erroresRow.join(", ")}`);
@@ -207,10 +230,11 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
           fechaPago: fecha,
           referencia,
           monto,
-          bancoEmisor,
+          bancoEmisor: "0191", // BNC (banco fijo para Cashea)
           celular,
-          rif: rifOCliente,
-          cliente: rifOCliente,
+          rif: cedula,
+          cliente: email || cedula,
+          ordenId,
         });
         
         resultado.validos++;
