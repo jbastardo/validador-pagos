@@ -26,8 +26,12 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useHashLocation();
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
+  
+  // Fecha actual en formato YYYY-MM-DD
+  const hoy = new Date().toISOString().split("T")[0];
+  
+  const [fechaDesde, setFechaDesde] = useState(hoy);
+  const [fechaHasta, setFechaHasta] = useState(hoy);
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwdActual, setPwdActual] = useState("");
   const [pwdNueva, setPwdNueva] = useState("");
