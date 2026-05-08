@@ -195,6 +195,7 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
         // Extraer datos según el formato real de Cashea (marketplace-orders.xlsx)
         // ExcelJS usa índices 1-based: getCell(1) = Columna A
         // El archivo tiene: Nombre, Cédula, Teléfono, Email, ...
+        const nombre = String(row.getCell(1).value || "").trim();   // Col A (Nombre del cliente)
         const cedula = String(row.getCell(2).value || "").trim();   // Col B (Cédula)
         const telefono = String(row.getCell(3).value || "").trim(); // Col C (Teléfono)
         const email = String(row.getCell(4).value || "").trim();    // Col D (Email)
@@ -244,7 +245,7 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
           bancoEmisor: "0191", // BNC (banco fijo para Cashea)
           celular,
           rif: cedula,
-          cliente: email || cedula,
+          cliente: nombre || email || cedula, // Prioridad: Nombre > Email > Cédula
           ordenId,
         });
         
