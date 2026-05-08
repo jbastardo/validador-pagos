@@ -183,14 +183,24 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
       resultado.total++;
       
       try {
+        // Debug: mostrar los valores de la primera fila de datos para verificar el mapeo
+        if (rowNumber === 2) {
+          console.log("[casheaParser] Fila 2 - Debug de columnas:");
+          for (let i = 1; i <= 17; i++) {
+            const val = row.getCell(i).value;
+            console.log(`  Col ${i}: ${typeof val} = ${String(val).substring(0, 50)}`);
+          }
+        }
+        
         // Extraer datos según el formato real de Cashea
-        const cedula = String(row.getCell(1).value || "").trim();  // Columna 0 (Cédula)
-        const telefono = String(row.getCell(2).value || "").trim(); // Columna 1 (Teléfono)
-        const email = String(row.getCell(3).value || "").trim();    // Columna 2 (Email)
-        const fechaRaw = row.getCell(7).value;                      // Columna 6 (Fecha)
-        const ordenId = String(row.getCell(11).value || "").trim(); // Columna 10 (# Orden)
-        const referencia = String(row.getCell(16).value || "").trim(); // Columna 15 (# Referencia)
-        const montoRaw = row.getCell(17).value;                     // Columna 16 (Monto en Bs)
+        // ExcelJS usa índices 1-based: getCell(1) = Columna A
+        const cedula = String(row.getCell(1).value || "").trim();   // Columna A (Cédula)
+        const telefono = String(row.getCell(2).value || "").trim(); // Columna B (Teléfono)
+        const email = String(row.getCell(3).value || "").trim();    // Columna C (Email)
+        const fechaRaw = row.getCell(7).value;                      // Columna G (Fecha)
+        const ordenId = String(row.getCell(11).value || "").trim(); // Columna K (# Orden)
+        const referencia = String(row.getCell(16).value || "").trim(); // Columna P (# Referencia)
+        const montoRaw = row.getCell(17).value;                     // Columna Q (Monto en Bs)
         
         // Parsear fecha (viene en formato ISO 8601)
         let fecha = "";
