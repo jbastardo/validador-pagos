@@ -512,7 +512,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
         return res.status(400).json({ message: `Estado inválido: "${estado}". Valores permitidos: ${estadosValidos.join(", ")}` });
       }
       const updated = await updateSolicitudEdicion(id, {
-        vendedor, cliente, sku, producto, cantidad,
+        cliente, sku, producto, cantidad,
         celular, fechaTope, observaciones,
         estado, categoria,
       }, email);
