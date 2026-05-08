@@ -415,7 +415,7 @@ export async function updateSolicitudEdicion(
   const nuevoCliente = data.cliente !== undefined ? data.cliente : s.cliente;
   const nuevoCelular = data.celular !== undefined ? data.celular : s.celular;
   const row = [
-    s.id, s.vendedor, nuevoCliente, nuevoCelular ?? "", nuevoSku, nuevoProducto, nuevaCant, nuevaFecha,
+    s.id, s.vendedor, nuevoCliente, nuevoCelular ?? "", nuevoSku ?? "", nuevoProducto ?? "", nuevaCant, nuevaFecha,
     nuevasObsVendedor, nuevoEstado, s.creadoEn, nuevaObs, actualizadoEn, nuevoRespondidoPor, nuevaCategoria,
   ];
   await updateRow(TAB_SOLICITUDES, s._rowIndex, row);

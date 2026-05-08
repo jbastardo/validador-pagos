@@ -156,13 +156,16 @@ export default function Solicitudes() {
     mutationFn: (data: any) => fetch(`/api/solicitudes/${obsSol?.id}/observaciones-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ observaciones: data.observaciones }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setObsOpen(false);
       toast({ title: "Observaciones actualizadas" });
     },
-    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al actualizar", variant: "destructive" }),
   });
   const openObsEdit = (s: Solicitud) => {
     setObsSol(s);
@@ -218,13 +221,16 @@ export default function Solicitudes() {
     mutationFn: (data: any) => fetch(`/api/solicitudes/${editSol?.id}/editar`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...data, usuario: user?.email }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setEditOpen(false);
       toast({ title: "Solicitud actualizada" });
     },
-    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al actualizar", variant: "destructive" }),
   });
   const openEdit = (s: Solicitud) => {
     setEditSol(s);
@@ -263,12 +269,15 @@ export default function Solicitudes() {
     mutationFn: (sol: Solicitud) => fetch(`/api/solicitudes/${sol.id}/confirmar-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vendedorEmail: user?.email, respondidoPor: sol.respondidoPor }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       toast({ title: "Compra confirmada y notificada" });
     },
-    onError: () => toast({ title: "Error al confirmar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al confirmar", variant: "destructive" }),
   });
 
   // --- Vendedor: solicitar anulacion ---
@@ -297,7 +306,7 @@ export default function Solicitudes() {
           method: "PATCH", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ estado, observacionesCompras: observaciones, usuario: user?.email }),
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) { const err = await res.json().catch(() => ({ message: `Error ${res.status}` })); throw new Error(err.message); }
       }
     },
     onSuccess: (_void, { ids }) => {
@@ -305,7 +314,7 @@ export default function Solicitudes() {
       toast({ title: `${ids.length} solicitudes actualizadas` });
       setSeleccionados(new Set());
     },
-    onError: () => toast({ title: "Error al actualizar en masa", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al actualizar en masa", variant: "destructive" }),
   });
 
   // --- Batch: eliminar (admin) ---

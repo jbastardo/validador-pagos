@@ -554,6 +554,10 @@ app.patch("/api/solicitudes/:id/estado", async (req, res) => {
     try {
       const { id } = req.params;
       const { estado, observacionesCompras, fechaTope, cantidad, categoria, usuario } = req.body;
+      const estadosValidos = ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"];
+      if (estado && !estadosValidos.includes(estado)) {
+        return res.status(400).json({ message: `Estado inválido: "${estado}". Valores permitidos: ${estadosValidos.join(", ")}` });
+      }
       const updated = await updateSolicitudEdicion(id, { estado, observacionesCompras, fechaTope, cantidad, categoria }, usuario);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (estado && estado !== "Pendiente") {
@@ -569,8 +573,8 @@ Actualizado por: ${usuario || "Compras"}` : `Solicitud #${updated.id}\nEstado: $
       }
       res.json(updated);
     } catch (e: any) {
-      console.error("Error updateSolicitudEdicion:", e.message);
-      res.status(500).json({ message: "Error al editar solicitud" });
+      console.error(`Error updateSolicitudEdicion (id=${req.params.id}):`, e?.stack || e?.message || e);
+      res.status(500).json({ message: `Error al editar solicitud: ${e?.message || "Error interno"}` });
     }
   });
 
