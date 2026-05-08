@@ -99,7 +99,10 @@ export default function Solicitudes() {
     mutationFn: (data: any) => fetch("/api/odoo/clientes", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: (c: OdooCliente) => {
       const display = c.vat ? `${c.name} (${c.vat})` : c.name;
       setForm(f => ({ ...f, cliente: display, celular: c.mobile || c.phone || "" }));
@@ -108,7 +111,7 @@ export default function Solicitudes() {
       setNuevoCliente({ name: "", vat: "", phone: "", mobile: "", email: "" });
       toast({ title: "Cliente creado en Odoo" });
     },
-    onError: () => toast({ title: "Error al crear cliente", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al crear cliente", variant: "destructive" }),
   });
 
   // --- SKU autocomplete para form (legacy) ---
@@ -164,13 +167,16 @@ export default function Solicitudes() {
     mutationFn: (data: any) => fetch(`/api/solicitudes/${obsSol?.id}/observaciones-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ observaciones: data.observaciones }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setObsOpen(false);
       toast({ title: "Observaciones actualizadas" });
     },
-    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al actualizar", variant: "destructive" }),
   });
   const openObsEdit = (s: Solicitud) => {
     setObsSol(s);
@@ -226,13 +232,16 @@ export default function Solicitudes() {
     mutationFn: (data: any) => fetch(`/api/solicitudes/${editSol?.id}/editar`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...data, usuario: user?.email, email: user?.email }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setEditOpen(false);
       toast({ title: "Solicitud actualizada" });
     },
-    onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al actualizar", variant: "destructive" }),
   });
   const openEdit = (s: Solicitud) => {
     setEditSol(s);
@@ -258,7 +267,7 @@ export default function Solicitudes() {
       setDeleteOpen(false);
       setDeletePassword("");
     },
-    onError: (err: any) => toast({ title: err.message ?? "Error al eliminar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al eliminar", variant: "destructive" }),
   });
   const handleDelete = async () => {
     if (!deleteSolId || !deletePassword) return;
@@ -271,12 +280,15 @@ export default function Solicitudes() {
     mutationFn: (sol: Solicitud) => fetch(`/api/solicitudes/${sol.id}/confirmar-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vendedorEmail: user?.email, respondidoPor: sol.respondidoPor }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       toast({ title: "Compra confirmada y notificada" });
     },
-    onError: () => toast({ title: "Error al confirmar", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al confirmar", variant: "destructive" }),
   });
 
   // --- Vendedor: solicitar anulacion ---
@@ -287,14 +299,17 @@ export default function Solicitudes() {
     mutationFn: ({ id, motivo, respondidoPor }: { id: string; motivo: string; respondidoPor?: string }) => fetch(`/api/solicitudes/${id}/anular-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vendedorEmail: user?.email, motivo, respondidoPor }),
-    }).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+    }).then(async r => {
+      if (!r.ok) { const err = await r.json().catch(() => ({ message: `Error ${r.status}` })); throw new Error(err.message); }
+      return r.json();
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["solicitudes"] });
       setAnularOpen(false);
       setAnularMotivo("");
       toast({ title: "Solicitud de anulacion enviada" });
     },
-    onError: () => toast({ title: "Error al solicitar anulacion", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al solicitar anulacion", variant: "destructive" }),
   });
 
   // --- Batch: cambiar estado (compras/admin) ---
@@ -303,9 +318,9 @@ export default function Solicitudes() {
       for (const id of ids) {
         const res = await fetch(`/api/solicitudes/${id}/editar`, {
           method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ estado, observacionesCompras: observaciones, usuario: user?.email }),
+          body: JSON.stringify({ estado, observacionesCompras: observaciones, usuario: user?.email, email: user?.email }),
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) { const err = await res.json().catch(() => ({ message: `Error ${res.status}` })); throw new Error(err.message); }
       }
     },
     onSuccess: (_void, { ids }) => {
@@ -313,7 +328,7 @@ export default function Solicitudes() {
       toast({ title: `${ids.length} solicitudes actualizadas` });
       setSeleccionados(new Set());
     },
-    onError: () => toast({ title: "Error al actualizar en masa", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al actualizar en masa", variant: "destructive" }),
   });
 
   // --- Batch: eliminar (admin) ---
@@ -323,7 +338,8 @@ export default function Solicitudes() {
     mutationFn: async ({ ids, password }: { ids: string[]; password: string }) => {
       for (const id of ids) {
         const res = await apiRequest("DELETE", `/api/solicitudes/${id}`, { email: user?.email ?? "", password });
-        if (!res.ok) throw new Error();
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message ?? "Error al eliminar");
       }
     },
     onSuccess: (_void, { ids }) => {
@@ -333,7 +349,7 @@ export default function Solicitudes() {
       setBatchDeleteOpen(false);
       setBatchDeletePassword("");
     },
-    onError: () => toast({ title: "Error al eliminar en masa", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al eliminar en masa", variant: "destructive" }),
   });
 
   // --- Batch: confirmar acepta (vendedor) ---
@@ -346,7 +362,7 @@ export default function Solicitudes() {
             method: "PATCH", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ vendedorEmail: user?.email, respondidoPor: sol.respondidoPor }),
           });
-          if (!res.ok) throw new Error();
+          if (!res.ok) { const err = await res.json().catch(() => ({ message: `Error ${res.status}` })); throw new Error(err.message); }
         }
       }
     },
@@ -355,7 +371,7 @@ export default function Solicitudes() {
       toast({ title: `${ids.length} compras confirmadas` });
       setSeleccionados(new Set());
     },
-    onError: () => toast({ title: "Error al confirmar en masa", variant: "destructive" }),
+    onError: (err: Error) => toast({ title: err.message || "Error al confirmar en masa", variant: "destructive" }),
   });
 
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "Agotado" ? "secondary" : "destructive";

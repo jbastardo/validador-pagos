@@ -501,22 +501,26 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   app.patch("/api/solicitudes/:id/editar", async (req: any, res: any) => {
     try {
       const { id } = req.params;
-      const { email } = req.body;
+      const email = req.body.email || req.body.usuario;
       if (!email) return res.status(400).json({ message: "Email requerido" });
       const usuarios = await getUsuarios();
       const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "compras" || x.rol === "vendedor") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { vendedor, cliente, sku, producto, cantidad, celular, fechaTope, observaciones, estado, categoria } = req.body;
-      if (!vendedor || !producto) return res.status(400).json({ message: "Campos requeridos" });
-       const updated = await updateSolicitudEdicion(id, {
-        vendedor: vendedor ?? undefined, cliente: cliente ?? undefined, sku: sku ?? undefined, producto, cantidad,
-        celular: celular ?? undefined, fechaTope: fechaTope ?? undefined, observaciones: observaciones ?? undefined,
-        estado, categoria: categoria ?? undefined, respondidoPor: email,
-      });
+      const estadosValidos = ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"];
+      if (estado && !estadosValidos.includes(estado)) {
+        return res.status(400).json({ message: `Estado inválido: "${estado}". Valores permitidos: ${estadosValidos.join(", ")}` });
+      }
+      const updated = await updateSolicitudEdicion(id, {
+        vendedor, cliente, sku, producto, cantidad,
+        celular, fechaTope, observaciones,
+        estado, categoria,
+      }, email);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       res.json(updated);
     } catch (e: any) {
-      res.status(500).json({ message: "Error al editar solicitud" });
+      console.error(`Error updateSolicitudEdicion (id=${req.params.id}):`, e?.stack || e?.message || e);
+      res.status(500).json({ message: `Error al editar solicitud: ${e?.message || "Error interno"}` });
     }
   });
 
