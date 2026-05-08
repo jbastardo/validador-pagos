@@ -189,7 +189,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
 
         try {
           // Crear el pago
-          await addPago({
+          const nuevoPago = await addPago({
             fechaPago: pagoCashea.fechaPago,
             tipoPago: "PagoMovil",
             bancoEmisor: pagoCashea.bancoEmisor,
@@ -207,6 +207,26 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
             megasoft: "",
             conciliadoPor: "",
           });
+
+          // Enviar webhook al conciliador para auto-conciliación
+          const CONCILIADOR_URL = process.env.CONCILIADOR_URL || "";
+          if (CONCILIADOR_URL && nuevoPago?.id) {
+            fetch(`${CONCILIADOR_URL}/api/auto-validar-pago`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                pagoId: String(nuevoPago.id),
+                bancoReceptor: "0191",
+                bancoEmisor: pagoCashea.bancoEmisor,
+                referencia: pagoCashea.referencia,
+                monto: pagoCashea.monto,
+                fechaPago: pagoCashea.fechaPago,
+                celular: pagoCashea.celular,
+                tipoPago: "PagoMovil",
+                vendedor,
+              }),
+            }).catch(err => console.warn(`[webhook] Error pago ${nuevoPago.id}:`, err.message));
+          }
 
           // Agregar a set para evitar duplicados dentro del mismo lote
           referenciasExistentes.add(refNormalizada);
