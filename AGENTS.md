@@ -41,3 +41,23 @@ Esta aplicación gestiona solicitudes de productos para el área de compras. Los
 
 ### Roles
 - admin, compras, vendedor
+
+---
+
+## 2026-05-08 — Error al actualizar estado: validación + logging
+
+### Problem
+El usuario de compras obtenía un error genérico ("Error al actualizar") al cambiar el estado de una solicitud sin saber la causa real. No se mostraba el mensaje de error del servidor.
+
+### Changes
+1. **`server/routes.ts`** (`/api/solicitudes/:id/editar`):
+   - Added validation for `estado` field against allowed values: `["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"]`
+   - Improved error logging to include solicitud ID and full error stack trace
+   - Server now returns specific error message in response body (`e.message`)
+
+2. **`server/sheets.ts`** (`updateSolicitudEdicion`):
+   - Added `?? ""` fallback to `nuevoSku` and `nuevoProducto` in row construction to prevent potential `undefined` values in sheet writes
+
+3. **`client/src/pages/Solicitudes.tsx`** (all mutations):
+   - Updated `mutationFn` in `editarSolicitud`, `batchCambiarEstado`, `editarObsVendedor`, and `confirmarCompra` to parse and throw the server's error response
+   - Updated `onError` in these mutations to display `err.message` in the toast instead of generic "Error al actualizar"
