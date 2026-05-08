@@ -22,6 +22,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "contabilidad", "vendedor", "cajero", "supervisor_caja"] },
   { href: "/registrar", label: "Pagos en Bs", icon: PlusCircle, roles: ["admin", "vendedor", "supervisor_caja"] },
   { href: "/registrar-divisas", label: "Pago en Divisas", icon: DollarSign, roles: ["admin", "vendedor", "supervisor_caja"] },
+  { href: "/upload-cashea", label: "Importar Cashea", icon: FileSpreadsheet, roles: ["admin", "contabilidad", "supervisor_caja"] },
   { href: "/conciliacion", label: "Resumen de Pagos", icon: ClipboardCheck, roles: ["admin", "contabilidad", "cajero", "vendedor", "supervisor_caja"] },
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
     { href: "/solicitudes", label: "Solicitudes", icon: ClipboardList, roles: ["admin", "vendedor", "compras"] },   { href: "/dashboard-solicitudes", label: "Dashboard Solicitudes", icon: BarChart3, roles: ["admin", "compras"] },

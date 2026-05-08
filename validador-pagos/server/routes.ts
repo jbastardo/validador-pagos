@@ -12,6 +12,7 @@ import {
   addMovimientos, getMovimientos, getExtractosStats, marcarUsado, tryMatch, deleteMovimientosBanco, conciliarPago, crearPagoDesdeConciliador,
 } from "./db";
 import { parseExtractoExcel } from "./extractos";
+import { parseCasheaExcel } from "./casheaParser";
 import { z } from "zod";
 import { BANCOS_RECEPTOR_META, extractos, pagos } from "../shared/schema";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
@@ -137,6 +138,98 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     } catch (e: any) {
       console.error("Error addPago:", e.message);
       res.status(500).json({ message: "Error al guardar pago" });
+    }
+  });
+
+  // POST /api/pagos/upload-cashea - Subir pagos de Cashea en lote desde Excel
+  app.post("/api/pagos/upload-cashea", upload.single("file"), async (req: any, res: any) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No se recibió archivo" });
+      }
+
+      const vendedor = req.body.vendedor || "Cashea";
+      const rif = req.body.rif || "J-00000000-0";
+
+      console.log(`[upload-cashea] Archivo: ${req.file.originalname} | Vendedor: ${vendedor}`);
+
+      // Parsear el archivo Excel
+      const parseResult = await parseCasheaExcel(req.file.buffer);
+
+      if (parseResult.pagos.length === 0) {
+        return res.status(422).json({
+          message: "No se encontraron pagos válidos en el archivo",
+          errores: parseResult.errores,
+          total: parseResult.total,
+          validos: 0,
+          invalidos: parseResult.invalidos,
+        });
+      }
+
+      // Obtener todos los pagos existentes para verificar duplicados por referencia
+      const pagosExistentes = await getPagos();
+      const referenciasExistentes = new Set(
+        pagosExistentes
+          .filter((p: any) => p.referencia && p.referencia.trim() !== "")
+          .map((p: any) => p.referencia.trim().toLowerCase())
+      );
+
+      let guardados = 0;
+      let duplicados = 0;
+      const erroresGuardado: string[] = [];
+
+      // Procesar cada pago
+      for (const pagoCashea of parseResult.pagos) {
+        // Verificar si ya existe por referencia
+        const refNormalizada = pagoCashea.referencia.trim().toLowerCase();
+        if (referenciasExistentes.has(refNormalizada)) {
+          duplicados++;
+          continue;
+        }
+
+        try {
+          // Crear el pago
+          await addPago({
+            fechaPago: pagoCashea.fechaPago,
+            tipoPago: "PagoMovil",
+            bancoEmisor: pagoCashea.bancoEmisor,
+            monto: pagoCashea.monto,
+            celular: pagoCashea.celular,
+            bancoReceptor: "0191", // BNC fijo para Cashea
+            referencia: pagoCashea.referencia,
+            rif: pagoCashea.rif || rif,
+            factura: "",
+            estado: "Pendiente",
+            validadoPor: "",
+            vendedor,
+            observaciones: "Importado desde archivo Cashea",
+            cliente: pagoCashea.cliente || "",
+            megasoft: "",
+            conciliadoPor: "",
+          });
+
+          // Agregar a set para evitar duplicados dentro del mismo lote
+          referenciasExistentes.add(refNormalizada);
+          guardados++;
+        } catch (err: any) {
+          erroresGuardado.push(`Ref ${pagoCashea.referencia}: ${err.message}`);
+        }
+      }
+
+      console.log(`[upload-cashea] Guardados: ${guardados} | Duplicados: ${duplicados} | Errores: ${erroresGuardado.length}`);
+
+      res.json({
+        ok: true,
+        total: parseResult.total,
+        validos: parseResult.validos,
+        invalidos: parseResult.invalidos,
+        guardados,
+        duplicados,
+        errores: [...parseResult.errores, ...erroresGuardado],
+      });
+    } catch (e: any) {
+      console.error("Error upload-cashea:", e.message);
+      res.status(500).json({ message: "Error al procesar el archivo" });
     }
   });
 
