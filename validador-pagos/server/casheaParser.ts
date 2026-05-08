@@ -194,13 +194,14 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
         
         // Extraer datos según el formato real de Cashea (marketplace-orders.xlsx)
         // ExcelJS usa índices 1-based: getCell(1) = Columna A
-        const cedula = String(row.getCell(1).value || "").trim();   // Col A (Cédula)
-        const telefono = String(row.getCell(2).value || "").trim(); // Col B (Teléfono)
-        const email = String(row.getCell(3).value || "").trim();    // Col C (Email)
-        const fechaRaw = row.getCell(7).value;                      // Col G (Fecha)
-        const ordenId = String(row.getCell(12).value || "").trim(); // Col L (# Orden)
-        const referencia = String(row.getCell(15).value || "").trim(); // Col O (# Referencia)
-        const montoRaw = row.getCell(16).value;                     // Col P (Monto en Bs)
+        // El archivo tiene: Nombre, Cédula, Teléfono, Email, ...
+        const cedula = String(row.getCell(2).value || "").trim();   // Col B (Cédula)
+        const telefono = String(row.getCell(3).value || "").trim(); // Col C (Teléfono)
+        const email = String(row.getCell(4).value || "").trim();    // Col D (Email)
+        const fechaRaw = row.getCell(8).value;                      // Col H (Fecha)
+        const ordenId = String(row.getCell(13).value || "").trim(); // Col M (# Orden)
+        const referencia = String(row.getCell(16).value || "").trim(); // Col P (# Referencia)
+        const montoRaw = row.getCell(17).value;                     // Col Q (Monto en Bs)
         
         // Parsear fecha (viene en formato ISO 8601)
         let fecha = "";
