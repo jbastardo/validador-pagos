@@ -166,13 +166,9 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
         });
       }
 
-      // Obtener todos los pagos existentes para verificar duplicados por referencia
+      // Obtener todos los pagos existentes para verificar duplicados
       const pagosExistentes = await getPagos();
-      const referenciasExistentes = new Set(
-        pagosExistentes
-          .filter((p: any) => p.referencia && p.referencia.trim() !== "")
-          .map((p: any) => p.referencia.trim().toLowerCase())
-      );
+      const referenciasEnLote = new Set<string>();
 
       let guardados = 0;
       let duplicados = 0;
@@ -180,12 +176,21 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
 
       // Procesar cada pago
       for (const pagoCashea of parseResult.pagos) {
-        // Verificar si ya existe por referencia
-        const refNormalizada = pagoCashea.referencia.trim().toLowerCase();
-        if (referenciasExistentes.has(refNormalizada)) {
+        // Verificar duplicado usando checkDuplicado (misma lógica que POST /api/pagos)
+        const dup = await checkDuplicado(
+          pagoCashea.referencia, pagoCashea.monto, pagoCashea.fechaPago, "PagoMovil", "0191", pagoCashea.celular
+        );
+        if (dup) {
           duplicados++;
           continue;
         }
+        // También evitar duplicados dentro del mismo lote
+        const refKey = pagoCashea.referencia.replace(/\D/g, "").padStart(10, "0").slice(-10);
+        if (referenciasEnLote.has(refKey)) {
+          duplicados++;
+          continue;
+        }
+        referenciasEnLote.add(refKey);
 
         try {
           // Crear el pago
@@ -228,8 +233,6 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
             }).catch(err => console.warn(`[webhook] Error pago ${nuevoPago.id}:`, err.message));
           }
 
-          // Agregar a set para evitar duplicados dentro del mismo lote
-          referenciasExistentes.add(refNormalizada);
           guardados++;
         } catch (err: any) {
           erroresGuardado.push(`Ref ${pagoCashea.referencia}: ${err.message}`);
