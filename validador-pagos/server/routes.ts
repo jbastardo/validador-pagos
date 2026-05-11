@@ -473,6 +473,26 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
         cajeroEmail: (cajeroEmail ?? undefined),
       });
       if (!updated) return res.status(404).json({ message: "Pago no encontrado" });
+
+      const CONCILIADOR_URL = process.env.CONCILIADOR_URL || "";
+      if (CONCILIADOR_URL && updated?.id) {
+        fetch(`${CONCILIADOR_URL}/api/auto-validar-pago`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pagoId: String(updated.id),
+            bancoReceptor: updated.bancoReceptor || "",
+            bancoEmisor: updated.bancoEmisor || "",
+            referencia: updated.referencia || "",
+            monto: updated.monto,
+            fechaPago: updated.fechaPago,
+            celular: updated.celular || "",
+            tipoPago: updated.tipoPago || "PagoMovil",
+            vendedor: updated.vendedor || "",
+          }),
+        }).catch(err => console.warn(`[webhook] Error re-conciliar pago ${updated.id}:`, err.message));
+      }
+
       res.json(updated);
     } catch (e: any) {
       console.error("Error updatePagoEdicion:", e.message);
