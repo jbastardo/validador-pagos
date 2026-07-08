@@ -147,13 +147,14 @@ export async function checkDuplicado(
 ) {
   const allPagos = await db.select().from(pagos);
   const normalizeRef = (ref: string) => ref.replace(/\D/g, "").padStart(10, "0").slice(-10);
+  const bancoCode = extractBancoCode(bancoReceptor ?? "");
 
   if (referencia?.trim()) {
     const refNorm = normalizeRef(referencia);
     if (refNorm !== "0000000000") {
       const dup = allPagos.find(p => {
         const pRefNorm = normalizeRef(p.referencia || "");
-        return pRefNorm === refNorm && extractBancoCode(p.bancoReceptor) === extractBancoCode(bancoReceptor ?? "");
+        return pRefNorm === refNorm && extractBancoCode(p.bancoReceptor) === bancoCode;
       });
       if (dup) return dup;
     }
@@ -163,7 +164,6 @@ export async function checkDuplicado(
     const digits = referencia.replace(/\D/g, "");
     if (digits.length >= 4) {
       const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
-      const bancoCode = extractBancoCode(bancoReceptor ?? "");
       for (const n of [6, 5, 4]) {
         if (digits.length < n) continue;
         const suffix = digits.slice(-n);
@@ -186,6 +186,45 @@ export async function checkDuplicado(
       (p.celular || "").trim() === (celular ?? "").trim()
     ) || null;
   }
+  return null;
+}
+
+export async function checkDuplicadoDivisa(
+  referencia: string, monto: string, fecha: string, tipo: string
+) {
+  const allPagos = await db.select().from(pagosDivisas);
+  const normalizeRef = (ref: string) => ref.replace(/\D/g, "").padStart(10, "0").slice(-10);
+
+  if (referencia?.trim()) {
+    const refNorm = normalizeRef(referencia);
+    if (refNorm !== "0000000000") {
+      const dup = allPagos.find(p => {
+        const pRefNorm = normalizeRef(p.referencia || "");
+        return pRefNorm === refNorm && p.tipo === tipo;
+      });
+      if (dup) return dup;
+    }
+  }
+
+  if (referencia?.trim()) {
+    const digits = referencia.replace(/\D/g, "");
+    if (digits.length >= 4) {
+      const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
+      for (const n of [6, 5, 4]) {
+        if (digits.length < n) continue;
+        const suffix = digits.slice(-n);
+        const dupT = allPagos.find(p => {
+          const pDigits = (p.referencia || "").replace(/\D/g, "");
+          if (pDigits.length < n) return false;
+          return pDigits.slice(-n) === suffix &&
+            Math.abs((parseFloat((p.monto || "0").replace(",", ".")) || 0) - montoNorm) < 0.01 &&
+            p.tipo === tipo;
+        });
+        if (dupT) return dupT;
+      }
+    }
+  }
+
   return null;
 }
 

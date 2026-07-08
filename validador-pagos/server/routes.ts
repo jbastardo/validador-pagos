@@ -2,7 +2,7 @@ import multer from "multer";
 import { eq, and } from "drizzle-orm";
 import {
   db,
-  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado, getStats,
+  getPagos, addPago, updatePagoEstado, updatePagoCajero, updatePagoCajeroPendiente, updatePagoFacturaCliente, checkDuplicado, checkDuplicadoDivisa, getStats,
   deletePago, deletePagoDivisa, deleteUsuario,
   getUsuarios, addUsuario, updateUsuario, updateUsuarioTelegramChatId,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
@@ -372,6 +372,14 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
       console.log("[addPagoDivisa] guardando:", JSON.stringify(parsed.data));
+
+      // Verificar duplicado
+      const dup = await checkDuplicadoDivisa(parsed.data.referencia, parsed.data.monto, parsed.data.fecha, parsed.data.tipo);
+      if (dup) return res.status(409).json({
+        message: "Pago en divisas duplicado detectado",
+        duplicado: { id: dup.id, fecha: dup.fecha, monto: dup.monto, referencia: dup.referencia, tipo: dup.tipo },
+      });
+
       const nuevo = await addPagoDivisa({ ...parsed.data, estado: "Pendiente", validadoPor: "" });
       console.log("[addPagoDivisa] creado id=" + nuevo.id + " vendedor=" + nuevo.vendedor + " monto=" + nuevo.monto);
       res.status(201).json(nuevo);
@@ -463,10 +471,24 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const fechaPagoFinal = fechaPago ?? pago?.fechaPago;
       const montoFinal = monto ?? pago?.monto;
       if (!fechaPagoFinal || !montoFinal) return res.status(400).json({ message: "Campos requeridos" });
+
+      // Verificar duplicado si se está editando referencia, monto o bancoReceptor
+      const refFinal = referencia ?? pago?.referencia ?? "";
+      const bancoReceptorFinal = bancoReceptor ?? pago?.bancoReceptor ?? "";
+      const celularFinal = celular ?? pago?.celular ?? "";
+      const tipoPagoFinal = pago?.tipoPago ?? "PagoMovil";
+      const dup = await checkDuplicado(refFinal, montoFinal, fechaPagoFinal, tipoPagoFinal, bancoReceptorFinal, celularFinal);
+      if (dup && String(dup.id) !== String(id)) {
+        return res.status(409).json({
+          message: "Pago duplicado detectado",
+          duplicado: { id: dup.id, fechaPago: dup.fechaPago, monto: dup.monto, referencia: dup.referencia, tipoPago: dup.tipoPago },
+        });
+      }
+
       const updated = await updatePagoEdicion(id, {
         fechaPago: fechaPagoFinal, bancoEmisor: (bancoEmisor ?? pago?.bancoEmisor) ?? "", bancoReceptor: (bancoReceptor ?? pago?.bancoReceptor) ?? "",
         monto: montoFinal,
-        referencia: (referencia ?? pago?.referencia) ?? "", celular: (celular ?? pago?.celular) ?? "",
+        referencia: refFinal, celular: celularFinal,
         cliente: (cliente ?? pago?.cliente) ?? undefined,
         observaciones: (observaciones ?? pago?.observaciones) ?? undefined, rif: (rif ?? pago?.rif) ?? undefined,
         factura: (factura ?? pago?.factura) ?? undefined, megasoft: (megasoft ?? pago?.megasoft) ?? undefined,
@@ -511,6 +533,18 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fecha, nombrePagador, monto, tipo, referencia, observaciones } = req.body;
       if (!fecha || !monto) return res.status(400).json({ message: "Campos requeridos" });
+
+      // Verificar duplicado si se está editando referencia, monto o tipo
+      const refFinal = referencia ?? "";
+      const tipoFinal = tipo;
+      const dup = await checkDuplicadoDivisa(refFinal, monto, fecha, tipoFinal);
+      if (dup && String(dup.id) !== String(id)) {
+        return res.status(409).json({
+          message: "Pago en divisas duplicado detectado",
+          duplicado: { id: dup.id, fecha: dup.fecha, monto: dup.monto, referencia: dup.referencia, tipo: dup.tipo },
+        });
+      }
+
       console.log("[updatePagoDivisaEdicion] id=" + id + " fecha=" + fecha + " monto=" + monto + " tipo=" + tipo + " por=" + email);
       const updated = await updatePagoDivisaEdicion(id, {
         fecha, nombrePagador, monto, tipo, referencia: referencia ?? undefined, observaciones: observaciones ?? undefined,
