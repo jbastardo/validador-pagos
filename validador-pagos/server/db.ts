@@ -206,25 +206,6 @@ export async function checkDuplicadoDivisa(
     }
   }
 
-  if (referencia?.trim()) {
-    const digits = referencia.replace(/\D/g, "");
-    if (digits.length >= 4) {
-      const montoNorm = parseFloat(monto.replace(",", ".")) || 0;
-      for (const n of [6, 5, 4]) {
-        if (digits.length < n) continue;
-        const suffix = digits.slice(-n);
-        const dupT = allPagos.find(p => {
-          const pDigits = (p.referencia || "").replace(/\D/g, "");
-          if (pDigits.length < n) return false;
-          return pDigits.slice(-n) === suffix &&
-            Math.abs((parseFloat((p.monto || "0").replace(",", ".")) || 0) - montoNorm) < 0.01 &&
-            p.tipo === tipo;
-        });
-        if (dupT) return dupT;
-      }
-    }
-  }
-
   return null;
 }
 
