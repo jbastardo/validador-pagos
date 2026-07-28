@@ -1,1 +1,2 @@
 - [Coolify Migration Tools](coolify-migration-tools.md) — endpoints API, secrets, patrón clone+delta y UUIDs para migraciones Railway → Coolify en tutecnotienda.site
+- [Coolify Port Strategy](coolify-port-strategy.md) — puerto host único por servicio (8001, 8002…) + Cloudflare Tunnel → 192.168.1.X:800N. Nunca compartir puerto host entre dos apps.
