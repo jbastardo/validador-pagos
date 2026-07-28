@@ -1,0 +1,1 @@
+- [Coolify Migration Tools](coolify-migration-tools.md) — endpoints API, secrets, patrón clone+delta y UUIDs para migraciones Railway → Coolify en tutecnotienda.site
