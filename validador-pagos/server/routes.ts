@@ -968,6 +968,27 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     }
   });
 
+
+  app.delete("/api/usuarios/:id", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { email, password } = req.body;
+      if (!email || !password) return res.status(400).json({ message: "Credenciales requeridas" });
+      const usuarios = await getUsuarios();
+      const solicitante = usuarios.find((x: any) => x.email === email && x.password === password && x.activo?.toLowerCase() === "true");
+      if (!solicitante || solicitante.rol !== "admin") return res.status(403).json({ message: "Solo administradores pueden eliminar usuarios" });
+      const objetivo = usuarios.find((u: any) => String(u.id) === String(id));
+      if (!objetivo) return res.status(404).json({ message: "Usuario no encontrado" });
+      if (String(solicitante.id) === String(id)) return res.status(400).json({ message: "No puedes eliminar tu propia cuenta" });
+      const deleted = await deleteUsuario(id);
+      if (!deleted) return res.status(404).json({ message: "No se pudo eliminar el usuario" });
+      res.json({ message: "Usuario eliminado correctamente" });
+    } catch (e: any) {
+      console.error("Error deleteUsuario:", e.message);
+      res.status(500).json({ message: "Error al eliminar usuario" });
+    }
+  });
+
   app.post("/api/telegram-webhook", async (req: any, res: any) => {
     try {
       const { message } = req.body;
