@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
   pagos, usuarios, pagosDivisas, solicitudes, extractos,
+  solicitudMensajes, telegramNotificaciones,
   InsertPago, InsertUsuario, InsertPagoDivisa, InsertSolicitud, InsertExtracto,
 } from "@shared/schema";
 import { eq, and, or, like, sql } from "drizzle-orm";
@@ -332,6 +333,54 @@ export async function deleteSolicitud(id: string | number) {
   const result = await db.delete(solicitudes).where(eq(solicitudes.id, toId(id))).returning();
   return result.length > 0;
 }
+export async function getSolicitudById(id: string | number) {
+  const [found] = await db.select().from(solicitudes).where(eq(solicitudes.id, toId(id)));
+  return found ?? null;
+}
+
+// ─── SOLICITUD MENSAJES ──────────────────────────────────────────────────────────
+export async function getMensajesBySolicitud(solicitudId: string | number) {
+  return await db.select().from(solicitudMensajes)
+    .where(eq(solicitudMensajes.solicitudId, toId(solicitudId)));
+  // Note: results arrive in insertion order (serial id is monotonic)
+}
+
+export async function addSolicitudMensaje(data: {
+  solicitudId: number;
+  autor: string;
+  autorNombre?: string | null;
+  mensaje?: string | null;
+  adjuntoUrl?: string | null;
+  adjuntoNombre?: string | null;
+  adjuntoTipo?: string | null;
+  source?: string;
+}) {
+  const [created] = await db.insert(solicitudMensajes).values({
+    ...data,
+    creadoEn: new Date(),
+  }).returning();
+  return created;
+}
+
+// ─── TELEGRAM NOTIFICACIONES ──────────────────────────────────────────────────
+export async function addTelegramNotificacion(data: {
+  telegramMessageId: string;
+  solicitudId: number;
+  destinatarioEmail?: string;
+}) {
+  const [created] = await db.insert(telegramNotificaciones).values({
+    ...data,
+    creadoEn: new Date(),
+  }).returning();
+  return created;
+}
+
+export async function getTelegramNotificacion(telegramMessageId: string) {
+  const [found] = await db.select().from(telegramNotificaciones)
+    .where(eq(telegramNotificaciones.telegramMessageId, telegramMessageId));
+  return found ?? null;
+}
+
 
 // ─── EXTRACTOS ──────────────────────────────────────────────────────────────────
 export async function getMovimientos(banco?: string) {
