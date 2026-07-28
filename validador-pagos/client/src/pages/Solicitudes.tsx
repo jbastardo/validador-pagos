@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit2, Trash2, Filter, RefreshCw, Info, CheckCircle, XCircle, CheckSquare, Square } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, Filter, RefreshCw, Info, CheckCircle, XCircle, CheckSquare, Square, MessageSquare, Paperclip, Send, FileSpreadsheet, FileText } from "lucide-react";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink,
   PaginationPrevious, PaginationNext, PaginationEllipsis,
@@ -21,6 +21,18 @@ interface Solicitud {
   producto: string; cantidad: string;
   fechaTope: string; observaciones: string; estado: string; creadoEn: string;
   observacionesCompras?: string; actualizadoEn?: string; respondidoPor?: string; categoria?: string;
+}
+interface SolicitudMensaje {
+  id: string;
+  solicitudId: number;
+  autor: string;
+  autorNombre?: string;
+  mensaje?: string;
+  adjuntoUrl?: string;
+  adjuntoNombre?: string;
+  adjuntoTipo?: string;
+  source: string;
+  creadoEn: string;
 }
 interface OdooCliente { id: number; name: string; vat: string; phone: string; mobile: string; email: string; }
 interface OdooProducto { id: number; name: string; default_code: string; list_price: number; qty_available: number; categ_id: string; }
@@ -295,6 +307,60 @@ export default function Solicitudes() {
   const [anularOpen, setAnularOpen] = useState(false);
   const [anularSol, setAnularSol] = useState<Solicitud | null>(null);
   const [anularMotivo, setAnularMotivo] = useState("");
+
+  // --- Chat de solicitud ---
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatSol, setChatSol] = useState<Solicitud | null>(null);
+  const [chatMensaje, setChatMensaje] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatFileRef = useRef<HTMLInputElement>(null);
+
+  const { data: mensajes = [], isLoading: mensajesLoading } = useQuery<SolicitudMensaje[]>({
+    queryKey: ["solicitud-mensajes", chatSol?.id],
+    queryFn: () => fetch(`/api/solicitudes/${chatSol?.id}/mensajes`).then(r => r.json()),
+    enabled: !!chatSol?.id && chatOpen,
+    refetchInterval: chatOpen ? 6000 : false,
+  });
+
+  useEffect(() => {
+    if (chatOpen) {
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    }
+  }, [mensajes, chatOpen]);
+
+  const enviarMensaje = useMutation({
+    mutationFn: async ({ mensaje }: { mensaje: string }) => {
+      const res = await fetch(`/api/solicitudes/${chatSol?.id}/mensajes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autor: user?.email, autorNombre: user?.nombre, mensaje }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({ message: "Error" })); throw new Error(e.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["solicitud-mensajes", chatSol?.id] });
+      setChatMensaje("");
+    },
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
+  });
+
+  const subirAdjunto = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("archivo", file);
+      formData.append("autor", user?.email || "");
+      formData.append("autorNombre", user?.nombre || "");
+      const res = await fetch(`/api/solicitudes/${chatSol?.id}/adjuntos`, { method: "POST", body: formData });
+      if (!res.ok) { const e = await res.json().catch(() => ({ message: "Error" })); throw new Error(e.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["solicitud-mensajes", chatSol?.id] });
+      if (chatFileRef.current) chatFileRef.current.value = "";
+    },
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
+  });
   const anularCompra = useMutation({
     mutationFn: ({ id, motivo, respondidoPor }: { id: string; motivo: string; respondidoPor?: string }) => fetch(`/api/solicitudes/${id}/anular-vendedor`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -710,6 +776,10 @@ export default function Solicitudes() {
                         <div className="flex flex-col gap-1 items-start min-w-[140px]">
                           {/* Vendedor: editar observaciones */}
                           {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
+                          {/* Chat button - visible a todos */}
+                          <Button size="sm" variant="ghost" onClick={() => { setChatSol(s); setChatOpen(true); }} title="Chat de solicitud">
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
                           {/* Compras/Admin: editar */}
                           {isCompras && <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit2 className="h-4 w-4" /></Button>}
                           {/* Admin: eliminar */}
@@ -859,6 +929,133 @@ export default function Solicitudes() {
             <Button variant="outline" onClick={() => setBatchDeleteOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={() => batchEliminar.mutate({ ids: Array.from(seleccionados), password: batchDeletePassword })} disabled={!batchDeletePassword || batchEliminar.isPending}>{batchEliminar.isPending ? "Eliminando..." : "Eliminar"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* DIALOG CHAT DE SOLICITUD */}
+      <Dialog open={chatOpen} onOpenChange={o => { setChatOpen(o); if (!o) setChatMensaje(""); }}>
+        <DialogContent className="max-w-2xl flex flex-col p-0 gap-0" style={{ height: "82vh", maxHeight: "82vh" }}>
+          <DialogHeader className="flex-shrink-0 px-6 pt-5 pb-3 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              Chat — Solicitud #{chatSol?.id}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-0.5 truncate">
+              {chatSol?.producto}{chatSol?.sku ? ` [${chatSol.sku}]` : ""} · {chatSol?.cliente} · <Badge variant={colorEstado(chatSol?.estado || "") as any} className="text-xs">{chatSol?.estado}</Badge>
+            </p>
+          </DialogHeader>
+
+          {/* Mensajes */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            {mensajesLoading ? (
+              <div className="text-center text-sm text-muted-foreground py-12">Cargando mensajes...</div>
+            ) : mensajes.length === 0 ? (
+              <div className="text-center py-12 space-y-2">
+                <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Sin mensajes aún.</p>
+                <p className="text-xs text-muted-foreground">Escribe aquí o responde la notificación de Telegram.</p>
+              </div>
+            ) : (
+              mensajes.map((m) => {
+                const esMio = m.autor === user?.email;
+                const nombre = m.autorNombre || m.autor.split("@")[0];
+                const dt = new Date(m.creadoEn);
+                const hora = dt.toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" });
+                const fecha = dt.toLocaleDateString("es-VE", { day: "2-digit", month: "short" });
+                const isTg = m.source === "telegram";
+                const isImg = m.adjuntoTipo?.startsWith("image/");
+                const isExcel = m.adjuntoTipo?.includes("spreadsheet") || m.adjuntoTipo?.includes("excel") || m.adjuntoNombre?.match(/\.(xlsx?|csv)$/i);
+                return (
+                  <div key={m.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[72%] rounded-2xl px-4 py-2.5 space-y-1.5 shadow-sm ${esMio ? "bg-blue-600 text-white rounded-br-md" : "bg-muted rounded-bl-md"}`}>
+                      {!esMio && (
+                        <div className="text-[11px] font-semibold opacity-70 flex items-center gap-1">
+                          {isTg && <span title="Enviado desde Telegram" className="text-[10px]">✈️</span>}
+                          {nombre}
+                        </div>
+                      )}
+                      {m.mensaje && <p className="text-sm whitespace-pre-wrap break-words leading-snug">{m.mensaje}</p>}
+                      {m.adjuntoUrl && (
+                        <div className="mt-1">
+                          {isImg ? (
+                            <img
+                              src={m.adjuntoUrl}
+                              alt={m.adjuntoNombre || "imagen"}
+                              className="max-w-full rounded-lg max-h-52 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(m.adjuntoUrl!, "_blank")}
+                            />
+                          ) : (
+                            <a href={m.adjuntoUrl} target="_blank" rel="noopener noreferrer"
+                              className={`flex items-center gap-2 text-xs underline underline-offset-2 hover:opacity-80 transition-opacity ${esMio ? "text-blue-100" : "text-blue-600"}`}>
+                              {isExcel ? <FileSpreadsheet className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0" />}
+                              <span className="truncate max-w-[180px]">{m.adjuntoNombre || "Archivo adjunto"}</span>
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      <div className={`text-[10px] flex items-center gap-1 justify-end opacity-55`}>
+                        {fecha} {hora}
+                        {isTg && <span title="Desde Telegram">· ✈️</span>}
+                        {esMio && isTg && <span title="Enviado desde Telegram">· ✈️</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="flex-shrink-0 px-5 pb-5 pt-3 border-t space-y-2 bg-background">
+            <div className="flex gap-2 items-end">
+              <Textarea
+                value={chatMensaje}
+                onChange={e => setChatMensaje(e.target.value)}
+                placeholder="Escribe un mensaje... (Enter para enviar)"
+                className="resize-none text-sm flex-1"
+                rows={2}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (chatMensaje.trim() && !enviarMensaje.isPending) enviarMensaje.mutate({ mensaje: chatMensaje.trim() });
+                  }
+                }}
+              />
+              <div className="flex flex-col gap-1">
+                <Button
+                  size="sm"
+                  className="h-9 px-3"
+                  onClick={() => { if (chatMensaje.trim()) enviarMensaje.mutate({ mensaje: chatMensaje.trim() }); }}
+                  disabled={!chatMensaje.trim() || enviarMensaje.isPending}
+                  title="Enviar mensaje"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-3"
+                  onClick={() => chatFileRef.current?.click()}
+                  disabled={subirAdjunto.isPending}
+                  title="Adjuntar Excel, PDF o imagen (máx. 15MB)"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Shift+Enter para nueva línea · Adjuntos: Excel, PDF, imágenes (máx. 15 MB)</p>
+            <input
+              ref={chatFileRef}
+              type="file"
+              className="hidden"
+              accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.gif"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) subirAdjunto.mutate(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
