@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -85,7 +87,39 @@ app.use((req, res, next) => {
   next();
 });
 
+async function runStartupMigrations() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS solicitud_mensajes (
+        id              SERIAL PRIMARY KEY,
+        solicitud_id    INTEGER NOT NULL,
+        autor           TEXT NOT NULL,
+        autor_nombre    TEXT,
+        mensaje         TEXT,
+        adjunto_url     TEXT,
+        adjunto_nombre  TEXT,
+        adjunto_tipo    TEXT,
+        source          TEXT DEFAULT 'web',
+        creado_en       TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS telegram_notificaciones (
+        id                    SERIAL PRIMARY KEY,
+        telegram_message_id   TEXT NOT NULL,
+        solicitud_id          INTEGER NOT NULL,
+        destinatario_email    TEXT,
+        creado_en             TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log("[startup] Migrations OK");
+  } catch (e: any) {
+    console.error("[startup] Migration error:", e.message);
+  }
+}
+
 (async () => {
+  await runStartupMigrations();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
