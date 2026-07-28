@@ -1,4 +1,6 @@
 import multer from "multer";
+import fs from "fs";
+import path from "path";
 import { eq, and } from "drizzle-orm";
 import {
   db,
@@ -7,7 +9,9 @@ import {
   getUsuarios, addUsuario, updateUsuario, updateUsuarioTelegramChatId,
   getPagosDivisas, addPagoDivisa, updatePagoDivisaEstado, updatePagoDivisaEdicion,
   updatePagoEdicion,
-  getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion,
+  getSolicitudes, addSolicitud, updateSolicitudEstado, deleteSolicitud, updateSolicitudEdicion, getSolicitudById,
+  getMensajesBySolicitud, addSolicitudMensaje,
+  addTelegramNotificacion, getTelegramNotificacion,
   getNextId,
   addMovimientos, getMovimientos, getExtractosStats, marcarUsado, tryMatch, deleteMovimientosBanco, conciliarPago, crearPagoDesdeConciliador,
 } from "./db";
@@ -22,16 +26,46 @@ const BANCOS_VALIDOS = BANCOS_RECEPTOR_META.map(b => b.codigo);
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
-async function sendTelegram(text: string, chatId?: string) {
-  if (!TELEGRAM_BOT_TOKEN) return;
+async function sendTelegram(text: string, chatId?: string): Promise<number | null> {
+  if (!TELEGRAM_BOT_TOKEN) return null;
   const targetChatId = chatId || TELEGRAM_CHAT_ID;
-  if (!targetChatId) return;
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: "HTML" }),
-  }).catch(() => {});
+  if (!targetChatId) return null;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: targetChatId, text, parse_mode: "HTML" }),
+    });
+    const data = await r.json() as any;
+    return data?.result?.message_id ?? null;
+  } catch { return null; }
 }
+
+// Uploads dir for solicitud attachments
+const UPLOADS_DIR = path.join(process.cwd(), "uploads", "solicitudes");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Multer instance for solicitud file uploads (disk storage)
+const uploadSolicitud = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+    filename: (_req, file, cb) => {
+      const safeName = `${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      cb(null, safeName);
+    },
+  }),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
+      "application/pdf",
+      "image/jpeg", "image/png", "image/webp", "image/gif",
+    ];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -604,7 +638,9 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
           ].filter(Boolean) as string[];
           const msg = lines.join("\n");
           for (const c of compradores) {
-            sendTelegram(msg, c.telegramChatId).catch(() => {});
+            sendTelegram(msg, c.telegramChatId).then(async msgId => {
+              if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: nuevo.id, destinatarioEmail: c.email }).catch(() => {});
+            }).catch(() => {});
           }
         }
       } catch {}
@@ -636,7 +672,9 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
               `<b>Cliente:</b> ${updated.cliente || ""}`,
               `<b>Nuevo estado:</b> ${parsed.data.estado}`,
             ].join("\n");
-            sendTelegram(msg, vendedorUser.telegramChatId).catch(() => {});
+            sendTelegram(msg, vendedorUser.telegramChatId).then(async msgId => {
+              if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: Number(id), destinatarioEmail: vendedorUser.email }).catch(() => {});
+            }).catch(() => {});
           }
         }
       } catch {}
@@ -742,7 +780,9 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
                 ...changes,
                 `<b>Por:</b> ${email}`,
               ].join("\n");
-              sendTelegram(msg, vendedorUser.telegramChatId).catch(() => {});
+              sendTelegram(msg, vendedorUser.telegramChatId).then(async msgId => {
+                if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: Number(id), destinatarioEmail: vendedorUser.email }).catch(() => {});
+              }).catch(() => {});
             }
           }
         }
@@ -750,6 +790,105 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     } catch (e: any) {
       console.error(`Error updateSolicitudEdicion (id=${req.params.id}):`, e?.stack || e?.message || e);
       res.status(500).json({ message: `Error al editar solicitud: ${e?.message || "Error interno"}` });
+    }
+  });
+
+  // Serve uploaded solicitud files
+  app.get("/uploads/solicitudes/:filename", (req: any, res: any) => {
+    const filename = path.basename(req.params.filename); // prevent path traversal
+    const filePath = path.join(UPLOADS_DIR, filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ message: "Archivo no encontrado" });
+    res.sendFile(filePath);
+  });
+
+  // GET /api/solicitudes/:id/mensajes
+  app.get("/api/solicitudes/:id/mensajes", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const msgs = await getMensajesBySolicitud(id);
+      res.json(msgs);
+    } catch (e: any) {
+      res.status(500).json({ message: "Error al obtener mensajes" });
+    }
+  });
+
+  // POST /api/solicitudes/:id/mensajes (texto)
+  app.post("/api/solicitudes/:id/mensajes", async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { autor, autorNombre, mensaje } = req.body;
+      if (!autor || !mensaje?.trim()) return res.status(400).json({ message: "Datos inválidos" });
+      const nuevo = await addSolicitudMensaje({ solicitudId: Number(id), autor, autorNombre, mensaje, source: "web" });
+      res.status(201).json(nuevo);
+      // Notificar a la otra parte via Telegram
+      try {
+        const sol = await getSolicitudById(Number(id));
+        const todosUsuarios = await getUsuarios();
+        const u = todosUsuarios.find((x: any) => x.email === autor);
+        if (sol && u) {
+          const isVendedorRole = u.rol === "vendedor" || u.rol === "supervisor_caja";
+          const otrosEmails: string[] = isVendedorRole
+            ? todosUsuarios.filter((x: any) => x.rol === "compras" && x.activo?.toLowerCase() === "true").map((x: any) => x.email)
+            : [sol.vendedor];
+          for (const email of otrosEmails) {
+            const otro = todosUsuarios.find((x: any) => x.email === email && x.telegramChatId);
+            if (otro) {
+              const msgText = `💬 <b>Solicitud #${id}</b> — ${sol.producto || ""}
+<b>${u.nombre || autor}:</b> ${mensaje.substring(0, 200)}`;
+              sendTelegram(msgText, otro.telegramChatId).then(async msgId => {
+                if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: Number(id), destinatarioEmail: otro.email }).catch(() => {});
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+    } catch (e: any) {
+      res.status(500).json({ message: "Error al enviar mensaje" });
+    }
+  });
+
+  // POST /api/solicitudes/:id/adjuntos (archivo)
+  app.post("/api/solicitudes/:id/adjuntos", uploadSolicitud.single("archivo"), async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const { autor, autorNombre } = req.body;
+      if (!autor || !req.file) return res.status(400).json({ message: "Datos inválidos" });
+      const adjuntoUrl = `/uploads/solicitudes/${req.file.filename}`;
+      const nuevo = await addSolicitudMensaje({
+        solicitudId: Number(id),
+        autor,
+        autorNombre: autorNombre || autor,
+        mensaje: req.body.mensaje || null,
+        adjuntoUrl,
+        adjuntoNombre: req.file.originalname,
+        adjuntoTipo: req.file.mimetype,
+        source: "web",
+      });
+      res.status(201).json(nuevo);
+      // Notificar a la otra parte via Telegram
+      try {
+        const sol = await getSolicitudById(Number(id));
+        const todosUsuarios = await getUsuarios();
+        const u = todosUsuarios.find((x: any) => x.email === autor);
+        if (sol && u) {
+          const isVendedorRole = u.rol === "vendedor" || u.rol === "supervisor_caja";
+          const otrosEmails: string[] = isVendedorRole
+            ? todosUsuarios.filter((x: any) => x.rol === "compras" && x.activo?.toLowerCase() === "true").map((x: any) => x.email)
+            : [sol.vendedor];
+          for (const email of otrosEmails) {
+            const otro = todosUsuarios.find((x: any) => x.email === email && x.telegramChatId);
+            if (otro) {
+              const msgText = `📎 <b>Solicitud #${id}</b> — ${sol.producto || ""}
+<b>${u.nombre || autor}</b> adjuntó: ${req.file.originalname}`;
+              sendTelegram(msgText, otro.telegramChatId).then(async msgId => {
+                if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: Number(id), destinatarioEmail: otro.email }).catch(() => {});
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+    } catch (e: any) {
+      res.status(500).json({ message: "Error al subir archivo" });
     }
   });
 
@@ -1049,17 +1188,24 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   });
 
   app.post("/api/telegram-webhook", async (req: any, res: any) => {
+    res.json({ ok: true }); // Responder inmediatamente a Telegram
     try {
       const { message } = req.body;
-      if (!message?.chat?.id || !message?.text) return res.json({ ok: true });
+      if (!message?.chat?.id) return;
       const chatId = String(message.chat.id);
-      const text = String(message.text);
-      const usuarios = await getUsuarios();
-      const u = usuarios.find((x: any) => x.telegramChatId === chatId);
-      if (!u) return res.json({ ok: true, message: "Usuario no vinculado" });
+      const todosUsuarios = await getUsuarios();
+      const u = todosUsuarios.find((x: any) => x.telegramChatId === chatId);
+      if (!u) return;
+
+      const text = String(message.text || message.caption || "");
+
+      // Comandos
       if (text === "/start" || text === "/start@" + (process.env.TELEGRAM_BOT_USERNAME || "")) {
-        await sendTelegram(`¡Hola ${u.nombre}! Tus notificaciones están activas.`, chatId);
-        return res.json({ ok: true });
+        await sendTelegram(
+          `¡Hola ${u.nombre}! Tus notificaciones están activas.\n\nResponde cualquier notificación de solicitud para enviar un mensaje al chat de esa solicitud.`,
+          chatId
+        );
+        return;
       }
       if (text.startsWith("/vincular")) {
         const nuevoChatId = text.split(" ")[1];
@@ -1067,12 +1213,80 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
           await updateUsuarioTelegramChatId(u.email, nuevoChatId);
           await sendTelegram(`¡Vinculado! Recibirás notificaciones de pagos.`, chatId);
         }
-        return res.json({ ok: true });
+        return;
       }
-      res.json({ ok: true });
+
+      // Solo procesar si es una respuesta a una notificación rastreada
+      const replyToMsgId = message.reply_to_message?.message_id;
+      if (!replyToMsgId) return;
+
+      const notif = await getTelegramNotificacion(String(replyToMsgId));
+      if (!notif) return;
+
+      const solicitudId = notif.solicitudId;
+
+      // Manejar archivos adjuntos (documento o foto)
+      let adjuntoUrl: string | null = null;
+      let adjuntoNombre: string | null = null;
+      let adjuntoTipo: string | null = null;
+      const fileObj: any = message.document || (message.photo ? message.photo[message.photo.length - 1] : null);
+      if (fileObj) {
+        try {
+          const fileInfoR = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileObj.file_id}`);
+          const fileInfo = await fileInfoR.json() as any;
+          if (fileInfo.ok) {
+            const tgFilePath: string = fileInfo.result.file_path;
+            const fileResponse = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${tgFilePath}`);
+            const buffer = Buffer.from(await fileResponse.arrayBuffer());
+            const originalName: string = message.document?.file_name || `foto_${Date.now()}.jpg`;
+            const safeName = `${Date.now()}_${originalName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+            fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+            fs.writeFileSync(path.join(UPLOADS_DIR, safeName), buffer);
+            adjuntoUrl = `/uploads/solicitudes/${safeName}`;
+            adjuntoNombre = originalName;
+            adjuntoTipo = message.document?.mime_type || "image/jpeg";
+          }
+        } catch (e) { console.error("Error descargando archivo de Telegram:", e); }
+      }
+
+      if (!text && !adjuntoUrl) return;
+
+      // Guardar mensaje en DB
+      await addSolicitudMensaje({
+        solicitudId,
+        autor: u.email,
+        autorNombre: u.nombre,
+        mensaje: text || null,
+        adjuntoUrl,
+        adjuntoNombre,
+        adjuntoTipo,
+        source: "telegram",
+      });
+
+      // Notificar a la otra parte
+      const sol = await getSolicitudById(solicitudId);
+      if (sol) {
+        const isVendedorRole = u.rol === "vendedor" || u.rol === "supervisor_caja";
+        const otrosEmails: string[] = isVendedorRole
+          ? todosUsuarios.filter((x: any) => x.rol === "compras" && x.activo?.toLowerCase() === "true").map((x: any) => x.email)
+          : [sol.vendedor];
+        const preview = text ? text.substring(0, 150) : "[archivo adjunto]";
+        for (const email of otrosEmails) {
+          const otro = todosUsuarios.find((x: any) => x.email === email && x.telegramChatId);
+          if (otro) {
+            const msgText = `💬 <b>Solicitud #${solicitudId}</b> — ${sol.producto || ""}\n<b>${u.nombre}:</b> ${preview}`;
+            sendTelegram(msgText, otro.telegramChatId).then(async msgId => {
+              if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId, destinatarioEmail: otro.email }).catch(() => {});
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Confirmar al remitente
+      sendTelegram(`✅ Mensaje guardado en Solicitud #${solicitudId}.`, chatId).catch(() => {});
+
     } catch (e: any) {
       console.error("Error telegram webhook:", e.message);
-      res.json({ ok: false });
     }
   });
 }
