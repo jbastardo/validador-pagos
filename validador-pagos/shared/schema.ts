@@ -1,4 +1,4 @@
-import { pgTable, serial, text, numeric, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -118,6 +118,33 @@ export const insertSolicitudSchema = createInsertSchema(solicitudes).omit({
 
 export type InsertSolicitud = z.infer<typeof insertSolicitudSchema>;
 export type Solicitud = typeof solicitudes.$inferSelect;
+
+// Tabla de mensajes de solicitudes (chat unificado web + Telegram)
+export const solicitudMensajes = pgTable("solicitud_mensajes", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id").notNull(),
+  autor: text("autor").notNull(),
+  autorNombre: text("autor_nombre"),
+  mensaje: text("mensaje"),
+  adjuntoUrl: text("adjunto_url"),
+  adjuntoNombre: text("adjunto_nombre"),
+  adjuntoTipo: text("adjunto_tipo"),
+  source: text("source").default("web"), // "web" | "telegram"
+  creadoEn: timestamp("creado_en").defaultNow(),
+});
+export type SolicitudMensaje = typeof solicitudMensajes.$inferSelect;
+
+// Tabla para rastrear mensajes de notificación enviados por Telegram
+// Permite rutear respuestas al chat de la solicitud correcta
+export const telegramNotificaciones = pgTable("telegram_notificaciones", {
+  id: serial("id").primaryKey(),
+  telegramMessageId: text("telegram_message_id").notNull(),
+  solicitudId: integer("solicitud_id").notNull(),
+  destinatarioEmail: text("destinatario_email"),
+  creadoEn: timestamp("creado_en").defaultNow(),
+});
+export type TelegramNotificacion = typeof telegramNotificaciones.$inferSelect;
+
 
 // Tabla de extractos bancarios (Conciliador)
 export const extractos = pgTable("extractos", {
