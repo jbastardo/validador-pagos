@@ -155,6 +155,16 @@ El puerto público del DB puede estar bloqueado por firewall. Para importar dato
 - **Timestamp:** 2026-07-28T15:25:56Z
 - **Filas exportadas:** conciliaciones 5338 | extractos 5834 | pagos 8950 | pagos_divisas 1078 | pagos_validador 0 | solicitudes 226 | usuarios 21
 
+## Migración de datos completada
+- **Timestamp:** 2026-07-28T19:55:00Z
+- **Filas importadas a Coolify:** conciliaciones 5372 | extractos 5880 | pagos 8987 | pagos_divisas 1084 | solicitudes 226 | usuarios 21
+- Ejecutado via: `docker exec f4wkaziqfj8j8mmdemcej5wl bash /tmp/migrate.sh`
+
+## Fixes aplicados en Coolify
+- **validador-pagos:** `base_directory=/validador-pagos`, puerto `8001:5000` ✅
+- **conciliador-pagos:** `start_command="npm run build && npm start"` (nixpacks confundía vite.config.ts como sitio estático → corría solo Caddy sin Node.js), puerto `8002:5000` ✅
+- **DB reset:** ejecutado via SSH+docker exec (Coolify WebSocket terminal da error). Comando: `docker exec -i <db-container> psql -U postgres -d railway`
+
 ## Scripts disponibles
 - `scripts/migrate-data-to-coolify.sh` — copia inicial schema + datos (ejecutar desde Coolify terminal)
 - `scripts/delta-sync.sh <TIMESTAMP>` — sync incremental para cutover final
