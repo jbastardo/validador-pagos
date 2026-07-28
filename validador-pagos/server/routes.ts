@@ -587,6 +587,27 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
       const nuevo = await addSolicitud({ ...parsed.data, estado: "Pendiente" });
       res.status(201).json(nuevo);
+      // Notificar a todos los usuarios de compras que hay una nueva solicitud
+      try {
+        const todosUsuarios = await getUsuarios();
+        const compradores = todosUsuarios.filter((x: any) => x.rol === "compras" && x.activo?.toLowerCase() === "true" && x.telegramChatId);
+        if (compradores.length > 0) {
+          const lines = [
+            `🛍️ <b>Nueva Solicitud de Producto</b>`,
+            `<b>Vendedor:</b> ${parsed.data.vendedor}`,
+            `<b>Cliente:</b> ${parsed.data.cliente}`,
+            `<b>Producto:</b> ${parsed.data.producto}`,
+            parsed.data.sku ? `<b>SKU:</b> ${parsed.data.sku}` : null,
+            `<b>Cantidad:</b> ${parsed.data.cantidad}`,
+            parsed.data.categoria ? `<b>Categoría:</b> ${parsed.data.categoria}` : null,
+            parsed.data.fechaTope ? `<b>Fecha Tope:</b> ${parsed.data.fechaTope}` : null,
+          ].filter(Boolean) as string[];
+          const msg = lines.join("\n");
+          for (const c of compradores) {
+            sendTelegram(msg, c.telegramChatId).catch(() => {});
+          }
+        }
+      } catch {}
     } catch (e: any) {
       res.status(500).json({ message: "Error al crear solicitud" });
     }
@@ -603,6 +624,22 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const updated = await updateSolicitudEstado(id, parsed.data.estado);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       res.json(updated);
+      // Notificar al vendedor que cambió el estado de su solicitud
+      try {
+        if (updated.vendedor) {
+          const todosUsuarios = await getUsuarios();
+          const vendedorUser = todosUsuarios.find((x: any) => x.email === updated.vendedor && x.telegramChatId);
+          if (vendedorUser?.telegramChatId) {
+            const msg = [
+              `📦 <b>Solicitud #${id} — Estado actualizado</b>`,
+              `<b>Producto:</b> ${updated.producto || ""}`,
+              `<b>Cliente:</b> ${updated.cliente || ""}`,
+              `<b>Nuevo estado:</b> ${parsed.data.estado}`,
+            ].join("\n");
+            sendTelegram(msg, vendedorUser.telegramChatId).catch(() => {});
+          }
+        }
+      } catch {}
     } catch (e: any) {
       console.error("Error updateSolicitudEstado:", e.message);
       res.status(500).json({ message: "Error al actualizar solicitud" });
@@ -676,7 +713,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const usuarios = await getUsuarios();
       const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "compras" || x.rol === "vendedor") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
-      const { vendedor, cliente, sku, producto, cantidad, celular, fechaTope, observaciones, estado, categoria } = req.body;
+      const { vendedor, cliente, sku, producto, cantidad, celular, fechaTope, observaciones, estado, observacionesCompras, categoria } = req.body;
       const estadosValidos = ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"];
       if (estado && !estadosValidos.includes(estado)) {
         return res.status(400).json({ message: `Estado inválido: "${estado}". Valores permitidos: ${estadosValidos.join(", ")}` });
@@ -684,10 +721,32 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const updated = await updateSolicitudEdicion(id, {
         cliente, sku, producto, cantidad,
         celular, fechaTope, observaciones,
-        estado, categoria,
+        estado, categoria, observacionesCompras,
       }, email);
       if (!updated) return res.status(404).json({ message: "Solicitud no encontrada" });
       res.json(updated);
+      // Notificar al vendedor si quien editó es compras o admin y hubo cambio de estado u obs. compras
+      try {
+        if (updated.vendedor && (u.rol === "compras" || u.rol === "admin")) {
+          const changes: string[] = [];
+          if (estado !== undefined) changes.push(`<b>Estado:</b> ${estado}`);
+          if (observacionesCompras !== undefined) changes.push(`<b>Obs. Compras:</b> ${observacionesCompras || "—"}`);
+          if (changes.length > 0) {
+            const todosUsuarios = await getUsuarios();
+            const vendedorUser = todosUsuarios.find((x: any) => x.email === updated.vendedor && x.telegramChatId);
+            if (vendedorUser?.telegramChatId) {
+              const msg = [
+                `💬 <b>Solicitud #${id} actualizada</b>`,
+                `<b>Producto:</b> ${updated.producto || ""}`,
+                `<b>Cliente:</b> ${updated.cliente || ""}`,
+                ...changes,
+                `<b>Por:</b> ${email}`,
+              ].join("\n");
+              sendTelegram(msg, vendedorUser.telegramChatId).catch(() => {});
+            }
+          }
+        }
+      } catch {}
     } catch (e: any) {
       console.error(`Error updateSolicitudEdicion (id=${req.params.id}):`, e?.stack || e?.message || e);
       res.status(500).json({ message: `Error al editar solicitud: ${e?.message || "Error interno"}` });
