@@ -54,7 +54,9 @@ function AppRoutes() {
       <Layout>
         <Switch>
           {/* Accesible a todos los roles autenticados */}
-          <Route path="/" component={Dashboard} />
+          <Route path="/">
+            {() => <PermRoute component={Dashboard} pagina="dashboard" />}
+          </Route>
 
           <Route path="/registrar">
             {() => <PermRoute component={RegistrarPago} pagina="registrar" />}

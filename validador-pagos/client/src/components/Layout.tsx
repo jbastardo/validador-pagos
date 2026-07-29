@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 // pagina: null = visible para todos los roles autenticados
 // adminOnly: true = solo admin, sin pasar por hasPermission
 const navItems = [
-  { href: "/",                      label: "Dashboard",             icon: LayoutDashboard, pagina: null       as string | null, adminOnly: false },
+  { href: "/",                      label: "Dashboard",             icon: LayoutDashboard, pagina: "dashboard"                 as string | null, adminOnly: false },
   { href: "/registrar",             label: "Pagos en Bs",           icon: PlusCircle,      pagina: "registrar",               adminOnly: false },
   { href: "/registrar-divisas",     label: "Pago en Divisas",       icon: DollarSign,      pagina: "registrar-divisas",       adminOnly: false },
   { href: "/upload-cashea",         label: "Importar Cashea",       icon: FileSpreadsheet, pagina: "upload-cashea",           adminOnly: false },
