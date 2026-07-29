@@ -256,7 +256,7 @@ export default function Usuarios() {
                 </SelectContent>
               </Select>
             </div>
-            {editUser && (
+            {editUser && isAdmin && (
               <div>
                 <Label>Telegram Chat ID</Label>
                 <Input
