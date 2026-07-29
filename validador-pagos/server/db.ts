@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
   pagos, usuarios, pagosDivisas, solicitudes, extractos,
-  solicitudMensajes, telegramNotificaciones,
+  solicitudMensajes, telegramNotificaciones, permisosRoles,
   InsertPago, InsertUsuario, InsertPagoDivisa, InsertSolicitud, InsertExtracto,
 } from "@shared/schema";
 import { eq, and, or, like, sql } from "drizzle-orm";
@@ -685,3 +685,24 @@ export async function importUsuariosBatch(items: Omit<InsertUsuario, "creadoEn">
 
 // Re-export parseExtractoExcel from extractos.ts
 export { parseExtractoExcel } from "./extractos";
+
+// ─── PERMISOS DE ROLES (RBAC dinámico) ──────────────────────────────────────
+export async function getPermisosRoles() {
+  return await db.select().from(permisosRoles).orderBy(permisosRoles.rol, permisosRoles.pagina);
+}
+
+export async function getPermisosRolesByRol(rol: string) {
+  return await db.select().from(permisosRoles).where(eq(permisosRoles.rol, rol));
+}
+
+export async function updatePermisoRol(rol: string, pagina: string, permitido: boolean) {
+  const [result] = await db
+    .insert(permisosRoles)
+    .values({ rol, pagina, permitido: permitido ? "true" : "false" })
+    .onConflictDoUpdate({
+      target: [permisosRoles.rol, permisosRoles.pagina],
+      set: { permitido: permitido ? "true" : "false" },
+    })
+    .returning();
+  return result;
+}

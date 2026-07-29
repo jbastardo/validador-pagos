@@ -24,7 +24,23 @@ export default function Login() {
       const res = await apiRequest("POST", "/api/auth/login", { email, password });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message ?? "Credenciales incorrectas");
-      login(data);
+
+      // Cargar permisos del rol desde el servidor
+      let permsMap: Record<string, boolean> = {};
+      try {
+        const permsRes = await apiRequest("GET", `/api/permisos-roles?rol=${encodeURIComponent(data.rol)}`);
+        if (permsRes.ok) {
+          const rows: Array<{ pagina: string; permitido: string }> = await permsRes.json();
+          for (const row of rows) {
+            permsMap[row.pagina] = row.permitido === "true";
+          }
+        }
+      } catch {
+        // Si falla la carga de permisos, el admin siempre tiene acceso;
+        // otros roles verán "No autorizado" hasta que se restaure la conexión.
+      }
+
+      login(data, permsMap);
       toast({ title: `Bienvenido, ${data.nombre}` });
     } catch (err: any) {
       toast({ title: err.message ?? "Credenciales incorrectas", variant: "destructive" });
