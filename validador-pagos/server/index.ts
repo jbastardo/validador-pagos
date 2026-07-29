@@ -137,7 +137,11 @@ async function runStartupMigrations() {
         ('vendedor',       'registrar-divisas',     'true'),
         ('vendedor',       'upload-cashea',         'true'),
         ('vendedor',       'conciliacion',          'true'),
-        ('vendedor',       'solicitudes',           'false'),
+        -- vendedor+solicitudes: true si algún usuario vendedor ya tiene el flag activo
+        ('vendedor', 'solicitudes',
+          CASE WHEN EXISTS (
+            SELECT 1 FROM usuarios WHERE rol = 'vendedor' AND solicitudes = 'true'
+          ) THEN 'true' ELSE 'false' END),
         ('vendedor',       'dashboard-solicitudes', 'false'),
         ('vendedor',       'usuarios',              'false'),
         ('contabilidad',   'registrar',             'false'),

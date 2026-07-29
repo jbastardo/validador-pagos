@@ -1311,21 +1311,27 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   });
 
   // PATCH /api/permisos-roles — actualiza un permiso (solo admin)
-  // Body: { adminEmail: string, rol: string, pagina: string, permitido: boolean }
+  // Body: { adminEmail: string, adminPassword: string, rol: string, pagina: string, permitido: boolean }
   app.patch("/api/permisos-roles", async (req: any, res: any) => {
     try {
       const schema = z.object({
-        adminEmail: z.string().min(1),
-        rol:        z.string().min(1),
-        pagina:     z.string().min(1),
-        permitido:  z.boolean(),
+        adminEmail:    z.string().min(1),
+        adminPassword: z.string().min(1),
+        rol:           z.string().min(1),
+        pagina:        z.string().min(1),
+        permitido:     z.boolean(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
 
-      // Verificar que quien hace la petición es admin
+      // Verificar email + contraseña del admin (nunca confiar solo en el email enviado)
       const todos = await getUsuarios();
-      const admin = todos.find((x: any) => x.email === parsed.data.adminEmail && x.rol === "admin" && x.activo?.toLowerCase() === "true");
+      const admin = todos.find((x: any) =>
+        x.email === parsed.data.adminEmail &&
+        x.password === parsed.data.adminPassword &&
+        x.rol === "admin" &&
+        x.activo?.toLowerCase() === "true"
+      );
       if (!admin) return res.status(403).json({ message: "Solo administradores pueden cambiar permisos" });
 
       // El rol admin siempre tiene todo permitido — no se puede cambiar
