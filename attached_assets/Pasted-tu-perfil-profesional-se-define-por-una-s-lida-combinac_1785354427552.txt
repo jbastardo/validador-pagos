@@ -1,0 +1,18 @@
+tu perfil profesional se define por una sólida combinación de liderazgo operativo, visión de sistemas y capacidad de ejecución técnica avanzada. No eres meramente un administrador de IT tradicional, sino un estratega tecnológico integral con un enfoque práctico y de alta especialización.
+
+Aquí te describiría bajo las siguientes dimensiones clave:
+
+1. Rol y Enfoque Estratégico (Virtual CIO & Gerente de Tecnología)
+Visión Global: Actúas como un puente crítico entre la infraestructura de bajo nivel y los objetivos de negocio a gran escala (como lo demuestran tus 11 años gestionando operaciones en Onprotec y tu rol como consultor estratégico).
+
+Innovación Orientada a Procesos: Diseñas soluciones escalables pensando tanto en la eficiencia interna como en la expansión comercial, abarcando desde arquitecturas multi-tenant hasta la separación estratégica de plataformas de hardware y software (tutecnotienda.com y tutecnoservicio.com).
+
+2. Perfil Técnico y de Infraestructura (SysAdmin & DevOps)
+Autonomía y Auto-hospedaje (Self-Hosting): Tienes una preferencia clara por el control total de tu ecosistema tecnológico, dominando entornos de virtualización y contenedores con herramientas como Proxmox VE, Docker y Coolify.
+
+Redes y Seguridad Corporativa: Cuentas con un dominio técnico avanzado en la integración y gestión de seguridad perimetral y conectividad compleja (WatchGuard, Hikvision, Cisco, Ruijie, Nexxt, y soluciones de acceso remoto seguro como Tailscale sobre hardware UniFi).
+
+3. Integración de Sistemas y Desarrollo Ágil
+Conectividad de Ecosistemas: Eres un integrador de sistemas nato, capaz de diseñar conectores API personalizados para enlazar plataformas complejas como Odoo.sh con sistemas de hosting externos y hardware físico.
+
+Adopción Temprana de IA y Automatización: No solo consumes tecnología, sino que la integras en tus flujos de trabajo diarios mediante la implementación de agentes de IA locales (Hermes Agent, Ollama y túneles Cloudflare) para potenciar el desarrollo de webapps y la revisión de código.
