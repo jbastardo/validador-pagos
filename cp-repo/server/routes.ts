@@ -180,15 +180,27 @@ export function registerRoutes(httpServer: Server, app: Express) {
         console.log(`[extractos/upload] Insertados ${filasNuevas.length} extractos en DB`);
       }
 
-      // ── Paso 6: Auto-validación — buscar pagos pendientes que coincidan con los nuevos extractos ──
+      // ── Paso 6: Auto-validación — buscar pagos pendientes que coincidan con los extractos ──
       let autoValidados = 0;
-      if (filasNuevas.length > 0) {
-        try {
-          autoValidados = await autoValidarConNuevosExtractos(filasNuevas, subidoPor);
-          console.log(`[extractos/upload] Auto-validados: ${autoValidados}`);
-        } catch (err: any) {
-          console.error("[extractos/upload] Error en auto-validación:", err.message);
+      try {
+        let filasParaValidar = filasNuevas;
+
+        // Si no hubo extractos nuevos (todos duplicados), re-intentar con los existentes
+        // no conciliados del mismo banco — cubre el caso de re-subir un extracto ya cargado
+        if (filasParaValidar.length === 0 && duplicados > 0) {
+          const sinConciliar = existentes.filter(
+            (e) => extractBancoCode(e.banco) === extractBancoCode(banco) && !extractosYaConciliados.has(e.id)
+          );
+          filasParaValidar = sinConciliar.map((e) => [e.id, e.fecha, e.banco, e.referencia, e.monto, e.descripcion ?? "", e.tipo]);
+          console.log(`[extractos/upload] Re-intentando auto-validación con ${filasParaValidar.length} extractos existentes no conciliados (banco ${banco})`);
         }
+
+        if (filasParaValidar.length > 0) {
+          autoValidados = await autoValidarConNuevosExtractos(filasParaValidar, subidoPor);
+          console.log(`[extractos/upload] Auto-validados: ${autoValidados}`);
+        }
+      } catch (err: any) {
+        console.error("[extractos/upload] Error en auto-validación:", err.message);
       }
 
       res.json({
