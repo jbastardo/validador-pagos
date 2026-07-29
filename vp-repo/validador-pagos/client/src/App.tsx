@@ -18,6 +18,20 @@ import Layout from "@/components/Layout";
 import PerplexityAttribution from "@/components/PerplexityAttribution";
 import Solicitudes from "@/pages/Solicitudes"; import DashboardSolicitudes from "@/pages/DashboardSolicitudes";
 
+function AdminRoute({ component: Component }: { component: () => JSX.Element }) {
+  const { user } = useAuth();
+  if (user?.rol !== "admin") {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+        <div className="text-4xl">🚫</div>
+        <h2 className="text-xl font-semibold text-foreground">No autorizado</h2>
+        <p className="text-muted-foreground">No tienes permiso para acceder a esta página.</p>
+      </div>
+    );
+  }
+  return <Component />;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
   if (!user) return <Login />;
@@ -30,7 +44,7 @@ function AppRoutes() {
           <Route path="/registrar-divisas" component={RegistrarDivisas} />
           <Route path="/upload-cashea" component={UploadCashea} />
           <Route path="/conciliacion" component={Conciliacion} />
-          <Route path="/usuarios" component={Usuarios} />
+          <Route path="/usuarios">{() => <AdminRoute component={Usuarios} />}</Route>
           <Route path="/solicitudes" component={Solicitudes} />           <Route path="/dashboard-solicitudes" component={DashboardSolicitudes} />
           <Route component={NotFound} />
         </Switch>
