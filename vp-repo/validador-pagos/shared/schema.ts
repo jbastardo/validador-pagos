@@ -165,6 +165,15 @@ export const insertExtractoSchema = createInsertSchema(extractos);
 export type InsertExtracto = z.infer<typeof insertExtractoSchema>;
 export type Extracto = typeof extractos.$inferSelect;
 
+// Tabla de permisos de roles (RBAC dinámico)
+export const permisosRoles = pgTable("permisos_roles", {
+  rol:       text("rol").notNull(),
+  pagina:    text("pagina").notNull(),
+  permitido: text("permitido").notNull().default("false"), // "true" | "false"
+});
+
+export type PermisoRol = typeof permisosRoles.$inferSelect;
+
 // ─── BANCOS (fuente única de verdad) ─────────────────────────────────────────
 export const BANCOS_EMISOR = [
   "0102 Banco de Venezuela",

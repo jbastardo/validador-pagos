@@ -112,6 +112,69 @@ async function runStartupMigrations() {
         creado_en             TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    // ─── RBAC: permisos por rol ───────────────────────────────────────────────
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS permisos_roles (
+        rol       TEXT NOT NULL,
+        pagina    TEXT NOT NULL,
+        permitido TEXT NOT NULL DEFAULT 'false',
+        PRIMARY KEY (rol, pagina)
+      );
+    `);
+
+    // Poblar defaults (ON CONFLICT DO NOTHING para no sobreescribir cambios del admin)
+    await db.execute(sql`
+      INSERT INTO permisos_roles (rol, pagina, permitido) VALUES
+        ('admin',          'registrar',             'true'),
+        ('admin',          'registrar-divisas',     'true'),
+        ('admin',          'upload-cashea',         'true'),
+        ('admin',          'conciliacion',          'true'),
+        ('admin',          'solicitudes',           'true'),
+        ('admin',          'dashboard-solicitudes', 'true'),
+        ('admin',          'usuarios',              'true'),
+        ('vendedor',       'registrar',             'true'),
+        ('vendedor',       'registrar-divisas',     'true'),
+        ('vendedor',       'upload-cashea',         'true'),
+        ('vendedor',       'conciliacion',          'true'),
+        -- vendedor+solicitudes: true si algún usuario vendedor ya tiene el flag activo
+        ('vendedor', 'solicitudes',
+          CASE WHEN EXISTS (
+            SELECT 1 FROM usuarios WHERE rol = 'vendedor' AND solicitudes = 'true'
+          ) THEN 'true' ELSE 'false' END),
+        ('vendedor',       'dashboard-solicitudes', 'false'),
+        ('vendedor',       'usuarios',              'false'),
+        ('contabilidad',   'registrar',             'false'),
+        ('contabilidad',   'registrar-divisas',     'false'),
+        ('contabilidad',   'upload-cashea',         'true'),
+        ('contabilidad',   'conciliacion',          'true'),
+        ('contabilidad',   'solicitudes',           'false'),
+        ('contabilidad',   'dashboard-solicitudes', 'false'),
+        ('contabilidad',   'usuarios',              'false'),
+        ('cajero',         'registrar',             'false'),
+        ('cajero',         'registrar-divisas',     'false'),
+        ('cajero',         'upload-cashea',         'false'),
+        ('cajero',         'conciliacion',          'true'),
+        ('cajero',         'solicitudes',           'false'),
+        ('cajero',         'dashboard-solicitudes', 'false'),
+        ('cajero',         'usuarios',              'false'),
+        ('compras',        'registrar',             'false'),
+        ('compras',        'registrar-divisas',     'false'),
+        ('compras',        'upload-cashea',         'false'),
+        ('compras',        'conciliacion',          'false'),
+        ('compras',        'solicitudes',           'true'),
+        ('compras',        'dashboard-solicitudes', 'true'),
+        ('compras',        'usuarios',              'false'),
+        ('supervisor_caja','registrar',             'true'),
+        ('supervisor_caja','registrar-divisas',     'true'),
+        ('supervisor_caja','upload-cashea',         'true'),
+        ('supervisor_caja','conciliacion',          'true'),
+        ('supervisor_caja','solicitudes',           'false'),
+        ('supervisor_caja','dashboard-solicitudes', 'false'),
+        ('supervisor_caja','usuarios',              'false')
+      ON CONFLICT (rol, pagina) DO NOTHING;
+    `);
+
     console.log("[startup] Migrations OK");
   } catch (e: any) {
     console.error("[startup] Migration error:", e.message);

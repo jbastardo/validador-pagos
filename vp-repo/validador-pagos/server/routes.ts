@@ -14,6 +14,7 @@ import {
   addTelegramNotificacion, getTelegramNotificacion,
   getNextId,
   addMovimientos, getMovimientos, getExtractosStats, marcarUsado, tryMatch, deleteMovimientosBanco, conciliarPago, crearPagoDesdeConciliador,
+  getPermisosRoles, getPermisosRolesByRol, updatePermisoRol,
 } from "./db";
 import { parseExtractoExcel } from "./extractos";
 import { parseCasheaExcel } from "./casheaParser";
@@ -1287,6 +1288,60 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
 
     } catch (e: any) {
       console.error("Error telegram webhook:", e.message);
+    }
+  });
+
+  // ===== PERMISOS DE ROLES (RBAC dinámico) =====
+
+  // GET /api/permisos-roles — devuelve todos los permisos (matriz completa)
+  // GET /api/permisos-roles?rol=<rol> — devuelve solo los permisos del rol indicado
+  app.get("/api/permisos-roles", async (req: any, res: any) => {
+    try {
+      const rol = req.query.rol as string | undefined;
+      if (rol) {
+        const rows = await getPermisosRolesByRol(rol);
+        return res.json(rows);
+      }
+      const rows = await getPermisosRoles();
+      res.json(rows);
+    } catch (e: any) {
+      console.error("Error getPermisosRoles:", e.message);
+      res.status(500).json({ message: "Error al obtener permisos" });
+    }
+  });
+
+  // PATCH /api/permisos-roles — actualiza un permiso (solo admin)
+  // Body: { adminEmail: string, adminPassword: string, rol: string, pagina: string, permitido: boolean }
+  app.patch("/api/permisos-roles", async (req: any, res: any) => {
+    try {
+      const schema = z.object({
+        adminEmail:    z.string().min(1),
+        adminPassword: z.string().min(1),
+        rol:           z.string().min(1),
+        pagina:        z.string().min(1),
+        permitido:     z.boolean(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten() });
+
+      // Verificar email + contraseña del admin (nunca confiar solo en el email enviado)
+      const todos = await getUsuarios();
+      const admin = todos.find((x: any) =>
+        x.email === parsed.data.adminEmail &&
+        x.password === parsed.data.adminPassword &&
+        x.rol === "admin" &&
+        x.activo?.toLowerCase() === "true"
+      );
+      if (!admin) return res.status(403).json({ message: "Solo administradores pueden cambiar permisos" });
+
+      // El rol admin siempre tiene todo permitido — no se puede cambiar
+      if (parsed.data.rol === "admin") return res.status(422).json({ message: "Los permisos del rol admin no se pueden modificar" });
+
+      const result = await updatePermisoRol(parsed.data.rol, parsed.data.pagina, parsed.data.permitido);
+      res.json(result);
+    } catch (e: any) {
+      console.error("Error updatePermisoRol:", e.message);
+      res.status(500).json({ message: "Error al actualizar permiso" });
     }
   });
 }
