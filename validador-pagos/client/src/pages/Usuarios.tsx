@@ -18,6 +18,7 @@ interface Usuario {
   rol: string;
   activo: string;
   telegramChatId?: string;
+  solicitudes?: string;
 }
 
 const rolLabel: Record<string, string> = {
@@ -49,7 +50,7 @@ export default function Usuarios() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (body: { nombre: string; email: string; password: string; rol: string }) => {
+    mutationFn: async (body: { nombre: string; email: string; password: string; rol: string; solicitudes?: string }) => {
       const res = await apiRequest("POST", "/api/usuarios", body);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.message ?? "Error al crear usuario");
@@ -84,7 +85,7 @@ export default function Usuarios() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<Usuario | null>(null);
-  const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "vendedor", telegramChatId: "" });
+  const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "vendedor", telegramChatId: "", solicitudes: "false" });
 
   // -- Modal eliminar usuario (admin) --
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -120,13 +121,13 @@ export default function Usuarios() {
 
   const openNew = () => {
     setEditUser(null);
-    setForm({ nombre: "", email: "", password: "", rol: "vendedor", telegramChatId: "" });
+    setForm({ nombre: "", email: "", password: "", rol: "vendedor", telegramChatId: "", solicitudes: "false" });
     setDialogOpen(true);
   };
 
   const openEdit = (u: Usuario) => {
     setEditUser(u);
-    setForm({ nombre: u.nombre, email: u.email, password: "", rol: u.rol, telegramChatId: u.telegramChatId ?? "" });
+    setForm({ nombre: u.nombre, email: u.email, password: "", rol: u.rol, telegramChatId: u.telegramChatId ?? "", solicitudes: u.solicitudes ?? "false" });
     setDialogOpen(true);
   };
 
@@ -141,6 +142,7 @@ export default function Usuarios() {
         rol: form.rol,
         telegramChatId: form.telegramChatId || "",
       };
+      if (form.rol === "vendedor") body.solicitudes = form.solicitudes;
       if (form.password) body.password = form.password;
       updateMutation.mutate({ id: editUser.id, body });
     } else {
@@ -148,7 +150,7 @@ export default function Usuarios() {
         toast({ title: "La contraseña es requerida", variant: "destructive" });
         return;
       }
-      createMutation.mutate({ nombre: form.nombre, email: form.email, password: form.password, rol: form.rol });
+      createMutation.mutate({ nombre: form.nombre, email: form.email, password: form.password, rol: form.rol, ...(form.rol === "vendedor" ? { solicitudes: form.solicitudes } : {}) });
     }
   };
 
@@ -168,7 +170,7 @@ export default function Usuarios() {
           <h1 className="text-2xl font-bold">Usuarios</h1>
           <p className="text-muted-foreground">Gestiona los vendedores y accesos del sistema</p>
         </div>
-        <Button onClick={openNew}><UserPlus className="mr-2 h-4 w-4" /> Nuevo usuario</Button>
+        {isAdmin && <Button onClick={openNew}><UserPlus className="mr-2 h-4 w-4" /> Nuevo usuario</Button>}
       </div>
 
       {isLoading ? (
@@ -256,7 +258,20 @@ export default function Usuarios() {
                 </SelectContent>
               </Select>
             </div>
-            {editUser && isAdmin && (
+            {form.rol === "vendedor" && (
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="solicitudes-toggle"
+                  checked={form.solicitudes === "true"}
+                  onChange={(e) => setForm((f) => ({ ...f, solicitudes: e.target.checked ? "true" : "false" }))}
+                  data-testid="checkbox-solicitudes"
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="solicitudes-toggle" className="cursor-pointer">Acceso a Solicitudes de Compra</Label>
+              </div>
+            )}
+            {editUser && (
               <div>
                 <Label>Telegram Chat ID</Label>
                 <Input
@@ -266,7 +281,7 @@ export default function Usuarios() {
                   data-testid="input-telegram-chat-id"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  El usuario obtiene su ID escribiéndole a <span className="font-mono">@userinfobot</span> en Telegram.
+                  El usuario debe obtener su ID escribiéndole a <span className="font-mono">@userinfobot</span> en Telegram.
                 </p>
               </div>
             )}
