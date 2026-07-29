@@ -17,6 +17,7 @@ interface Usuario {
   email: string;
   rol: string;
   activo: string;
+  telegramChatId?: string;
 }
 
 const rolLabel: Record<string, string> = {
@@ -83,7 +84,7 @@ export default function Usuarios() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<Usuario | null>(null);
-  const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "vendedor" });
+  const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "vendedor", telegramChatId: "" });
 
   // -- Modal eliminar usuario (admin) --
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -119,13 +120,13 @@ export default function Usuarios() {
 
   const openNew = () => {
     setEditUser(null);
-    setForm({ nombre: "", email: "", password: "", rol: "vendedor" });
+    setForm({ nombre: "", email: "", password: "", rol: "vendedor", telegramChatId: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (u: Usuario) => {
     setEditUser(u);
-    setForm({ nombre: u.nombre, email: u.email, password: "", rol: u.rol });
+    setForm({ nombre: u.nombre, email: u.email, password: "", rol: u.rol, telegramChatId: u.telegramChatId ?? "" });
     setDialogOpen(true);
   };
 
@@ -138,6 +139,7 @@ export default function Usuarios() {
       const body: Partial<Usuario> & { password?: string } = {
         nombre: form.nombre,
         rol: form.rol,
+        telegramChatId: form.telegramChatId || "",
       };
       if (form.password) body.password = form.password;
       updateMutation.mutate({ id: editUser.id, body });
@@ -254,6 +256,20 @@ export default function Usuarios() {
                 </SelectContent>
               </Select>
             </div>
+            {editUser && (
+              <div>
+                <Label>Telegram Chat ID</Label>
+                <Input
+                  placeholder="Ej: 123456789"
+                  value={form.telegramChatId}
+                  onChange={(e) => setForm((f) => ({ ...f, telegramChatId: e.target.value }))}
+                  data-testid="input-telegram-chat-id"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  El usuario debe obtener su ID escribiéndole a <span className="font-mono">@userinfobot</span> en Telegram.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isPending}>Cancelar</Button>
