@@ -126,6 +126,7 @@ async function runStartupMigrations() {
     // Poblar defaults (ON CONFLICT DO NOTHING para no sobreescribir cambios del admin)
     await db.execute(sql`
       INSERT INTO permisos_roles (rol, pagina, permitido) VALUES
+        ('admin',          'dashboard',             'true'),
         ('admin',          'registrar',             'true'),
         ('admin',          'registrar-divisas',     'true'),
         ('admin',          'upload-cashea',         'true'),
@@ -133,6 +134,7 @@ async function runStartupMigrations() {
         ('admin',          'solicitudes',           'true'),
         ('admin',          'dashboard-solicitudes', 'true'),
         ('admin',          'usuarios',              'true'),
+        ('vendedor',       'dashboard',             'true'),
         ('vendedor',       'registrar',             'true'),
         ('vendedor',       'registrar-divisas',     'true'),
         ('vendedor',       'upload-cashea',         'true'),
@@ -144,6 +146,7 @@ async function runStartupMigrations() {
           ) THEN 'true' ELSE 'false' END),
         ('vendedor',       'dashboard-solicitudes', 'false'),
         ('vendedor',       'usuarios',              'false'),
+        ('contabilidad',   'dashboard',             'true'),
         ('contabilidad',   'registrar',             'false'),
         ('contabilidad',   'registrar-divisas',     'false'),
         ('contabilidad',   'upload-cashea',         'true'),
@@ -151,6 +154,7 @@ async function runStartupMigrations() {
         ('contabilidad',   'solicitudes',           'false'),
         ('contabilidad',   'dashboard-solicitudes', 'false'),
         ('contabilidad',   'usuarios',              'false'),
+        ('cajero',         'dashboard',             'true'),
         ('cajero',         'registrar',             'false'),
         ('cajero',         'registrar-divisas',     'false'),
         ('cajero',         'upload-cashea',         'false'),
@@ -158,6 +162,7 @@ async function runStartupMigrations() {
         ('cajero',         'solicitudes',           'false'),
         ('cajero',         'dashboard-solicitudes', 'false'),
         ('cajero',         'usuarios',              'false'),
+        ('compras',        'dashboard',             'true'),
         ('compras',        'registrar',             'false'),
         ('compras',        'registrar-divisas',     'false'),
         ('compras',        'upload-cashea',         'false'),
@@ -165,6 +170,7 @@ async function runStartupMigrations() {
         ('compras',        'solicitudes',           'true'),
         ('compras',        'dashboard-solicitudes', 'true'),
         ('compras',        'usuarios',              'false'),
+        ('supervisor_caja','dashboard',             'true'),
         ('supervisor_caja','registrar',             'true'),
         ('supervisor_caja','registrar-divisas',     'true'),
         ('supervisor_caja','upload-cashea',         'true'),

@@ -15,7 +15,8 @@ import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 
 // Páginas gestionadas por el sistema de permisos
 const PAGINAS = [
-  { key: "registrar",             label: "Pagos en Bs",           desc: "Registrar pagos en bolívares" },
+  { key: "dashboard",             label: "Dashboard",              desc: "Panel principal de métricas y resumen" },
+  { key: "registrar",             label: "Pagos en Bs",            desc: "Registrar pagos en bolívares" },
   { key: "registrar-divisas",     label: "Pago en Divisas",        desc: "Registrar pagos en divisas" },
   { key: "upload-cashea",         label: "Importar Cashea",        desc: "Subir archivo de pagos Cashea" },
   { key: "conciliacion",          label: "Resumen de Pagos",       desc: "Ver y conciliar pagos" },
