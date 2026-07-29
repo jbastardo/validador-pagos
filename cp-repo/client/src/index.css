@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Conciliador de Pagos — paleta fintech sobria: azul marino + teal */
+    --background: 220 20% 97%;
+    --foreground: 220 25% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 12%;
+
+    /* Primario: azul marino */
+    --primary: 220 65% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secundario: teal */
+    --secondary: 175 55% 40%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 12% 50%;
+
+    --accent: 175 55% 93%;
+    --accent-foreground: 175 55% 25%;
+
+    /* Semáforo estados */
+    --success: 142 65% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 90% 45%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 75% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 87%;
+    --input: 220 15% 87%;
+    --ring: 220 65% 30%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 220 35% 18%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 175 55% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 25%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 30% 24%;
+    --sidebar-ring: 175 55% 50%;
+  }
+
+  .dark {
+    --background: 220 25% 8%;
+    --foreground: 220 15% 92%;
+
+    --card: 220 25% 11%;
+    --card-foreground: 220 15% 92%;
+
+    --popover: 220 25% 11%;
+    --popover-foreground: 220 15% 92%;
+
+    --primary: 220 65% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 175 55% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 20% 18%;
+    --muted-foreground: 220 12% 55%;
+
+    --accent: 175 40% 18%;
+    --accent-foreground: 175 55% 75%;
+
+    --success: 142 55% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 85% 50%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 22%;
+    --input: 220 20% 22%;
+    --ring: 220 65% 55%;
+
+    --sidebar-background: 220 30% 10%;
+    --sidebar-foreground: 220 15% 80%;
+    --sidebar-primary: 175 55% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 16%;
+    --sidebar-accent-foreground: 220 15% 90%;
+    --sidebar-border: 220 25% 16%;
+    --sidebar-ring: 175 55% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-muted; }
+::-webkit-scrollbar-thumb { @apply bg-muted-foreground/40 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/60; }
+
+/* Status badges */
+.badge-pendiente {
+  @apply bg-warning/15 text-warning border border-warning/30;
+}
+.badge-conciliado {
+  @apply bg-success/15 text-success border border-success/30;
+}
+.badge-noconciliado {
+  @apply bg-destructive/15 text-destructive border border-destructive/30;
+}

@@ -1,0 +1,131 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.usuarios": {
+      "name": "usuarios",
+      "schema": "",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true },
+        "nombre": { "name": "nombre", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "email": { "name": "email", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "password": { "name": "password", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "rol": { "name": "rol", "type": "text", "primaryKey": false, "notNull": true, "default": "'operador'" },
+        "activo": { "name": "activo", "type": "text", "primaryKey": false, "notNull": true, "default": "'true'" }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.extractos": {
+      "name": "extractos",
+      "schema": "",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true },
+        "fecha": { "name": "fecha", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "banco": { "name": "banco", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "referencia": { "name": "referencia", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "monto": { "name": "monto", "type": "numeric", "primaryKey": false, "notNull": true, "default": "'0'" },
+        "descripcion": { "name": "descripcion", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "tipo": { "name": "tipo", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "creado_en": { "name": "creado_en", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "archivo_origen": { "name": "archivo_origen", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "cargado_por": { "name": "cargado_por", "type": "text", "primaryKey": false, "notNull": true, "default": "''" }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.pagos": {
+      "name": "pagos",
+      "schema": "",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true },
+        "fecha": { "name": "fecha", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "banco": { "name": "banco", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "referencia": { "name": "referencia", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "monto": { "name": "monto", "type": "numeric", "primaryKey": false, "notNull": true, "default": "'0'" },
+        "cliente": { "name": "cliente", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "rif": { "name": "rif", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "factura": { "name": "factura", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "estado": { "name": "estado", "type": "text", "primaryKey": false, "notNull": true, "default": "'Pendiente'" },
+        "registrado_por": { "name": "registrado_por", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "observaciones": { "name": "observaciones", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "conciliado_con": { "name": "conciliado_con", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "creado_en": { "name": "creado_en", "type": "text", "primaryKey": false, "notNull": true, "default": "''" }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.conciliaciones": {
+      "name": "conciliaciones",
+      "schema": "",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true },
+        "fecha": { "name": "fecha", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "pago_id": { "name": "pago_id", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "extracto_id": { "name": "extracto_id", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "referencia_pago": { "name": "referencia_pago", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "referencia_extracto": { "name": "referencia_extracto", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "monto_pago": { "name": "monto_pago", "type": "numeric", "primaryKey": false, "notNull": true, "default": "'0'" },
+        "monto_extracto": { "name": "monto_extracto", "type": "numeric", "primaryKey": false, "notNull": true, "default": "'0'" },
+        "banco": { "name": "banco", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "cliente": { "name": "cliente", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "conciliado_por": { "name": "conciliado_por", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "conciliado_en": { "name": "conciliado_en", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "tipo": { "name": "tipo", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "estado": { "name": "estado", "type": "text", "primaryKey": false, "notNull": true, "default": "''" },
+        "observaciones": { "name": "observaciones", "type": "text", "primaryKey": false, "notNull": true, "default": "''" }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.pagos_validador": {
+      "name": "pagos_validador",
+      "schema": "",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true },
+        "numeric_id": { "name": "numeric_id", "type": "integer", "primaryKey": false, "notNull": false },
+        "fecha_pago": { "name": "fecha_pago", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "tipo_pago": { "name": "tipo_pago", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "banco_emisor": { "name": "banco_emisor", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "monto": { "name": "monto", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "celular": { "name": "celular", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "banco_receptor": { "name": "banco_receptor", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "referencia": { "name": "referencia", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "rif": { "name": "rif", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "factura": { "name": "factura", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "estado": { "name": "estado", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "validado_por": { "name": "validado_por", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "vendedor": { "name": "vendedor", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "observaciones": { "name": "observaciones", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "creado_en": { "name": "creado_en", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "cliente": { "name": "cliente", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "megasoft": { "name": "megasoft", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "validado_en": { "name": "validado_en", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "conciliado_en": { "name": "conciliado_en", "type": "text", "primaryKey": false, "notNull": false, "default": "''" },
+        "conciliado_por": { "name": "conciliado_por", "type": "text", "primaryKey": false, "notNull": false, "default": "''" }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

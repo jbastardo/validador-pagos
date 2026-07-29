@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1700000000000,
+      "tag": "0000_create_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1700000001000,
+      "tag": "0001_add_missing_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1700000002000,
+      "tag": "0002_rename_columns",
+      "breakpoints": true
+    }
+  ]
+}
