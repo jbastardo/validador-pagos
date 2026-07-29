@@ -12,8 +12,8 @@
 # =============================================================================
 set -euo pipefail
 
-RAILWAY_DB="postgresql://postgres:BRmmGiaQinUNwCmmhbYLbMSJypQEXIxK@switchyard.proxy.rlwy.net:38165/railway"
-COOLIFY_DB="postgres://postgres:Xk9mP2nQ7vR4sL1wY6tZ8uE3@f4wkaziqfj8j8mmdemcej5wl:5432/railway"
+RAILWAY_DB="${RAILWAY_DB:-postgresql://postgres:<password>@switchyard.proxy.rlwy.net:38165/railway}"
+COOLIFY_DB="${DATABASE_URL:-postgres://postgres:<password>@f4wkaziqfj8j8mmdemcej5wl:5432/railway}"
 
 TABLES="conciliaciones extractos pagos pagos_divisas pagos_validador solicitudes usuarios"
 

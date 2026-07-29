@@ -22,8 +22,8 @@ if [ -z "${1:-}" ]; then
 fi
 
 SNAPSHOT_TS="$1"
-RAILWAY_DB="postgresql://postgres:BRmmGiaQinUNwCmmhbYLbMSJypQEXIxK@switchyard.proxy.rlwy.net:38165/railway"
-COOLIFY_DB="postgres://postgres:Xk9mP2nQ7vR4sL1wY6tZ8uE3@f4wkaziqfj8j8mmdemcej5wl:5432/railway"
+RAILWAY_DB="${RAILWAY_DB:-postgresql://postgres:<password>@switchyard.proxy.rlwy.net:38165/railway}"
+COOLIFY_DB="${DATABASE_URL:-postgres://postgres:<password>@f4wkaziqfj8j8mmdemcej5wl:5432/railway}"
 
 echo "=========================================="
 echo " Delta Sync Railway → Coolify"

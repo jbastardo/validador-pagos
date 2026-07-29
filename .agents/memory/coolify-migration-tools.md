@@ -149,16 +149,24 @@ El puerto público del DB puede estar bloqueado por firewall. Para importar dato
 |----------|-------------|-----------------|
 | validador-pagos | `homxoqh64gtzt6997cz8wwhm` | `homxoqh64gtzt6997cz8wwhm.190.142.178.96.sslip.io` |
 | conciliador-pagos | `u11pa7oonmz0c8ejyntjc3za` | `u11pa7oonmz0c8ejyntjc3za.190.142.178.96.sslip.io` |
-| validador-pagos-db | `f4wkaziqfj8j8mmdemcej5wl` | internal: `postgres://postgres:Xk9mP2nQ7vR4sL1wY6tZ8uE3@f4wkaziqfj8j8mmdemcej5wl:5432/railway` |
+| validador-pagos-db | `f4wkaziqfj8j8mmdemcej5wl` | internal: `postgres://postgres:<password>@f4wkaziqfj8j8mmdemcej5wl:5432/railway` (password en Coolify UI → DB → credentials) |
 
 ## Snapshot inicial
 - **Timestamp:** 2026-07-28T15:25:56Z
 - **Filas exportadas:** conciliaciones 5338 | extractos 5834 | pagos 8950 | pagos_divisas 1078 | pagos_validador 0 | solicitudes 226 | usuarios 21
 
 ## Migración de datos completada
-- **Timestamp:** 2026-07-28T19:55:00Z
-- **Filas importadas a Coolify:** conciliaciones 5372 | extractos 5880 | pagos 8987 | pagos_divisas 1084 | solicitudes 226 | usuarios 21
+- **Timestamp migración inicial:** 2026-07-28T19:55:00Z
+- **Filas importadas:** conciliaciones 5372 | extractos 5880 | pagos 8987 | pagos_divisas 1084 | solicitudes 226 | usuarios 21
 - Ejecutado via: `docker exec f4wkaziqfj8j8mmdemcej5wl bash /tmp/migrate.sh`
+
+## Delta sync completado
+- **Timestamp:** 2026-07-28T23:22:00Z
+- **Método:** postgres_fdw via Coolify scheduled task en container validador-pagos (homxoqh64gtzt6997cz8wwhm)
+- **Conteos finales verificados:** conciliaciones 5378 | extractos 5891 | pagos 8989 | pagos_divisas 1085 | solicitudes 227 | usuarios 21
+- **Todos los conteos coinciden con Railway** ✅
+- **Técnica delta:** `INSERT INTO ... SELECT * FROM rw.<tabla> ON CONFLICT DO NOTHING` via postgres_fdw
+- **Nota importante:** `\copy` falla al primer conflicto de PK; usar postgres_fdw + ON CONFLICT DO NOTHING para syncs futuros
 
 ## Fixes aplicados en Coolify
 - **validador-pagos:** `base_directory=/validador-pagos`, puerto `8001:5000` ✅
