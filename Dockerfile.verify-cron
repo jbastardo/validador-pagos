@@ -1,9 +1,9 @@
 FROM docker:27-cli
 
-# Install bash, curl, jq, and supercronic (reliable cron for containers)
+# Install bash, curl, jq
 RUN apk add --no-cache bash curl jq
 
-# Download supercronic (better cron for Docker — handles signals, logs to stdout)
+# Download supercronic (reliable cron for containers — logs to stdout, handles signals)
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-amd64 \
     SUPERCRONIC=/usr/local/bin/supercronic
 RUN curl -fsSL "$SUPERCRONIC_URL" -o "$SUPERCRONIC" \
@@ -12,11 +12,12 @@ RUN curl -fsSL "$SUPERCRONIC_URL" -o "$SUPERCRONIC" \
 # Create log directory
 RUN mkdir -p /var/log/verify-restore
 
-# Copy scripts
-COPY scripts/ /scripts/
+# Copy scripts from repo root (build context = repo root)
+COPY scripts/verify-restore.sh     /scripts/verify-restore.sh
+COPY scripts/auto-verify-restore.sh /scripts/auto-verify-restore.sh
 RUN chmod +x /scripts/*.sh
 
-# Copy crontab
+# Copy crontab schedule
 COPY services/verify-cron/crontab /etc/crontab/verify-restore
 
 ENTRYPOINT ["/usr/local/bin/supercronic", "/etc/crontab/verify-restore"]

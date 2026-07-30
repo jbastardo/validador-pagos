@@ -13,8 +13,7 @@ version: "3.8"
 services:
   verify-cron:
     build:
-      # context = repo root (Coolify runs docker-compose from the repo root)
-      # Dockerfile.verify-cron at repo root can COPY scripts/ and services/verify-cron/crontab
+      # context = repo root, so COPY commands in Dockerfile.verify-cron work correctly
       context: .
       dockerfile: Dockerfile.verify-cron
     restart: unless-stopped
