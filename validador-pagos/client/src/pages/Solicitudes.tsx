@@ -59,6 +59,8 @@ export default function Solicitudes() {
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [filtroVendedor, setFiltroVendedor] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const debouncedBusqueda = useDebounce(busqueda, 300);
 
   // --- Paginación ---
@@ -462,6 +464,13 @@ export default function Solicitudes() {
       const q = debouncedBusqueda.toLowerCase();
       if (!s.cliente.toLowerCase().includes(q) && !s.producto.toLowerCase().includes(q) && !s.sku?.toLowerCase().includes(q)) return false;
     }
+    if (fechaDesde || fechaHasta) {
+      if (!s.creadoEn) return false;
+      const d = new Date(s.creadoEn);
+      const fechaLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (fechaDesde && fechaLocal < fechaDesde) return false;
+      if (fechaHasta && fechaLocal > fechaHasta) return false;
+    }
     return true;
   });
 
@@ -486,7 +495,7 @@ export default function Solicitudes() {
   const totalGroups = grupos.length;
   const totalPages = Math.ceil(totalGroups / pageSize);
   const paginatedGrupos = grupos.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [filtroEstado, filtroVendedor, debouncedBusqueda]);
+  useEffect(() => { setPage(1); }, [filtroEstado, filtroVendedor, debouncedBusqueda, fechaDesde, fechaHasta]);
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -663,23 +672,29 @@ export default function Solicitudes() {
             {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
-        {isCompras && (
-          <>
-            <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
-          <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="Pendiente">Pendiente</SelectItem>
-              <SelectItem value="En Proceso">En Proceso</SelectItem>
-              <SelectItem value="Completada">Completada</SelectItem>
-              <SelectItem value="Cancelada">Cancelada</SelectItem>
-              <SelectItem value="Agotado">Agotado</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
-          </>
-        )}
+        <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
+        <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            <SelectItem value="Pendiente">Pendiente</SelectItem>
+            <SelectItem value="En Proceso">En Proceso</SelectItem>
+            <SelectItem value="Completada">Completada</SelectItem>
+            <SelectItem value="Cancelada">Cancelada</SelectItem>
+            <SelectItem value="Agotado">Agotado</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-muted-foreground">Desde</label>
+          <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+            className="h-8 rounded-md border bg-background px-2 text-sm" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-muted-foreground">Hasta</label>
+          <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+            className="h-8 rounded-md border bg-background px-2 text-sm" />
+        </div>
+        <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
       </div>
       {/* BARRA DE ACCIONES BATCH (solo compras/admin) */}
       {isCompras && seleccionados.size > 0 && (
@@ -735,6 +750,7 @@ export default function Solicitudes() {
                 <th className="p-3 text-left">Producto</th>
                 <th className="p-3 text-left">Cant.</th>
                 <th className="p-3 text-left">Categoría</th>
+                <th className="p-3 text-left">Fecha Solicitud</th>
                 <th className="p-3 text-left">Fecha Tope</th>
                 <th className="p-3 text-left">Estado</th>
                 <th className="p-3 text-left">Vendedor</th>
@@ -768,6 +784,7 @@ export default function Solicitudes() {
                       <td className="p-3">{s.sku ? <code className="bg-muted px-1 rounded text-xs">[{s.sku}]</code> : ""} {s.producto}</td>
                       <td className="p-3 font-medium">{s.cantidad}</td>
                       <td className="p-3">{s.categoria || "\u2014"}</td>
+                      <td className="p-3 whitespace-nowrap">{s.creadoEn ? new Date(s.creadoEn).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "\u2014"}</td>
                       <td className="p-3">{s.fechaTope || "\u2014"}</td>
                       <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                       <td className="p-3">{s.vendedor}</td>
@@ -1051,7 +1068,13 @@ export default function Solicitudes() {
               accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.gif"
               onChange={e => {
                 const file = e.target.files?.[0];
-                if (file) subirAdjunto.mutate(file);
+                if (file) {
+                  if (file.size > 15 * 1024 * 1024) {
+                    toast({ title: "El archivo supera el límite de 15 MB.", variant: "destructive" });
+                  } else {
+                    subirAdjunto.mutate(file);
+                  }
+                }
                 e.target.value = "";
               }}
             />
