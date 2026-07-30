@@ -1,0 +1,35 @@
+version: "3.8"
+# =============================================================================
+# verify-cron — Coolify service
+# Runs verify-restore.sh daily at 03:30 AM UTC (30 min after backup window).
+#
+# Required env vars (set in Coolify → service → env vars):
+#   TELEGRAM_BOT_TOKEN  — Telegram bot token for failure alerts
+#   TELEGRAM_CHAT_ID    — Telegram chat/group ID to receive alerts
+#
+# Optional env vars:
+#   LOG_FILE  — path for JSONL log (default: /var/log/verify-restore/results.jsonl)
+# =============================================================================
+services:
+  verify-cron:
+    build:
+      context: ../..
+      dockerfile: services/verify-cron/Dockerfile
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - LOG_FILE=/var/log/verify-restore/results.jsonl
+    volumes:
+      # Docker socket — needed so verify-restore.sh can run `docker run` / `docker exec`
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Backup directory — read-only mount from host
+      - /data/coolify/backups:/data/coolify/backups:ro
+      # Persist log file across container restarts
+      - verify_restore_logs:/var/log/verify-restore
+    # Run as root to access Docker socket
+    user: root
+
+volumes:
+  verify_restore_logs:
+    driver: local

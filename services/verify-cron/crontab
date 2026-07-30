@@ -1,0 +1,8 @@
+# Verify-restore cron schedule
+# Runs daily at 03:30 AM UTC — 30 minutes after Coolify's default 03:00 AM backup window
+# Format: minute hour day month weekday command
+#
+# To override the schedule, set CRON_SCHEDULE env var and rebuild the image,
+# or mount a custom crontab at /etc/crontab/verify-restore
+
+30 3 * * * SCRIPT_DIR=/scripts LOG_FILE=/var/log/verify-restore/results.jsonl bash /scripts/auto-verify-restore.sh >> /var/log/verify-restore/cron.log 2>&1
