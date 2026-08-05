@@ -19,11 +19,39 @@ function parseDate(s: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function calculateBusinessHours(da: Date, db: Date): number {
+  if (da >= db) return 0;
+
+  let current = new Date(da.getFullYear(), da.getMonth(), da.getDate());
+  const endDate = new Date(db.getFullYear(), db.getMonth(), db.getDate());
+  let totalMs = 0;
+
+  while (current <= endDate) {
+    const dayOfWeek = current.getDay(); // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const workStart = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 8, 0, 0, 0);
+      const workEnd = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 18, 0, 0, 0);
+
+      const overlapStart = Math.max(da.getTime(), workStart.getTime());
+      const overlapEnd = Math.min(db.getTime(), workEnd.getTime());
+
+      if (overlapEnd > overlapStart) {
+        totalMs += (overlapEnd - overlapStart);
+      }
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return totalMs / 3600000;
+}
+
 function diffHours(a: string, b: string): number | null {
   const da = parseDate(a);
   const db = parseDate(b);
   if (!da || !db) return null;
-  return Math.abs(db.getTime() - da.getTime()) / 3600000;
+  const start = da < db ? da : db;
+  const end = da < db ? db : da;
+  return calculateBusinessHours(start, end);
 }
 
 function formatDuration(hours: number): string {
@@ -109,7 +137,7 @@ export default function DashboardSolicitudes() {
       </div>
       <div className="rounded-lg border p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex items-center gap-2 mb-2"><Timer className="h-5 w-5 text-indigo-600" /><h2 className="text-lg font-semibold">Eficiencia de Respuesta</h2></div>
-        <p className="text-sm text-muted-foreground mb-1">Tiempo promedio entre creacion y primera respuesta</p>
+        <p className="text-sm text-muted-foreground mb-1">Tiempo promedio de respuesta en horario laboral (Lun - Vie 8:00 AM - 6:00 PM)</p>
         <p className="text-3xl font-bold text-indigo-700">{stats.avgRespuesta !== null ? formatDuration(stats.avgRespuesta) : "Sin datos"}</p>
       </div>
       <div className="rounded-md border">

@@ -42,40 +42,6 @@ async function sendTelegram(text: string, chatId?: string): Promise<number | nul
   } catch { return null; }
 }
 
-// Envía un archivo real por Telegram (sendPhoto para imágenes, sendDocument para el resto).
-// Devuelve el message_id o null si falla (el caller decide el fallback de texto).
-async function sendTelegramFile(opts: {
-  filePath: string;
-  fileName: string;
-  mimeType: string;
-  caption?: string;
-  chatId?: string;
-}): Promise<number | null> {
-  if (!TELEGRAM_BOT_TOKEN) return null;
-  const targetChatId = opts.chatId || TELEGRAM_CHAT_ID;
-  if (!targetChatId) return null;
-  try {
-    const buffer = await fs.promises.readFile(opts.filePath);
-    const isImage = /^image\/(jpeg|png|webp|gif)$/.test(opts.mimeType);
-    const method = isImage ? "sendPhoto" : "sendDocument";
-    const fieldName = isImage ? "photo" : "document";
-    const form = new FormData();
-    form.append("chat_id", targetChatId);
-    if (opts.caption) {
-      form.append("caption", opts.caption.slice(0, 1024));
-      form.append("parse_mode", "HTML");
-    }
-    form.append(fieldName, new Blob([buffer], { type: opts.mimeType }), opts.fileName);
-    const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`, {
-      method: "POST",
-      body: form,
-    });
-    const data = await r.json() as any;
-    if (!data?.ok) return null;
-    return data?.result?.message_id ?? null;
-  } catch { return null; }
-}
-
 // Uploads dir for solicitud attachments
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "solicitudes");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -673,7 +639,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
           ].filter(Boolean) as string[];
           const msg = lines.join("\n");
           for (const c of compradores) {
-            sendTelegram(msg, c.telegramChatId).then(async msgId => {
+            sendTelegram(msg, c.telegramChatId ?? undefined).then(async msgId => {
               if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: nuevo.id, destinatarioEmail: c.email }).catch(() => {});
             }).catch(() => {});
           }
@@ -870,7 +836,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
             if (otro) {
               const msgText = `💬 <b>Solicitud #${id}</b> — ${sol.producto || ""}
 <b>${u.nombre || autor}:</b> ${mensaje.substring(0, 200)}`;
-              sendTelegram(msgText, otro.telegramChatId).then(async msgId => {
+              sendTelegram(msgText, otro.telegramChatId ?? undefined).then(async msgId => {
                 if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: Number(id), destinatarioEmail: otro.email }).catch(() => {});
               }).catch(() => {});
             }
@@ -915,15 +881,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
             if (otro) {
               const msgText = `📎 <b>Solicitud #${id}</b> — ${sol.producto || ""}
 <b>${u.nombre || autor}</b> adjuntó: ${req.file.originalname}`;
-              sendTelegramFile({
-                filePath: req.file.path,
-                fileName: req.file.originalname,
-                mimeType: req.file.mimetype,
-                caption: msgText,
-                chatId: otro.telegramChatId,
-              }).then(async msgId => {
-                // Fallback: si el archivo no se pudo enviar, mandar solo el texto
-                if (msgId == null) msgId = await sendTelegram(msgText, otro.telegramChatId).catch(() => null);
+              sendTelegram(msgText, otro.telegramChatId ?? undefined).then(async msgId => {
                 if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId: Number(id), destinatarioEmail: otro.email }).catch(() => {});
               }).catch(() => {});
             }
@@ -1273,19 +1231,6 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       let adjuntoNombre: string | null = null;
       let adjuntoTipo: string | null = null;
       const fileObj: any = message.document || (message.photo ? message.photo[message.photo.length - 1] : null);
-      if (message.document) {
-        const allowedTipos = [
-          "application/vnd.ms-excel",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "text/csv",
-          "application/pdf",
-          "image/jpeg", "image/png", "image/webp", "image/gif",
-        ];
-        if (!allowedTipos.includes(message.document.mime_type || "")) {
-          sendTelegram(`⚠️ Tipo de archivo no permitido. Solo se aceptan Excel, PDF e imágenes.`, chatId).catch(() => {});
-          return;
-        }
-      }
       if (fileObj) {
         try {
           const fileInfoR = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileObj.file_id}`);
@@ -1331,7 +1276,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
           const otro = todosUsuarios.find((x: any) => x.email === email && x.telegramChatId);
           if (otro) {
             const msgText = `💬 <b>Solicitud #${solicitudId}</b> — ${sol.producto || ""}\n<b>${u.nombre}:</b> ${preview}`;
-            sendTelegram(msgText, otro.telegramChatId).then(async msgId => {
+            sendTelegram(msgText, otro.telegramChatId ?? undefined).then(async msgId => {
               if (msgId) await addTelegramNotificacion({ telegramMessageId: String(msgId), solicitudId, destinatarioEmail: otro.email }).catch(() => {});
             }).catch(() => {});
           }
