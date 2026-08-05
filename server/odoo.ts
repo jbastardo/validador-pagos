@@ -108,15 +108,25 @@ export async function createCliente(data: {
 
 export async function searchProductos(q: string) {
   if (!ODOO_USER || !ODOO_KEY) return [];
+  const cleanQ = q.trim();
   const domain: any[] = [
     "&", ["sale_ok", "=", true],
     "|", "|", "|",
-    ["name",                 "ilike", q],
-    ["product_tmpl_id.name", "ilike", q],
-    ["default_code",         "ilike", q],
-    ["barcode",              "ilike", q],
+    ["default_code",         "ilike", cleanQ],
+    ["product_tmpl_id.name", "ilike", cleanQ],
+    ["name",                 "ilike", cleanQ],
+    ["barcode",              "ilike", cleanQ],
   ];
-  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 30);
+  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50);
+
+  results.sort((a: any, b: any) => {
+    const aExact = String(a.default_code || "").trim().toLowerCase() === cleanQ.toLowerCase();
+    const bExact = String(b.default_code || "").trim().toLowerCase() === cleanQ.toLowerCase();
+    if (aExact && !bExact) return -1;
+    if (!aExact && bExact) return 1;
+    return 0;
+  });
+
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   return results.map((r: any) => ({
     id:            r.id,
