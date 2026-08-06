@@ -19,6 +19,25 @@ function parseDate(s: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+const VENEZUELA_HOLIDAYS = new Set([
+  // 2025
+  "2025-01-01", "2025-02-03", "2025-02-04", "2025-04-17", "2025-04-18", "2025-04-19",
+  "2025-05-01", "2025-06-24", "2025-07-05", "2025-07-24", "2025-10-12", "2025-12-24", "2025-12-25", "2025-12-31",
+  // 2026
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-02", "2026-04-03", "2026-04-19",
+  "2026-05-01", "2026-06-24", "2026-07-05", "2026-07-24", "2026-10-12", "2026-12-24", "2026-12-25", "2026-12-31",
+  // 2027
+  "2027-01-01", "2027-02-08", "2027-02-09", "2027-03-25", "2027-03-26", "2027-04-19",
+  "2027-05-01", "2027-06-24", "2027-07-05", "2027-07-24", "2027-10-12", "2027-12-24", "2027-12-25", "2027-12-31",
+]);
+
+function isHoliday(date: Date): boolean {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return VENEZUELA_HOLIDAYS.has(`${yyyy}-${mm}-${dd}`);
+}
+
 function calculateBusinessHours(da: Date, db: Date): number {
   if (da >= db) return 0;
 
@@ -28,7 +47,10 @@ function calculateBusinessHours(da: Date, db: Date): number {
 
   while (current <= endDate) {
     const dayOfWeek = current.getDay(); // 0 = Sunday, 6 = Saturday
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const feriado = isHoliday(current);
+
+    if (!isWeekend && !feriado) {
       const workStart = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 8, 0, 0, 0);
       const workEnd = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 18, 0, 0, 0);
 
@@ -56,10 +78,10 @@ function diffHours(a: string, b: string): number | null {
 
 function formatDuration(hours: number): string {
   if (hours < 1) return `${Math.round(hours * 60)} min`;
-  if (hours < 24) return `${hours.toFixed(1)} hrs`;
-  const days = Math.floor(hours / 24);
-  const rem = hours % 24;
-  return `${days}d ${rem.toFixed(0)}h`;
+  if (hours < 10) return `${hours.toFixed(1)} hrs hábiles`;
+  const days = Math.floor(hours / 10);
+  const rem = hours % 10;
+  return `${days}d ${rem.toFixed(1)}h hábiles`;
 }
 
 function Card({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {

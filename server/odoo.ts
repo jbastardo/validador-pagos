@@ -109,31 +109,43 @@ export async function createCliente(data: {
 export async function searchProductos(q: string) {
   if (!ODOO_USER || !ODOO_KEY) return [];
   const cleanQ = q.trim();
-  const domain: any[] = [
-    "&", ["sale_ok", "=", true],
-    "|", "|", "|",
-    ["default_code",         "ilike", cleanQ],
-    ["product_tmpl_id.name", "ilike", cleanQ],
-    ["name",                 "ilike", cleanQ],
-    ["barcode",              "ilike", cleanQ],
-  ];
-  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50);
 
-  results.sort((a: any, b: any) => {
-    const aExact = String(a.default_code || "").trim().toLowerCase() === cleanQ.toLowerCase();
-    const bExact = String(b.default_code || "").trim().toLowerCase() === cleanQ.toLowerCase();
-    if (aExact && !bExact) return -1;
-    if (!aExact && bExact) return 1;
-    return 0;
-  });
+  // 1. Buscar primero por coincidencia exacta de SKU (default_code)
+  let exactResults = await searchRead("product.product", [
+    "&", ["sale_ok", "=", true],
+    ["default_code", "=", cleanQ]
+  ], ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10);
+
+  let results = exactResults;
+  if (results.length === 0) {
+    const domain: any[] = [
+      "&", ["sale_ok", "=", true],
+      "|", "|", "|",
+      ["default_code",         "ilike", cleanQ],
+      ["product_tmpl_id.name", "ilike", cleanQ],
+      ["name",                 "ilike", cleanQ],
+      ["barcode",              "ilike", cleanQ],
+    ];
+    results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50);
+  }
+
+  const cleanName = (str: string) => {
+    return str
+      .replace(/\s*\((copia|copiar|copy)\)\s*/gi, "")
+      .replace(/^\d+\.\s*-\s*/, "")
+      .trim();
+  };
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
-  return results.map((r: any) => ({
-    id:            r.id,
-    name:          (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : (r.name || ""),
-    default_code:  r.default_code  || "",
-    list_price:    r.list_price    || 0,
-    qty_available: r.qty_available || 0,
-    categ_id:      r.categ_id?.[1] || "",
-  }));
+  return results.map((r: any) => {
+    let rawName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : (r.name || "");
+    return {
+      id:            r.id,
+      name:          cleanName(rawName),
+      default_code:  r.default_code  || "",
+      list_price:    r.list_price    || 0,
+      qty_available: r.qty_available || 0,
+      categ_id:      r.categ_id?.[1] || "",
+    };
+  });
 }
