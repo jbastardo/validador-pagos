@@ -108,18 +108,34 @@ export async function createCliente(data: {
 
 export async function searchProductos(q: string) {
   if (!ODOO_USER || !ODOO_KEY) return [];
-  const domain: any[] = [
+  
+  // Buscar coincidencia exacta de SKU primero, si no, buscar por coincidencia parcial
+  const exactDomain: any[] = [
+    "&", ["sale_ok", "=", true],
+    "|",
+    ["default_code", "=", q],
+    ["barcode", "=", q],
+  ];
+  
+  const partialDomain: any[] = [
     "&", ["sale_ok", "=", true],
     "|", "|",
     ["name",         "ilike", q],
     ["default_code", "ilike", q],
     ["barcode",      "ilike", q],
   ];
-  const results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id"], 30);
+
+  // Try exact match first
+  let results = await searchRead("product.product", exactDomain, ["id", "display_name", "name", "default_code", "list_price", "qty_available", "categ_id"], 30);
+  
+  if (!results || results.length === 0) {
+    results = await searchRead("product.product", partialDomain, ["id", "display_name", "name", "default_code", "list_price", "qty_available", "categ_id"], 30);
+  }
+
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   return results.map((r: any) => ({
     id:            r.id,
-    name:          r.name          || "",
+    name:          r.display_name  || r.name || "",
     default_code:  r.default_code  || "",
     list_price:    r.list_price    || 0,
     qty_available: r.qty_available || 0,
