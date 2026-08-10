@@ -1,14 +1,14 @@
 /**
  * Parser de archivos Excel de Cashea para importación masiva de pagos.
  * 
- * Formato del archivo marketplace-orders.xlsx de Cashea:
- * - Columna 0: Cédula (RIF del cliente)
- * - Columna 1: Teléfono (celular del cliente)
- * - Columna 2: Email
- * - Columna 6: Fecha (ISO 8601)
- * - Columna 10: # Orden
- * - Columna 15: # Referencia (referencia bancaria - único)
- * - Columna 16: Monto en Bs
+ * - Columna 1: Nombre
+ * - Columna 2: Cédula
+ * - Columna 3: Teléfono
+ * - Columna 4: Email
+ * - Columna 5: Fecha
+ * - Columna 6: Orden
+ * - Columna 10: Monto inicial (Bs)
+ * - Columna 11: Referencia de pago en Bs
  * 
  * Características:
  * - Todos los pagos son PagoMovil
@@ -175,10 +175,10 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
       return resultado;
     }
     
-    // Iterar desde la fila 2 (fila 1 es encabezado)
+    // Iterar desde la fila 3 (filas 1 y 2 son encabezados/títulos)
     worksheet.eachRow((row, rowNumber) => {
       // Saltar encabezado
-      if (rowNumber === 1) return;
+      if (rowNumber <= 2) return;
       
       resultado.total++;
       
@@ -194,15 +194,14 @@ export async function parseCasheaExcel(buffer: Buffer): Promise<ParseResult> {
         
         // Extraer datos según el formato real de Cashea (marketplace-orders.xlsx)
         // ExcelJS usa índices 1-based: getCell(1) = Columna A
-        // El archivo tiene: Nombre, Cédula, Teléfono, Email, ...
-        const nombre = String(row.getCell(1).value || "").trim();   // Col A (Nombre del cliente)
+        const nombre = String(row.getCell(1).value || "").trim();   // Col A (Nombre)
         const cedula = String(row.getCell(2).value || "").trim();   // Col B (Cédula)
         const telefono = String(row.getCell(3).value || "").trim(); // Col C (Teléfono)
         const email = String(row.getCell(4).value || "").trim();    // Col D (Email)
-        const fechaRaw = row.getCell(8).value;                      // Col H (Fecha)
-        const ordenId = String(row.getCell(13).value || "").trim(); // Col M (# Orden)
-        const referencia = String(row.getCell(16).value || "").trim(); // Col P (# Referencia)
-        const montoRaw = row.getCell(17).value;                     // Col Q (Monto en Bs)
+        const fechaRaw = row.getCell(5).value;                      // Col E (Fecha)
+        const ordenId = String(row.getCell(6).value || "").trim();  // Col F (Orden)
+        const referencia = String(row.getCell(11).value || "").trim(); // Col K (Referencia de pago en Bs)
+        const montoRaw = row.getCell(10).value;                     // Col J (Monto inicial (Bs))
         
         // Parsear fecha (viene en formato ISO 8601)
         let fecha = "";
