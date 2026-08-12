@@ -738,6 +738,7 @@ export default function Solicitudes() {
                 <th className="p-3 text-left">Cant.</th>
                 <th className="p-3 text-left">Categoría</th>
                 <th className="p-3 text-left">Fecha Tope</th>
+                <th className="p-3 text-left">Estado</th>
                 <th className="p-3 text-left">Vendedor</th>
                 <th className="p-3 text-left">Último mensaje Compras</th>
                 <th className="p-3 text-left">Acciones</th>
