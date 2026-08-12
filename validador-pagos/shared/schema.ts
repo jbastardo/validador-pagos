@@ -5,7 +5,7 @@ import { z } from "zod";
 // Enums
 export const tipoPagoEnum = pgEnum("tipo_pago", ["PagoMovil", "Transferencia"]);
 export const estadoPagoEnum = pgEnum("estado_pago", ["Pendiente", "Verificado", "Rechazado", "Rechazado Megasoft"]);
-export const estadoSolicitudEnum = pgEnum("estado_solicitud", ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"]);
+export const estadoSolicitudEnum = pgEnum("estado_solicitud", ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado", "No Concretado"]);
 
 // Tabla principal de pagos (BS)
 export const pagos = pgTable("pagos", {

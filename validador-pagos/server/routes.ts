@@ -27,7 +27,7 @@ const BANCOS_VALIDOS = BANCOS_RECEPTOR_META.map(b => b.codigo);
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "";
-async function sendTelegram(text: string, chatId?: string): Promise<number | null> {
+export async function sendTelegram(text: string, chatId?: string): Promise<number | null> {
   if (!TELEGRAM_BOT_TOKEN) return null;
   const targetChatId = chatId || TELEGRAM_CHAT_ID;
   if (!targetChatId) return null;
@@ -599,7 +599,21 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   app.get("/api/solicitudes", async (_req: any, res: any) => {
     try {
       const solicitudes = await getSolicitudes();
-      res.json(solicitudes.sort((a: any, b: any) => new Date(b.creadoEn ?? 0).getTime() - new Date(a.creadoEn ?? 0).getTime()));
+      const todosMensajes = await db.select().from(solicitudMensajes);
+      const usuarios = await getUsuarios();
+      const comprasEmails = usuarios.filter((u: any) => u.rol === 'compras' || u.rol === 'admin').map((u: any) => u.email);
+
+      const result = solicitudes.map((sol: any) => {
+        const mensajes = todosMensajes.filter((m: any) => m.solicitudId === sol.id);
+        const comprasMensajes = mensajes.filter((m: any) => comprasEmails.includes(m.autor));
+        const lastMsg = comprasMensajes[comprasMensajes.length - 1];
+        return {
+          ...sol,
+          ultimoMensajeCompras: lastMsg?.mensaje ? lastMsg.mensaje : sol.observacionesCompras || ""
+        };
+      });
+
+      res.json(result.sort((a: any, b: any) => new Date(b.creadoEn ?? 0).getTime() - new Date(a.creadoEn ?? 0).getTime()));
     } catch (e: any) {
       res.status(500).json({ message: "Error al obtener solicitudes" });
     }
@@ -696,6 +710,21 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       if (!sol) return res.status(404).json({ message: "Solicitud no encontrada" });
       if (sol.vendedor !== vendedorEmail) return res.status(403).json({ message: "Solo puedes editar tus propias solicitudes" });
       const updated = await updateSolicitudEdicion(id, { observaciones: observaciones ?? "" }, vendedorEmail);
+      
+      try {
+        if (observaciones !== undefined) {
+          const todosUsuarios = await getUsuarios();
+          const u = todosUsuarios.find((x: any) => x.email === vendedorEmail);
+          await addSolicitudMensaje({
+            solicitudId: Number(id),
+            autor: vendedorEmail,
+            autorNombre: u?.nombre || vendedorEmail,
+            mensaje: `[Observación actualizada]: ${observaciones}`,
+            source: "web"
+          });
+        }
+      } catch (e) { console.error("Error agregando mensaje:", e); }
+
       res.json(updated);
     } catch (e: any) {
       console.error("Error observaciones-vendedor:", e.message);
@@ -753,7 +782,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "compras" || x.rol === "vendedor") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { vendedor, cliente, sku, producto, cantidad, celular, fechaTope, observaciones, estado, observacionesCompras, categoria } = req.body;
-      const estadosValidos = ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado"];
+      const estadosValidos = ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado", "No Concretado"];
       if (estado && !estadosValidos.includes(estado)) {
         return res.status(400).json({ message: `Estado inválido: "${estado}". Valores permitidos: ${estadosValidos.join(", ")}` });
       }
@@ -772,6 +801,15 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
           if (observacionesCompras !== undefined) changes.push(`<b>Obs. Compras:</b> ${observacionesCompras || "—"}`);
           if (changes.length > 0) {
             const todosUsuarios = await getUsuarios();
+            
+            await addSolicitudMensaje({
+              solicitudId: Number(id),
+              autor: email,
+              autorNombre: u.nombre || email,
+              mensaje: `[Actualización]: ${changes.join(", ").replace(/<b>|<\/b>/g, "")}`,
+              source: "web"
+            }).catch(console.error);
+
             const vendedorUser = todosUsuarios.find((x: any) => x.email === updated.vendedor && x.telegramChatId);
             if (vendedorUser?.telegramChatId) {
               const msg = [

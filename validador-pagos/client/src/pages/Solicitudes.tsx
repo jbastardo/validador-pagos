@@ -440,7 +440,7 @@ export default function Solicitudes() {
     onError: (err: Error) => toast({ title: err.message || "Error al confirmar en masa", variant: "destructive" }),
   });
 
-  const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "Agotado" ? "secondary" : "destructive";
+  const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "No Concretado" ? "secondary" : e === "Agotado" ? "secondary" : "destructive";
 
   const isCompras = user?.rol === "admin" || user?.rol === "compras";
   const isAdmin = user?.rol === "admin";
@@ -460,7 +460,7 @@ export default function Solicitudes() {
     if (filtroVendedor && s.vendedor !== filtroVendedor) return false;
     if (debouncedBusqueda) {
       const q = debouncedBusqueda.toLowerCase();
-      if (!s.cliente.toLowerCase().includes(q) && !s.producto.toLowerCase().includes(q) && !s.sku?.toLowerCase().includes(q)) return false;
+      if (!s.cliente.toLowerCase().includes(q) && !s.producto.toLowerCase().includes(q) && !s.sku?.toLowerCase().includes(q) && !s.id.toString().includes(q)) return false;
     }
     return true;
   });
@@ -675,6 +675,7 @@ export default function Solicitudes() {
               <SelectItem value="Completada">Completada</SelectItem>
               <SelectItem value="Cancelada">Cancelada</SelectItem>
               <SelectItem value="Agotado">Agotado</SelectItem>
+              <SelectItem value="No Concretado">No Concretado</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
@@ -700,6 +701,7 @@ export default function Solicitudes() {
                 <SelectItem value="Completada">Completada</SelectItem>
                 <SelectItem value="Cancelada">Cancelada</SelectItem>
                 <SelectItem value="Agotado">Agotado</SelectItem>
+                <SelectItem value="No Concretado">No Concretado</SelectItem>
               </SelectContent>
             </Select>
             {isAdmin && <Button size="sm" variant="destructive" onClick={() => setBatchDeleteOpen(true)}>Eliminar</Button>}
@@ -736,9 +738,8 @@ export default function Solicitudes() {
                 <th className="p-3 text-left">Cant.</th>
                 <th className="p-3 text-left">Categoría</th>
                 <th className="p-3 text-left">Fecha Tope</th>
-                <th className="p-3 text-left">Estado</th>
                 <th className="p-3 text-left">Vendedor</th>
-                <th className="p-3 text-left">Obs. Compras</th>
+                <th className="p-3 text-left">Último mensaje Compras</th>
                 <th className="p-3 text-left">Acciones</th>
               </tr></thead>
               <tbody>
@@ -758,7 +759,7 @@ export default function Solicitudes() {
                             <span className="text-xs text-muted-foreground ml-1">({grupo.items.length} items)</span>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground text-xs ml-4">└─ {iIdx + 1}</span>
+                          <span className="text-muted-foreground text-xs ml-4">└─ ID {s.id}</span>
                         )}
                       </td>
                       <td className="p-3">
@@ -771,11 +772,9 @@ export default function Solicitudes() {
                       <td className="p-3">{s.fechaTope || "\u2014"}</td>
                       <td className="p-3"><Badge variant={colorEstado(s.estado) as any}>{s.estado}</Badge>{s.respondidoPor && <span title={`Respondido por: ${s.respondidoPor}\nFecha: ${s.actualizadoEn ? new Date(s.actualizadoEn).toLocaleString() : "\u2014"}`} className="ml-1 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground" /></span>}</td>
                       <td className="p-3">{s.vendedor}</td>
-                      <td className="p-3 text-xs max-w-[150px] truncate" title={s.observacionesCompras}>{s.observacionesCompras || "\u2014"}</td>
+                      <td className="p-3 text-xs max-w-[150px] truncate" title={(s as any).ultimoMensajeCompras}>{(s as any).ultimoMensajeCompras || "\u2014"}</td>
                       <td className="p-3">
                         <div className="flex flex-col gap-1 items-start min-w-[140px]">
-                          {/* Vendedor: editar observaciones */}
-                          {isVendedor && <Button size="sm" variant="ghost" onClick={() => openObsEdit(s)} title="Editar observaciones"><Edit2 className="h-4 w-4" /></Button>}
                           {/* Chat button - visible a todos */}
                           <Button size="sm" variant="ghost" onClick={() => { setChatSol(s); setChatOpen(true); }} title="Chat de solicitud">
                             <MessageSquare className="h-4 w-4" />
@@ -832,7 +831,6 @@ export default function Solicitudes() {
               <div><span className="font-medium">Cliente:</span> {editSol?.cliente}</div>
               <div><span className="font-medium">Producto:</span> {editSol?.sku ? `[${editSol.sku}] ` : ""}{editSol?.producto}</div>
               <div><span className="font-medium">Vendedor:</span> {editSol?.vendedor}</div>
-              <div><span className="font-medium">Obs. vendedor:</span> {editSol?.observaciones || "\u2014"}</div>
             </div>
             <div>
               <Label>Estado</Label>
@@ -858,7 +856,6 @@ export default function Solicitudes() {
               </Select>
             </div>
             <div><Label>Fecha tope</Label><Input type="date" value={editForm.fechaTope} onChange={e => setEditForm(f => ({ ...f, fechaTope: e.target.value }))} /></div>
-            <div><Label>Observaciones de Compras</Label><Textarea value={editForm.observacionesCompras} onChange={e => setEditForm(f => ({ ...f, observacionesCompras: e.target.value }))} placeholder="Notas de compras..." /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
@@ -896,26 +893,6 @@ export default function Solicitudes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAnularOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={() => anularSol && anularCompra.mutate({ id: anularSol.id, motivo: anularMotivo, respondidoPor: anularSol.respondidoPor })} disabled={!anularMotivo.trim() || anularCompra.isPending}>{anularCompra.isPending ? "Enviando..." : "Solicitar anulacion"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* DIALOG EDITAR OBSERVACIONES (vendedor) */}
-      <Dialog open={obsOpen} onOpenChange={setObsOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Editar Observaciones - Solicitud #{obsSol?.id}</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="font-medium">Cliente:</span> {obsSol?.cliente}</div>
-              <div><span className="font-medium">Producto:</span> {obsSol?.sku ? `[${obsSol.sku}] ` : ""}{obsSol?.producto}</div>
-            </div>
-            <div>
-              <Label>Observaciones</Label>
-              <Textarea value={obsForm.observaciones} onChange={e => setObsForm(f => ({ ...f, observaciones: e.target.value }))} placeholder="Notas para compras..." rows={3} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setObsOpen(false)}>Cancelar</Button>
-            <Button onClick={() => editarObsVendedor.mutate(obsForm)} disabled={editarObsVendedor.isPending}>{editarObsVendedor.isPending ? "Guardando..." : "Guardar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
