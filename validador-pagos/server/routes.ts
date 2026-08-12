@@ -498,7 +498,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const { email, rol } = req.body;
       if (!email) return res.status(400).json({ message: "Email requerido" });
       const usuarios = await getUsuarios();
-      const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "contabilidad" || x.rol === "vendedor" || x.rol === "compras") && x.activo?.toLowerCase() === "true");
+      const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "contabilidad" || x.rol === "vendedor" || x.rol === "vendedor_cashea" || x.rol === "compras") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fechaPago, bancoEmisor, bancoReceptor, monto, referencia, celular, cliente, observaciones, rif, factura, megasoft, cajeroEmail } = req.body;
       const pagos = await getPagos();
@@ -564,7 +564,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const { email } = req.body;
       if (!email) return res.status(400).json({ message: "Email requerido" });
       const usuarios = await getUsuarios();
-      const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "contabilidad" || x.rol === "vendedor" || x.rol === "compras") && x.activo?.toLowerCase() === "true");
+      const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "contabilidad" || x.rol === "vendedor" || x.rol === "vendedor_cashea" || x.rol === "compras") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { fecha, nombrePagador, monto, tipo, referencia, observaciones } = req.body;
       if (!fecha || !monto) return res.status(400).json({ message: "Campos requeridos" });
@@ -790,7 +790,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
       const email = req.body.email || req.body.usuario;
       if (!email) return res.status(400).json({ message: "Email requerido" });
       const usuarios = await getUsuarios();
-      const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "compras" || x.rol === "vendedor") && x.activo?.toLowerCase() === "true");
+      const u = usuarios.find((x: any) => x.email === email && (x.rol === "admin" || x.rol === "compras" || x.rol === "vendedor" || x.rol === "vendedor_cashea") && x.activo?.toLowerCase() === "true");
       if (!u) return res.status(403).json({ message: "Sin permisos para editar" });
       const { vendedor, cliente, sku, producto, cantidad, celular, fechaTope, observaciones, estado, observacionesCompras, categoria } = req.body;
       const estadosValidos = ["Pendiente", "En Proceso", "Completada", "Cancelada", "Agotado", "No Concretado"];

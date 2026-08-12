@@ -1302,7 +1302,7 @@ export default function Conciliacion() {
                 fechaPago: editBsFecha, bancoEmisor: editBsEmisor, bancoReceptor: editBsReceptor,
                 monto: editBsMonto, referencia: editBsRef, celular: editBsCel, cliente: editBsCliente,
                 observaciones: editBsObs,
-                ...((isAdmin || isContabilidad || isCompras) ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
+                ...((isAdmin || isContabilidad || isCompras || isVendedor) ? { rif: editBsRif, factura: editBsFactura, megasoft: editBsMega, cajeroEmail: user?.email ?? "" } : {}),
               } })}
               disabled={editBsMutation.isPending}
             >
