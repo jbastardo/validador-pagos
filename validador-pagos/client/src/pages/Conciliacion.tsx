@@ -569,16 +569,17 @@ export default function Conciliacion() {
     );
   };
   const isCajero           = user?.rol === "cajero";
-  const isVendedor         = user?.rol === "vendedor";
   const isContabilidad     = user?.rol === "contabilidad";
-  const isCompras           = user?.rol === "compras";
+  const isCompras          = user?.rol === "compras";
   const isSupervisorCaja   = user?.rol === "supervisor_caja";
-  // Puede aprobar/rechazar
   const isContable         = user?.rol === "admin" || user?.rol === "contabilidad";
-  // Puede editar pendientes (contabilidad, admin, vendedor, supervisor_caja)
-  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja" || user?.rol === "compras";
-  // Puede ver info de validación (quien validó + cuándo)
-  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "supervisor_caja";
+  const isVendedor         = user?.rol === "vendedor" || user?.rol === "vendedor_cashea";
+  const canDeletePagos     = user?.rol === "admin";
+  const canEditMontos      = user?.rol === "admin" || user?.rol === "contabilidad";
+  const canValidatePagos   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "supervisor_caja";
+  const canEditReferencias = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "supervisor_caja" || user?.rol === "cajero";
+  const isSupervisor       = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "vendedor_cashea" || user?.rol === "supervisor_caja" || user?.rol === "compras";
+  const canSeeValidacion   = user?.rol === "admin" || user?.rol === "contabilidad" || user?.rol === "vendedor" || user?.rol === "vendedor_cashea" || user?.rol === "supervisor_caja";
 
   // Componente tooltip de auditoría — se posiciona sobre el ícono usando getBoundingClientRect
   const AuditTooltip = ({ vendedor, creadoEn, validadoPor, validadoEn, estado, conciliadoEn, conciliadoPor }: { vendedor?: string; creadoEn?: string; validadoPor?: string; validadoEn?: string; estado?: string; conciliadoEn?: string; conciliadoPor?: string }) => {

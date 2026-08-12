@@ -596,7 +596,7 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   // ===== EXTRACTOS BANCARIOS (solo usado por app de conciliaciones) =====
 
   // ===== CRON MANUAL =====
-  app.post("/api/cron/run", async (req, res) => {
+  app.post("/api/cron/run", async (req: any, res: any) => {
     try {
       const { runCronJobOnce } = require("./cron");
       const result = await runCronJobOnce();

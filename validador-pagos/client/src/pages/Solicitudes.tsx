@@ -442,9 +442,9 @@ export default function Solicitudes() {
 
   const colorEstado = (e: string) => e === "Pendiente" ? "default" : e === "En Proceso" ? "secondary" : e === "Completada" ? "outline" : e === "No Concretado" ? "secondary" : e === "Agotado" ? "secondary" : "destructive";
 
-  const isCompras = user?.rol === "admin" || user?.rol === "compras";
   const isAdmin = user?.rol === "admin";
-  const isVendedor = user?.rol === "vendedor";
+  const isVendedor = user?.rol === "vendedor" || user?.rol === "vendedor_cashea";
+  const isCompras = user?.rol === "compras" || user?.rol === "admin";
 
   const selectCliente = (c: OdooCliente) => {
     const display = c.vat ? `${c.name} (${c.vat})` : c.name;

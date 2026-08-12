@@ -28,6 +28,7 @@ const PAGINAS = [
 // Roles editables (admin siempre tiene acceso — no se edita)
 const ROLES = [
   { key: "vendedor",        label: "Vendedor",           color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" },
+  { key: "vendedor_cashea", label: "Vendedor Cashea",    color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300" },
   { key: "contabilidad",    label: "Contabilidad",       color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
   { key: "cajero",          label: "Cajero",             color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" },
   { key: "compras",         label: "Compras",            color: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300" },

@@ -25,6 +25,7 @@ const rolLabel: Record<string, string> = {
   admin: "Administrador",
   contabilidad: "Contabilidad",
   vendedor: "Vendedor",
+  vendedor_cashea: "Vendedor Cashea",
   cajero: "Cajero",
   compras: "Compras",
   supervisor_caja: "Supervisor de Caja",
@@ -34,6 +35,7 @@ const rolColors: Record<string, string> = {
   admin: "bg-purple-100 text-purple-700",
   contabilidad: "bg-blue-100 text-blue-700",
   vendedor: "bg-green-100 text-green-700",
+  vendedor_cashea: "bg-emerald-100 text-emerald-700",
   cajero: "bg-orange-100 text-orange-700",
   compras: "bg-teal-100 text-teal-700",
   supervisor_caja: "bg-indigo-100 text-indigo-700",
@@ -249,6 +251,7 @@ export default function Usuarios() {
                 <SelectTrigger data-testid="select-rol"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="vendedor">Vendedor</SelectItem>
+                  <SelectItem value="vendedor_cashea">Vendedor Cashea</SelectItem>
                   <SelectItem value="cajero">Cajero</SelectItem>
                   <SelectItem value="compras">Compras</SelectItem>
                   <SelectItem value="supervisor_caja">Supervisor de Caja</SelectItem>

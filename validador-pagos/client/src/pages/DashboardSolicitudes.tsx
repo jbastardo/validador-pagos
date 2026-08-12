@@ -1,10 +1,14 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Clock, CheckCircle2, XCircle, Loader2, Timer, Users, PackageX, AlertCircle } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle2, XCircle, Loader2, Timer, Users, PackageX, AlertCircle, PlayCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface Solicitud {
   id: string; vendedor: string; cliente: string; celular: string; sku: string;
@@ -94,6 +98,10 @@ function Card({ icon, label, value, color }: { icon: React.ReactNode; label: str
 }
 
 export default function DashboardSolicitudes() {
+  const { user } = useAuth();
+  const isAdmin = user?.rol === "admin";
+  const { toast } = useToast();
+
   const [filtroVendedor, setFiltroVendedor] = useState("");
   const [filtroDesde, setFiltroDesde] = useState("");
   const [filtroHasta, setFiltroHasta] = useState("");
@@ -101,6 +109,17 @@ export default function DashboardSolicitudes() {
   const { data: solicitudes = [], isLoading } = useQuery<Solicitud[]>({
     queryKey: ["solicitudes"],
     queryFn: () => fetch("/api/solicitudes").then(r => r.json()),
+  });
+
+  const manualCron = useMutation({
+    mutationFn: () => fetch("/api/cron/run", { method: "POST" }).then(res => res.json()),
+    onSuccess: (data) => {
+      toast({ title: "Limpieza Completada", description: data.message || "Se procesó el cron." });
+      queryClient.invalidateQueries({ queryKey: ["solicitudes"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   });
 
   const vendedores = useMemo(() => [...new Set(solicitudes.map(s => s.vendedor))].sort(), [solicitudes]);
@@ -139,7 +158,21 @@ export default function DashboardSolicitudes() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard de Solicitudes</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard de Solicitudes</h1>
+        {isAdmin && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => manualCron.mutate()} 
+            disabled={manualCron.isPending}
+            className="gap-2"
+          >
+            <PlayCircle className="h-4 w-4" />
+            {manualCron.isPending ? "Limpiando..." : "Limpiar Antiguas (Cron)"}
+          </Button>
+        )}
+      </div>
       <div className="flex items-center gap-4 flex-wrap">
         <div><Label className="text-xs">Desde</Label><Input type="date" value={filtroDesde} onChange={e => setFiltroDesde(e.target.value)} className="w-[160px]" /></div>
         <div><Label className="text-xs">Hasta</Label><Input type="date" value={filtroHasta} onChange={e => setFiltroHasta(e.target.value)} className="w-[160px]" /></div>
@@ -150,7 +183,7 @@ export default function DashboardSolicitudes() {
           </Select>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
         <Card icon={<ClipboardList className="h-5 w-5 text-blue-600" />} label="Total" value={stats.total} color="blue" />
         <Card icon={<Clock className="h-5 w-5 text-yellow-600" />} label="Pendientes" value={stats.pendientes} color="yellow" />
         <Card icon={<Loader2 className="h-5 w-5 text-indigo-600" />} label="En Proceso" value={stats.enProceso} color="indigo" />
