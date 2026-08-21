@@ -607,6 +607,34 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   });
 
   // ===== SOLICITUDES =====
+  app.get("/api/admin/sync-nombres", async (req: any, res: any) => {
+    try {
+      const allSolicitudes = await db.select().from(solicitudes);
+      const toCheck = allSolicitudes.filter(s => s.sku);
+      const uniqueSkus = [...new Set(toCheck.map(s => s.sku))];
+      
+      const updates = [];
+      for (const sku of uniqueSkus) {
+        if (!sku) continue;
+        const odooProducts = await searchProductos(sku);
+        const match = odooProducts.find((p: any) => p.default_code?.trim().toLowerCase() === sku.trim().toLowerCase());
+        
+        if (match) {
+          const matchingSols = toCheck.filter(s => s.sku === sku);
+          for (const s of matchingSols) {
+            if (s.producto !== match.name) {
+              await db.update(solicitudes).set({ producto: match.name }).where(eq(solicitudes.id, s.id));
+              updates.push({ id: s.id, old: s.producto, new: match.name });
+            }
+          }
+        }
+      }
+      res.json({ message: "Sync complete", updatedCount: updates.length, updates });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/solicitudes", async (_req: any, res: any) => {
     try {
       const solicitudes = await getSolicitudes();
