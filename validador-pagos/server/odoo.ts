@@ -32,7 +32,7 @@ async function searchRead(model: string, domain: any[], fields: string[], limit 
       jsonrpc: "2.0", method: "call", id: 2,
       params: {
         service: "object", method: "execute_kw",
-        args: [ODOO_DB, uid, ODOO_KEY, model, "search_read", [domain], { fields, limit, order: order || "id asc" }],
+        args: [ODOO_DB, uid, ODOO_KEY, model, "search_read", [domain], { fields, limit, order: order || "id asc", context: { lang: "es_VE" } }],
       },
     }),
   });
