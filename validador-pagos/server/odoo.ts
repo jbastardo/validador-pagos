@@ -140,9 +140,13 @@ export async function searchProductos(q: string) {
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   
-  // Regla estricta: Siempre usar el display_name exacto que provee Odoo
+  // Regla estricta basada en el comportamiento de Odoo:
+  // Cuando se duplica un producto, la variante (product.product) se queda con el nombre original ("matriz"),
+  // pero el usuario cambia el nombre en la ficha (que es product.template).
+  // Por lo tanto, SIEMPRE debemos extraer el nombre desde product_tmpl_id.
   return results.map((r: any) => {
-    let rawName = r.display_name || r.name || "";
+    let templateName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "";
+    let rawName = templateName || r.display_name || r.name || "";
     return {
       id:            r.id,
       name:          cleanName(rawName),

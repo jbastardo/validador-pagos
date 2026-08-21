@@ -618,7 +618,7 @@ export default function Solicitudes() {
                       {items.map((item, idx) => (
                         <div key={idx} className="flex items-center gap-2 bg-muted/30 p-2 rounded text-sm">
                           <span className="font-medium">{idx + 1}.</span>
-<span>{item.producto}</span>
+                          <span>{item.sku ? `[${item.sku}] ` : ""}{item.producto}</span>
                           <span className="text-muted-foreground">x{item.cantidad}</span>
                           {item.categoria && <Badge variant="outline" className="text-xs">{item.categoria}</Badge>}
                           <Button 
@@ -767,7 +767,7 @@ export default function Solicitudes() {
                         <div className="font-medium">{s.cliente}</div>
                         {s.celular && <div className="text-xs text-muted-foreground">{s.celular}</div>}
                       </td>
-                      <td className="p-3">{s.producto}</td>
+                      <td className="p-3">{s.sku ? <code className="bg-muted px-1 rounded text-xs">[{s.sku}]</code> : ""} {s.producto}</td>
                       <td className="p-3 font-medium">{s.cantidad}</td>
                       <td className="p-3">{s.categoria || "\u2014"}</td>
                       <td className="p-3">{s.fechaTope || "\u2014"}</td>
@@ -830,7 +830,7 @@ export default function Solicitudes() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="font-medium">Cliente:</span> {editSol?.cliente}</div>
-              <div><span className="font-medium">Producto:</span> {editSol?.producto}</div>
+              <div><span className="font-medium">Producto:</span> {editSol?.sku ? `[${editSol.sku}] ` : ""}{editSol?.producto}</div>
               <div><span className="font-medium">Vendedor:</span> {editSol?.vendedor}</div>
             </div>
             <div>
@@ -883,7 +883,7 @@ export default function Solicitudes() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="font-medium">Cliente:</span> {anularSol?.cliente}</div>
-              <div><span className="font-medium">Producto:</span> {anularSol?.producto}</div>
+              <div><span className="font-medium">Producto:</span> {anularSol?.sku ? `[${anularSol.sku}] ` : ""}{anularSol?.producto}</div>
               <div><span className="font-medium">Estado actual:</span> {anularSol?.estado}</div>
             </div>
             <div>
@@ -918,7 +918,7 @@ export default function Solicitudes() {
               Chat — Solicitud #{chatSol?.id}
             </DialogTitle>
             <p className="text-sm text-muted-foreground mt-0.5 truncate">
-              {chatSol?.producto} • {chatSol?.cliente} • <Badge variant={colorEstado(chatSol?.estado || "") as any} className="text-xs">{chatSol?.estado}</Badge>
+              {chatSol?.producto}{chatSol?.sku ? ` [${chatSol.sku}]` : ""} · {chatSol?.cliente} · <Badge variant={colorEstado(chatSol?.estado || "") as any} className="text-xs">{chatSol?.estado}</Badge>
             </p>
           </DialogHeader>
 
