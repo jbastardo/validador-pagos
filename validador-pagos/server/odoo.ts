@@ -140,10 +140,12 @@ export async function searchProductos(q: string) {
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   
-  // Odoo a veces mantiene el nombre viejo en 'name' o en el 'product_tmpl_id' cuando se duplica un producto.
-  // El campo 'display_name' es calculado dinámicamente por Odoo y suele ser el más exacto y actualizado.
+  // Odoo a veces no actualiza r.name ni r.display_name en la variante (product.product) cuando el usuario 
+  // cambia el nombre en la plantilla (product.template) después de duplicarlo.
+  // Por lo tanto, debemos priorizar el nombre de la plantilla, que es el que el usuario editó.
   return results.map((r: any) => {
-    let rawName = r.display_name || r.name || ((Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "");
+    let templateName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "";
+    let rawName = templateName || r.display_name || r.name || "";
     return {
       id:            r.id,
       name:          cleanName(rawName),
