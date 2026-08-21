@@ -23,7 +23,7 @@ async function authenticate(): Promise<number> {
   return uidCache;
 }
 
-async function searchRead(model: string, domain: any[], fields: string[], limit = 20): Promise<any[]> {
+async function searchRead(model: string, domain: any[], fields: string[], limit = 20, order?: string): Promise<any[]> {
   const uid = await authenticate();
   const res = await fetch(`${ODOO_URL}/jsonrpc`, {
     method: "POST",
@@ -32,7 +32,7 @@ async function searchRead(model: string, domain: any[], fields: string[], limit 
       jsonrpc: "2.0", method: "call", id: 2,
       params: {
         service: "object", method: "execute_kw",
-        args: [ODOO_DB, uid, ODOO_KEY, model, "search_read", [domain], { fields, limit }],
+        args: [ODOO_DB, uid, ODOO_KEY, model, "search_read", [domain], { fields, limit, order: order || "id asc" }],
       },
     }),
   });
@@ -111,10 +111,11 @@ export async function searchProductos(q: string) {
   const cleanQ = q.trim();
 
   // 1. Buscar primero por coincidencia exacta de SKU (default_code)
+  // Usamos order: "write_date desc" para que si hay duplicados, traiga el modificado más recientemente
   let exactResults = await searchRead("product.product", [
     "&", ["sale_ok", "=", true],
     ["default_code", "=", cleanQ]
-  ], ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10);
+  ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10, "write_date desc");
 
   let results = exactResults;
   if (results.length === 0) {
@@ -126,7 +127,7 @@ export async function searchProductos(q: string) {
       ["name",                 "ilike", cleanQ],
       ["barcode",              "ilike", cleanQ],
     ];
-    results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50);
+    results = await searchRead("product.product", domain, ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50, "write_date desc");
   }
 
   const cleanName = (str: string) => {
@@ -137,10 +138,11 @@ export async function searchProductos(q: string) {
   };
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
+  
+  // Odoo a veces mantiene el nombre viejo en 'name' o en el 'product_tmpl_id' cuando se duplica un producto.
+  // El campo 'display_name' es calculado dinámicamente por Odoo y suele ser el más exacto y actualizado.
   return results.map((r: any) => {
-    // Priorizamos r.name sobre el product_tmpl_id porque cuando se duplica un producto en Odoo,
-    // el nombre modificado suele quedar en r.name mientras que el template a veces mantiene "(copia)".
-    let rawName = r.name || ((Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "");
+    let rawName = r.display_name || r.name || ((Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "");
     return {
       id:            r.id,
       name:          cleanName(rawName),
