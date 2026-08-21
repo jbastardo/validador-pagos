@@ -134,18 +134,14 @@ export async function searchProductos(q: string) {
     return str
       .replace(/\s*\((copia|copiar|copy)\)\s*/gi, "")
       .replace(/^\d+\.\s*-\s*/, "")
-      .replace(/^\[.*?\]\s*/, "") // Odoo's display_name prepends [SKU]
       .trim();
   };
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   
-  // Odoo a veces no actualiza r.name ni r.display_name en la variante (product.product) cuando el usuario 
-  // cambia el nombre en la plantilla (product.template) después de duplicarlo.
-  // Por lo tanto, debemos priorizar el nombre de la plantilla, que es el que el usuario editó.
+  // Regla estricta: Siempre usar el display_name exacto que provee Odoo
   return results.map((r: any) => {
-    let templateName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "";
-    let rawName = templateName || r.display_name || r.name || "";
+    let rawName = r.display_name || r.name || "";
     return {
       id:            r.id,
       name:          cleanName(rawName),
