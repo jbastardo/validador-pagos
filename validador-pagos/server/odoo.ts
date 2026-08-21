@@ -115,7 +115,7 @@ export async function searchProductos(q: string) {
   // traiga primero el que tiene stock, y si ninguno tiene, ordene alfabéticamente igual que la web.
   let exactResults = await searchRead("product.product", [
     "&", ["sale_ok", "=", true],
-    ["default_code", "=", cleanQ]
+    ["default_code", "ilike", cleanQ]
   ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10, "qty_available desc, name asc, id asc");
 
   let results = exactResults;

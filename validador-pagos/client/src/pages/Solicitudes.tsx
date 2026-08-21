@@ -140,7 +140,7 @@ export default function Solicitudes() {
       if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
       return;
     }
-    const exacto = productosOdoo.find(p => p.default_code.toLowerCase() === debouncedSku.toLowerCase());
+    const exacto = productosOdoo.find(p => p.default_code.trim().toLowerCase() === debouncedSku.trim().toLowerCase());
     if (exacto) { setForm(f => ({ ...f, producto: exacto.name })); setProductoLocked(true); }
     else if (productoLocked) { setForm(f => ({ ...f, producto: "" })); setProductoLocked(false); }
   }, [debouncedSku, productosOdoo]);
@@ -158,7 +158,7 @@ export default function Solicitudes() {
       if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", categoria: "", productoLocked: false })); }
       return;
     }
-    const exacto = productosOdoo2.find(p => p.default_code.toLowerCase() === debouncedNuevoSku.toLowerCase());
+    const exacto = productosOdoo2.find(p => p.default_code.trim().toLowerCase() === debouncedNuevoSku.trim().toLowerCase());
     if (exacto) { setNuevoItem(i => ({ ...i, producto: exacto.name, categoria: exacto.categ_id || "", productoLocked: true })); }
     else if (nuevoItem.productoLocked) { setNuevoItem(i => ({ ...i, producto: "", categoria: "", productoLocked: false })); }
   }, [debouncedNuevoSku, productosOdoo2]);
