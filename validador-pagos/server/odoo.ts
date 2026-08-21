@@ -111,11 +111,11 @@ export async function searchProductos(q: string) {
   const cleanQ = q.trim();
 
   // 1. Buscar primero por coincidencia exacta de SKU (default_code)
-  // Usamos order: "write_date desc" para que si hay duplicados, traiga el modificado más recientemente
+  // Usamos order: "id desc" para que si hay duplicados, traiga el creado más recientemente
   let exactResults = await searchRead("product.product", [
     "&", ["sale_ok", "=", true],
     ["default_code", "=", cleanQ]
-  ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10, "write_date desc");
+  ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10, "id desc");
 
   let results = exactResults;
   if (results.length === 0) {
@@ -127,13 +127,14 @@ export async function searchProductos(q: string) {
       ["name",                 "ilike", cleanQ],
       ["barcode",              "ilike", cleanQ],
     ];
-    results = await searchRead("product.product", domain, ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50, "write_date desc");
+    results = await searchRead("product.product", domain, ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50, "id desc");
   }
 
   const cleanName = (str: string) => {
     return str
       .replace(/\s*\((copia|copiar|copy)\)\s*/gi, "")
       .replace(/^\d+\.\s*-\s*/, "")
+      .replace(/^\[.*?\]\s*/, "") // Odoo's display_name prepends [SKU]
       .trim();
   };
 
