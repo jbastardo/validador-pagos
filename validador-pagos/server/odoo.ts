@@ -138,7 +138,9 @@ export async function searchProductos(q: string) {
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   return results.map((r: any) => {
-    let rawName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : (r.name || "");
+    // Priorizamos r.name sobre el product_tmpl_id porque cuando se duplica un producto en Odoo,
+    // el nombre modificado suele quedar en r.name mientras que el template a veces mantiene "(copia)".
+    let rawName = r.name || ((Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "");
     return {
       id:            r.id,
       name:          cleanName(rawName),
