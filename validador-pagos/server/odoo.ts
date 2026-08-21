@@ -113,22 +113,21 @@ export async function searchProductos(q: string) {
   // 1. Buscar primero por coincidencia exacta de SKU (default_code)
   // Usamos order: "qty_available desc, name asc, id asc" para que si hay duplicados (SKUs repetidos),
   // traiga primero el que tiene stock, y si ninguno tiene, ordene alfabéticamente igual que la web.
-  let exactResults = await searchRead("product.product", [
+  let exactResults = await searchRead("product.template", [
     "&", ["sale_ok", "=", true],
     ["default_code", "ilike", cleanQ]
-  ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10, "qty_available desc, name asc, id asc");
+  ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id"], 10, "qty_available desc, name asc, id asc");
 
   let results = exactResults;
   if (results.length === 0) {
     const domain: any[] = [
       "&", ["sale_ok", "=", true],
-      "|", "|", "|",
-      ["default_code",         "ilike", cleanQ],
-      ["product_tmpl_id.name", "ilike", cleanQ],
-      ["name",                 "ilike", cleanQ],
-      ["barcode",              "ilike", cleanQ],
+      "|", "|",
+      ["default_code", "ilike", cleanQ],
+      ["name",         "ilike", cleanQ],
+      ["barcode",      "ilike", cleanQ],
     ];
-    results = await searchRead("product.product", domain, ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50, "qty_available desc, name asc, id asc");
+    results = await searchRead("product.template", domain, ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id"], 50, "qty_available desc, name asc, id asc");
   }
 
   const cleanName = (str: string) => {
@@ -141,12 +140,10 @@ export async function searchProductos(q: string) {
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   
   // Regla estricta basada en el comportamiento de Odoo:
-  // Cuando se duplica un producto, la variante (product.product) se queda con el nombre original ("matriz"),
-  // pero el usuario cambia el nombre en la ficha (que es product.template).
-  // Por lo tanto, SIEMPRE debemos extraer el nombre desde product_tmpl_id.
+  // Al consultar directamente product.template (lo que editas en la web),
+  // evitamos el problema de la variante "matriz" desactualizada.
   return results.map((r: any) => {
-    let templateName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : "";
-    let rawName = templateName || r.display_name || r.name || "";
+    let rawName = r.name || r.display_name || "";
     return {
       id:            r.id,
       name:          cleanName(rawName),
