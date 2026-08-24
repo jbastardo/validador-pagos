@@ -15,16 +15,28 @@ export async function runCronJobOnce() {
       // El último mensaje
       const lastMsg = mensajes[mensajes.length - 1];
       
-      // Verificar si el autor del último mensaje es de compras
+      // Verificar que el último mensaje NO sea del propio vendedor
+      if (lastMsg.autor === sol.vendedor) continue;
+
+      // Verificar si el autor del último mensaje es de compras o admin
       const autorUser = usuarios.find(u => u.email === lastMsg.autor);
       if (autorUser && (autorUser.rol === "compras" || autorUser.rol === "admin")) {
-        // Si el último mensaje es de compras, verificar si pasaron 48 horas
+        // Si el último mensaje es de compras, verificar si pasaron 48 horas hábiles
         const msgDate = new Date(lastMsg.creadoEn || new Date());
         const now = new Date();
-        const diffMs = now.getTime() - msgDate.getTime();
-        const diffHours = diffMs / (1000 * 60 * 60);
         
-        if (diffHours >= 48) {
+        // Calcular horas hábiles (excluyendo sábados=6 y domingos=0)
+        let diffBusinessHours = 0;
+        let current = new Date(msgDate);
+        while (current < now) {
+          const day = current.getDay();
+          if (day !== 0 && day !== 6) {
+            diffBusinessHours++;
+          }
+          current = new Date(current.getTime() + 60 * 60 * 1000);
+        }
+        
+        if (diffBusinessHours >= 48) {
           console.log(`[cron] Solicitud #${sol.id} sin respuesta por 48h. Cambiando a No Concretado.`);
           await updateSolicitudEstado(String(sol.id), "No Concretado");
           
