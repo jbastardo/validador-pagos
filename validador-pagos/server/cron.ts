@@ -9,23 +9,32 @@ export async function runCronJobOnce() {
     const usuarios = await getUsuarios();
     
     for (const sol of enProceso) {
-      const mensajes = await getMensajesBySolicitud(String(sol.id));
-      if (!mensajes || mensajes.length === 0) continue;
+      const mensajes = await getMensajesBySolicitud(String(sol.id)) || [];
       
-      // El último mensaje
-      const lastMsg = mensajes[mensajes.length - 1];
-      
-      // Verificar que el último mensaje NO sea del propio vendedor
-      if (lastMsg.autor === sol.vendedor) continue;
+      let baselineDate: Date | null = null;
+      let validAction = false;
 
-      // Verificar si el autor del último mensaje es de compras o admin
-      const autorUser = usuarios.find(u => u.email === lastMsg.autor);
-      if (autorUser && (autorUser.rol === "compras" || autorUser.rol === "admin")) {
-        // Si el último mensaje es de compras, verificar si pasaron 48 horas hábiles
-        const msgDate = new Date(lastMsg.creadoEn || new Date());
+      if (mensajes.length > 0) {
+        const lastMsg = mensajes[mensajes.length - 1];
+        if (lastMsg.autor === sol.vendedor) continue; // El vendedor ya respondiÃ³
+
+        const autorUser = usuarios.find(u => u.email === lastMsg.autor);
+        if (autorUser && (autorUser.rol === "compras" || autorUser.rol === "admin")) {
+          baselineDate = new Date(lastMsg.creadoEn || sol.actualizadoEn || sol.creadoEn || new Date());
+          validAction = true;
+        }
+      } else {
+        // Solicitud antigua sin mensajes pero en estado "En Proceso", 
+        // asumimos que el Ãºltimo en tocarla fue compras.
+        baselineDate = new Date(sol.actualizadoEn || sol.creadoEn || new Date());
+        validAction = true;
+      }
+
+      if (validAction && baselineDate) {
+        const msgDate = baselineDate;
         const now = new Date();
         
-        // Calcular horas hábiles (excluyendo sábados=6 y domingos=0)
+        // Calcular horas hÃ¡biles (excluyendo sÃ¡bados=6 y domingos=0)
         let diffBusinessHours = 0;
         let current = new Date(msgDate);
         while (current < now) {
@@ -54,7 +63,7 @@ export async function runCronJobOnce() {
           if (vendedorUser?.telegramChatId) {
             const { sendTelegram } = require("./routes");
             const msg = [
-              `⚠️ <b>Solicitud #${sol.id} No Concretada</b>`,
+              `âš ï¸ <b>Solicitud #${sol.id} No Concretada</b>`,
               `<b>Producto:</b> ${sol.producto || ""}`,
               `<b>Cliente:</b> ${sol.cliente || ""}`,
               `<i>Han pasado 48 horas sin respuesta y la solicitud ha sido marcada como 'No Concretado'. Por favor revisa si necesitas reabrirla.</i>`
@@ -64,7 +73,7 @@ export async function runCronJobOnce() {
         }
       }
     }
-    return { success: true, message: "Revisión completada" };
+    return { success: true, message: "RevisiÃ³n completada" };
   } catch (e: any) {
     console.error("[cron] Error en job de 48h:", e.message);
     return { success: false, error: e.message };
