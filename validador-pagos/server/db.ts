@@ -172,7 +172,7 @@ export async function checkDuplicado(
           const pDigits = (p.referencia || "").replace(/\D/g, "");
           if (pDigits.length < n) return false;
           return pDigits.slice(-n) === suffix &&
-            Math.abs((parseFloat((p.monto || "0").replace(",", ".")) || 0) - montoNorm) < 0.01 &&
+            Math.abs((parseFloat((p.monto || "0").replace(",", ".")) || 0) - montoNorm) <= 0.02 &&
             extractBancoCode(p.bancoReceptor) === bancoCode;
         });
         if (dupT) return dupT;
