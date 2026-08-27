@@ -663,24 +663,20 @@ export default function Solicitudes() {
             {vendedoresUnicos.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
-        {isCompras && (
-          <>
-            <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
-          <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="Pendiente">Pendiente</SelectItem>
-              <SelectItem value="En Proceso">En Proceso</SelectItem>
-              <SelectItem value="Completada">Completada</SelectItem>
-              <SelectItem value="Cancelada">Cancelada</SelectItem>
-              <SelectItem value="Agotado">Agotado</SelectItem>
-              <SelectItem value="No Concretado">No Concretado</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
-          </>
-        )}
+        <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Filtros:</span></div>
+        <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            <SelectItem value="Pendiente">Pendiente</SelectItem>
+            <SelectItem value="En Proceso">En Proceso</SelectItem>
+            <SelectItem value="Completada">Completada</SelectItem>
+            <SelectItem value="Cancelada">Cancelada</SelectItem>
+            <SelectItem value="Agotado">Agotado</SelectItem>
+            <SelectItem value="No Concretado">No Concretado</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">{solicitudesFiltradas.length} de {solicitudes.length} solicitudes</span>
       </div>
       {/* BARRA DE ACCIONES BATCH (solo compras/admin) */}
       {isCompras && seleccionados.size > 0 && (

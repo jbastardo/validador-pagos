@@ -19,7 +19,7 @@ import {
 import { parseExtractoExcel } from "./extractos";
 import { parseCasheaExcel } from "./casheaParser";
 import { z } from "zod";
-import { BANCOS_RECEPTOR_META, extractos, pagos, solicitudMensajes } from "../shared/schema";
+import { BANCOS_RECEPTOR_META, extractos, pagos, solicitudMensajes, solicitudes } from "../shared/schema";
 import { searchClientes, searchProductos, createCliente } from "./odoo";
 
 // Bancos válidos para extractos (solo usado por app de conciliaciones)
