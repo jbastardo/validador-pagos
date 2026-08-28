@@ -219,13 +219,14 @@ export default function DashboardSolicitudes() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
             <MetricCard icon={<Loader2 className="h-6 w-6 text-indigo-700" />} label="En Proceso" value={currentStats.enProceso} colorClass="bg-indigo-50 border-indigo-100 text-indigo-900" />
             <MetricCard icon={<CheckCircle2 className="h-6 w-6 text-green-700" />} label="Completadas" value={currentStats.completadas} colorClass="bg-emerald-50 border-emerald-100 text-emerald-900" />
             <MetricCard icon={<Clock className="h-6 w-6 text-amber-700" />} label="Pendientes" value={currentStats.pendientes} colorClass="bg-amber-50 border-amber-100 text-amber-900" />
             <MetricCard icon={<PackageX className="h-6 w-6 text-orange-700" />} label="Agotados" value={currentStats.agotados} colorClass="bg-orange-50 border-orange-100 text-orange-900" />
             <MetricCard icon={<XCircle className="h-6 w-6 text-red-700" />} label="Canceladas" value={currentStats.canceladas} colorClass="bg-rose-50 border-rose-100 text-rose-900" />
-            <div className="rounded-2xl border p-5 shadow-sm flex flex-col justify-between bg-gray-50 border-gray-200 text-gray-700">
+            <MetricCard icon={<XCircle className="h-6 w-6 text-gray-700" />} label="No Concretados" value={currentStats.noConcretados} colorClass="bg-gray-50 border-gray-200 text-gray-900" />
+            <div className="rounded-2xl border p-5 shadow-sm flex flex-col justify-between bg-gray-50 border-gray-200 text-gray-700 md:col-span-2 xl:col-span-2">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-white/60 rounded-xl"><ClipboardList className="h-6 w-6 text-gray-500" /></div>
                 <span className="text-sm font-semibold opacity-90">Efectividad / Cierre</span>
