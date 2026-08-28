@@ -114,7 +114,7 @@ export async function searchProductos(q: string) {
   let exactResults = await searchRead("product.product", [
     "&", ["sale_ok", "=", true],
     ["default_code", "=", cleanQ]
-  ], ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10);
+  ], ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 10);
 
   let results = exactResults;
   if (results.length === 0) {
@@ -126,22 +126,15 @@ export async function searchProductos(q: string) {
       ["name",                 "ilike", cleanQ],
       ["barcode",              "ilike", cleanQ],
     ];
-    results = await searchRead("product.product", domain, ["id", "name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50);
+    results = await searchRead("product.product", domain, ["id", "name", "display_name", "default_code", "list_price", "qty_available", "categ_id", "product_tmpl_id"], 50);
   }
-
-  const cleanName = (str: string) => {
-    return str
-      .replace(/\s*\((copia|copiar|copy)\)\s*/gi, "")
-      .replace(/^\d+\.\s*-\s*/, "")
-      .trim();
-  };
 
   console.log("[odoo] searchProductos resultados:", JSON.stringify(results.slice(0, 3)));
   return results.map((r: any) => {
-    let rawName = (Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : (r.name || "");
+    let rawName = r.display_name ? r.display_name : ((Array.isArray(r.product_tmpl_id) && r.product_tmpl_id[1]) ? r.product_tmpl_id[1] : (r.name || ""));
     return {
       id:            r.id,
-      name:          cleanName(rawName),
+      name:          rawName,
       default_code:  r.default_code  || "",
       list_price:    r.list_price    || 0,
       qty_available: r.qty_available || 0,

@@ -61,3 +61,12 @@ El usuario de compras obtenía un error genérico ("Error al actualizar") al cam
 3. **`client/src/pages/Solicitudes.tsx`** (all mutations):
    - Updated `mutationFn` in `editarSolicitud`, `batchCambiarEstado`, `editarObsVendedor`, and `confirmarCompra` to parse and throw the server's error response
    - Updated `onError` in these mutations to display `err.message` in the toast instead of generic "Error al actualizar"
+
+---
+
+## Reglas Universales de Negocio
+
+### Nombres de Productos (Odoo)
+- **NO alterar ni limpiar nombres de Odoo**: Está estrictamente prohibido usar funciones como `cleanName` o expresiones regulares para modificar los nombres de los productos. 
+- Siempre se debe utilizar y mostrar el valor original devuelto por el campo `display_name` (que típicamente incluye el `[SKU]` al inicio).
+- El nombre del producto que viene de Odoo es el que se debe mostrar al usuario, sin excepciones.
