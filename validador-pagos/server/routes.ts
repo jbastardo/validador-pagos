@@ -20,7 +20,7 @@ import { parseExtractoExcel } from "./extractos";
 import { parseCasheaExcel } from "./casheaParser";
 import { z } from "zod";
 import { BANCOS_RECEPTOR_META, extractos, pagos, solicitudMensajes, solicitudes } from "../shared/schema";
-import { searchClientes, searchProductos, createCliente } from "./odoo";
+import { searchClientes, searchProductos, createCliente, getOdooPosStats, searchOdooFacturas } from "./odoo";
 
 // Bancos válidos para extractos (solo usado por app de conciliaciones)
 const BANCOS_VALIDOS = BANCOS_RECEPTOR_META.map(b => b.codigo);
@@ -91,7 +91,17 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
   app.get("/api/stats", async (req: any, res: any) => {
     try {
       const { fechaDesde, fechaHasta } = req.query;
-      const stats = await getStats(fechaDesde as string | undefined, fechaHasta as string | undefined);
+      const stats: any = await getStats(fechaDesde as string | undefined, fechaHasta as string | undefined);
+      try {
+        stats.odooPos = await getOdooPosStats(fechaDesde as string | undefined, fechaHasta as string | undefined);
+      } catch (odooErr: any) {
+        console.warn("[stats] Error obteniendo métricas de Odoo POS:", odooErr.message);
+        stats.odooPos = {
+          totalPagosPos: 0,
+          megasoft: { cant: 0, monto: 0 },
+          pabilo: { cant: 0, monto: 0, bs: { cant: 0, monto: 0 }, crypto: { cant: 0, monto: 0 } },
+        };
+      }
       res.json(stats);
     } catch (e: any) {
       console.error("Error getStats:", e.message);
@@ -1022,6 +1032,16 @@ export async function registerRoutes(httpServer: any, app: any): Promise<void> {
     } catch (e: any) {
       console.error("Error odoo crear cliente:", e.message);
       res.status(500).json({ message: "Error al crear cliente en Odoo" });
+    }
+  });
+
+  app.get("/api/odoo/buscar-factura", async (req: any, res: any) => {
+    try {
+      const result = await searchOdooFacturas(req.query);
+      res.json(result);
+    } catch (e: any) {
+      console.error("Error odoo buscar-factura:", e.message);
+      res.status(500).json({ message: "Error al buscar factura en Odoo" });
     }
   });
 

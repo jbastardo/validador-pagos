@@ -64,6 +64,30 @@ El usuario de compras obtenía un error genérico ("Error al actualizar") al cam
 
 ---
 
+## 2026-10-16 — Integración de Métricas Odoo POS (Pabilo y Megasoft) y Autocompletado de Facturas
+
+### Problema
+El dashboard web mostraba 0 aprobados por Megasoft, no reflejaba las validaciones de Pabilo, y marcaba 13 pagos como "Sin factura", lo cual alarmaba a gerencia ya que en Odoo POS sí se procesaban cobros masivos por Megasoft y Pabilo, y las ventas estaban efectivamente facturadas en Odoo pero no registradas en la web.
+
+### Cambios
+1. **`validador-pagos/server/odoo.ts`**:
+   - `getOdooPosStats`: Extrae métricas en tiempo real de `pos.payment` en Odoo para Megasoft (`BANCO VENEZUELA PDV` / Transitoria Megasoft) y Pabilo (`Pabilo - VENEZUELA CTE` y `Pabilo - Onprotec Binance`).
+   - `searchOdooFacturas`: Busca coincidencias en `pos.order` por cliente, monto y término de búsqueda para sugerir el número de factura fiscal (`mf_invoice_number`).
+   - Retiro estricto de `cleanName` en `searchProductos` para cumplir con las reglas universales.
+2. **`validador-pagos/server/db.ts`**:
+   - Agregados contadores de `validadosManual` y `montoValidadosManual` en `getStats`.
+3. **`validador-pagos/server/routes.ts`**:
+   - `/api/stats`: Incluye bloque `odooPos` con las métricas de Megasoft y Pabilo de Odoo.
+   - `/api/odoo/buscar-factura`: Nuevo endpoint para consulta y autocompletado de facturas.
+4. **`validador-pagos/client/src/pages/Dashboard.tsx`**:
+   - Tarjetas dedicadas para **Pabilo (Odoo POS)** con desglose Venezuela / Binance y monto en USD.
+   - Tarjetas para **Megasoft (Odoo POS + Web)** con montos en USD y Bs.
+   - Tarjeta para **Verificaciones Manuales en Banco**.
+5. **`validador-pagos/client/src/pages/Conciliacion.tsx`**:
+   - Detección y sugerencia automática de facturas de Odoo con botón "Usar" y "Consultar en Odoo" en los modales de cajero.
+
+---
+
 ## Reglas Universales de Negocio
 
 ### Nombres de Productos (Odoo)

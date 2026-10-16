@@ -378,12 +378,55 @@ export default function Conciliacion() {
     onError: () => toast({ title: "Error al actualizar", variant: "destructive" }),
   });
 
+  interface SugerenciaFactura {
+    id: number;
+    orderName: string;
+    posReference: string;
+    mfInvoiceNumber: string;
+    invoiceName: string;
+    facturaSugerida: string;
+    partnerName: string;
+    amountTotalUsd: number;
+    foreignAmountBs: number;
+    dateOrder: string;
+    score: number;
+    reason: string;
+  }
+
+  const [sugerenciasFacturas, setSugerenciasFacturas] = useState<SugerenciaFactura[]>([]);
+  const [buscandoFacturas, setBuscandoFacturas] = useState(false);
+
+  const buscarSugerenciasOdoo = async (p: Pago, queryManual?: string) => {
+    setBuscandoFacturas(true);
+    setSugerenciasFacturas([]);
+    try {
+      const params = new URLSearchParams();
+      if (p.cliente) params.append("cliente", p.cliente);
+      if (p.rif) params.append("rif", p.rif);
+      if (p.fechaPago) params.append("fecha", p.fechaPago);
+      if (p.monto) params.append("monto", p.monto);
+      if (queryManual) params.append("q", queryManual);
+
+      const res = await fetch(`/api/odoo/buscar-factura?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSugerenciasFacturas(data || []);
+      }
+    } catch (err) {
+      console.warn("Error buscando facturas en Odoo:", err);
+    } finally {
+      setBuscandoFacturas(false);
+    }
+  };
+
   const openCajero = (p: Pago) => {
     setCajeroPago(p);
     setCajeroFactura(p.factura ?? "");
     setCajeroCliente(p.cliente ?? "");
     setCajeroMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajeroOpen(true);
+    if (!p.factura) buscarSugerenciasOdoo(p);
+    else setSugerenciasFacturas([]);
   };
 
   const openCajeroPendiente = (p: Pago) => {
@@ -392,6 +435,8 @@ export default function Conciliacion() {
     setCajPendCliente(p.cliente ?? "");
     setCajPendMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajPendOpen(true);
+    if (!p.factura) buscarSugerenciasOdoo(p);
+    else setSugerenciasFacturas([]);
   };
 
   const openCajeroFC = (p: Pago) => {
@@ -401,6 +446,8 @@ export default function Conciliacion() {
     setCajFCRif(p.rif ?? "");
     setCajFCMega((p.megasoft as "Sí" | "No" | "") ?? "");
     setCajFCOpen(true);
+    if (!p.factura) buscarSugerenciasOdoo(p);
+    else setSugerenciasFacturas([]);
   };
 
   // Formatea fecha ISO a formato local legible
@@ -1110,8 +1157,57 @@ export default function Conciliacion() {
               </div>
             )}
             <div>
-              <Label className="text-sm font-medium">Número de Factura</Label>
-              <Input value={cajPendFactura} onChange={e => setCajPendFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Número de Factura</Label>
+                {cajPendPago && (
+                  <button
+                    type="button"
+                    onClick={() => buscarSugerenciasOdoo(cajPendPago, cajPendFactura || cajPendCliente)}
+                    disabled={buscandoFacturas}
+                    className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <Search className="w-3 h-3" />
+                    {buscandoFacturas ? "Buscando en Odoo..." : "Consultar en Odoo"}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Input value={cajPendFactura} onChange={e => setCajPendFactura(e.target.value)} placeholder="Ej: 70713 o 12711" />
+              </div>
+              {sugerenciasFacturas.length > 0 && (
+                <div className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-2 space-y-1.5 mt-2">
+                  <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-300">
+                    💡 Facturas detectadas en Odoo POS para este cliente/monto:
+                  </p>
+                  <div className="space-y-1">
+                    {sugerenciasFacturas.slice(0, 3).map((sug, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white dark:bg-card border rounded p-1.5 text-xs">
+                        <div className="overflow-hidden pr-2">
+                          <span className="font-bold text-primary mr-1">#{sug.facturaSugerida}</span>
+                          <span className="text-[11px] text-muted-foreground truncate inline-block max-w-[200px] align-bottom">
+                            ({sug.partnerName} · ${sug.amountTotalUsd} · Bs. {sug.foreignAmountBs?.toFixed(2)})
+                          </span>
+                          {sug.reason && <span className="block text-[10px] text-amber-700 font-medium">{sug.reason}</span>}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px] px-2 bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 font-medium shrink-0"
+                          onClick={() => {
+                            setCajPendFactura(sug.facturaSugerida);
+                            if (sug.partnerName && sug.partnerName !== "Sin cliente") {
+                              setCajPendCliente(sug.partnerName);
+                            }
+                          }}
+                        >
+                          Usar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-sm font-medium">Nombre del Cliente</Label>
@@ -1155,8 +1251,57 @@ export default function Conciliacion() {
               </div>
             )}
             <div>
-              <Label className="text-sm font-medium">Número de Factura</Label>
-              <Input value={cajeroFactura} onChange={e => setCajeroFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Número de Factura</Label>
+                {cajeroPago && (
+                  <button
+                    type="button"
+                    onClick={() => buscarSugerenciasOdoo(cajeroPago, cajeroFactura || cajeroCliente)}
+                    disabled={buscandoFacturas}
+                    className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <Search className="w-3 h-3" />
+                    {buscandoFacturas ? "Buscando en Odoo..." : "Consultar en Odoo"}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Input value={cajeroFactura} onChange={e => setCajeroFactura(e.target.value)} placeholder="Ej: 70713 o 12711" />
+              </div>
+              {sugerenciasFacturas.length > 0 && (
+                <div className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-2 space-y-1.5 mt-2">
+                  <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-300">
+                    💡 Facturas detectadas en Odoo POS para este cliente/monto:
+                  </p>
+                  <div className="space-y-1">
+                    {sugerenciasFacturas.slice(0, 3).map((sug, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white dark:bg-card border rounded p-1.5 text-xs">
+                        <div className="overflow-hidden pr-2">
+                          <span className="font-bold text-primary mr-1">#{sug.facturaSugerida}</span>
+                          <span className="text-[11px] text-muted-foreground truncate inline-block max-w-[200px] align-bottom">
+                            ({sug.partnerName} · ${sug.amountTotalUsd} · Bs. {sug.foreignAmountBs?.toFixed(2)})
+                          </span>
+                          {sug.reason && <span className="block text-[10px] text-amber-700 font-medium">{sug.reason}</span>}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px] px-2 bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 font-medium shrink-0"
+                          onClick={() => {
+                            setCajeroFactura(sug.facturaSugerida);
+                            if (sug.partnerName && sug.partnerName !== "Sin cliente") {
+                              setCajeroCliente(sug.partnerName);
+                            }
+                          }}
+                        >
+                          Usar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-sm font-medium">Nombre del Cliente</Label>
@@ -1195,8 +1340,57 @@ export default function Conciliacion() {
               <Input value={cajFCRif} onChange={e => setCajFCRif(e.target.value)} placeholder="Ej: V-12345678" className="mt-1"/>
             </div>
             <div>
-              <Label className="text-sm font-medium">Número de Factura</Label>
-              <Input value={cajFCFactura} onChange={e => setCajFCFactura(e.target.value)} placeholder="Ej: 0001234" className="mt-1"/>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Número de Factura</Label>
+                {cajFCPago && (
+                  <button
+                    type="button"
+                    onClick={() => buscarSugerenciasOdoo(cajFCPago, cajFCFactura || cajFCCliente)}
+                    disabled={buscandoFacturas}
+                    className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <Search className="w-3 h-3" />
+                    {buscandoFacturas ? "Buscando en Odoo..." : "Consultar en Odoo"}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Input value={cajFCFactura} onChange={e => setCajFCFactura(e.target.value)} placeholder="Ej: 70713 o 12711" />
+              </div>
+              {sugerenciasFacturas.length > 0 && (
+                <div className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-2 space-y-1.5 mt-2">
+                  <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-300">
+                    💡 Facturas detectadas en Odoo POS para este cliente/monto:
+                  </p>
+                  <div className="space-y-1">
+                    {sugerenciasFacturas.slice(0, 3).map((sug, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white dark:bg-card border rounded p-1.5 text-xs">
+                        <div className="overflow-hidden pr-2">
+                          <span className="font-bold text-primary mr-1">#{sug.facturaSugerida}</span>
+                          <span className="text-[11px] text-muted-foreground truncate inline-block max-w-[200px] align-bottom">
+                            ({sug.partnerName} · ${sug.amountTotalUsd} · Bs. {sug.foreignAmountBs?.toFixed(2)})
+                          </span>
+                          {sug.reason && <span className="block text-[10px] text-amber-700 font-medium">{sug.reason}</span>}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px] px-2 bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 font-medium shrink-0"
+                          onClick={() => {
+                            setCajFCFactura(sug.facturaSugerida);
+                            if (sug.partnerName && sug.partnerName !== "Sin cliente") {
+                              setCajFCCliente(sug.partnerName);
+                            }
+                          }}
+                        >
+                          Usar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-sm font-medium">Nombre del Cliente</Label>

@@ -564,6 +564,8 @@ export async function getStats(fechaDesde?: string, fechaHasta?: string) {
   const rechazadosMegasoft = allPagos.filter(p => p.estado === "Rechazado Megasoft").length;
   const sinFactura   = allPagos.filter(p => !p.factura || p.factura.trim() === "").length;
   const montoPendientesBs = allPagos.filter(p => p.estado === "Pendiente").reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
+  const validadosManual = allPagos.filter(p => p.estado === "Verificado" && !isMegaSi(p.megasoft)).length;
+  const montoValidadosManual = allPagos.filter(p => p.estado === "Verificado" && !isMegaSi(p.megasoft)).reduce((s, p) => s + (parseFloat(p.monto?.replace(",", ".") ?? "0") || 0), 0);
 
   const totalDivisas    = allDivisas.length;
   const pendientesDivisas = allDivisas.filter(p => p.estado === "Pendiente").length;
@@ -574,6 +576,7 @@ export async function getStats(fechaDesde?: string, fechaHasta?: string) {
     total, pendientes, verificados, rechazados, pagoMovil, transferencias, montoTotal,
     megasoftSi, megasoftNo, megasoftPendiente, montoMegasoftSi, rechazadosMegasoft,
     sinFactura, montoPendientesBs,
+    validadosManual, montoValidadosManual,
     totalDivisas, pendientesDivisas, montoDivisas, montoPendientesDivisas,
   };
 }

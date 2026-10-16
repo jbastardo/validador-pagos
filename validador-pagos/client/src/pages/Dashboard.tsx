@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHashLocation } from "wouter/use-hash-location";
-import { BarChart3, Clock, XCircle, DollarSign, ShieldCheck, ShieldX, Coins, FileX, KeyRound } from "lucide-react";
+import { BarChart3, Clock, XCircle, DollarSign, ShieldCheck, ShieldX, Coins, FileX, KeyRound, Zap, UserCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,20 @@ interface Stats {
   rechazadosMegasoft: number;
   sinFactura: number;
   montoPendientesBs: number;
+  validadosManual?: number;
+  montoValidadosManual?: number;
   totalDivisas: number; pendientesDivisas: number; montoDivisas: number;
   montoPendientesDivisas: number;
+  odooPos?: {
+    totalPagosPos: number;
+    megasoft: { cant: number; monto: number };
+    pabilo: {
+      cant: number;
+      monto: number;
+      bs: { cant: number; monto: number };
+      crypto: { cant: number; monto: number };
+    };
+  };
 }
 
 export default function Dashboard() {
@@ -205,26 +217,99 @@ export default function Dashboard() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════
-            MEGASOFT — compacto en 1 card
+            VALIDACIÓN AUTOMÁTICA Y PASARELAS (ODOO POS + WEB)
             ══════════════════════════════════════════════════════════ */}
         <div className="rounded-lg border bg-card p-2.5">
-          <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Validación Megasoft</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-green-50 dark:bg-green-950/20 rounded-md px-2.5 py-1.5 border border-green-200/50">
-              <div className="flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-green-600" />
-                <p className="text-[12px] text-green-600">Aprobados por Megasoft</p>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">Pasarelas y Validación Automática</p>
+            {stats?.odooPos?.totalPagosPos ? (
+              <span className="text-[11px] text-muted-foreground font-medium bg-muted/60 px-2 py-0.5 rounded">
+                Sincronizado Odoo POS: {stats.odooPos.totalPagosPos} pagos
+              </span>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* PABILO */}
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-md p-2 border border-emerald-200/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Pabilo (Odoo POS)</p>
+                </div>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 px-1.5 py-0.5 rounded font-medium">Auto</span>
               </div>
-              <p className="text-base font-bold text-green-700">{stats?.megasoftSi ?? 0}</p>
-              <p className="text-[12px] text-green-500">Bs. {fmt(stats?.montoMegasoftSi ?? 0)}</p>
+              <div className="mt-1 flex items-baseline justify-between">
+                <div>
+                  <p className="text-xl font-black text-emerald-700 leading-tight">
+                    {stats?.odooPos?.pabilo?.cant ?? 0} <span className="text-xs font-normal text-muted-foreground">pagos</span>
+                  </p>
+                  <p className="text-xs font-semibold text-emerald-600">
+                    ${fmt(stats?.odooPos?.pabilo?.monto ?? 0)}
+                  </p>
+                </div>
+                <div className="text-right text-[11px] text-emerald-700/80">
+                  <p>{stats?.odooPos?.pabilo?.bs?.cant ?? 0} Venezuela (${fmt(stats?.odooPos?.pabilo?.bs?.monto ?? 0)})</p>
+                  <p>{stats?.odooPos?.pabilo?.crypto?.cant ?? 0} Binance (${fmt(stats?.odooPos?.pabilo?.crypto?.monto ?? 0)})</p>
+                </div>
+              </div>
             </div>
-            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-md px-2.5 py-1.5 border border-blue-200/50">
+
+            {/* MEGASOFT */}
+            <div className="bg-sky-50 dark:bg-sky-950/20 rounded-md p-2 border border-sky-200/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
+                  <p className="text-xs font-bold text-sky-800 dark:text-sky-300">Megasoft (Odoo POS + Web)</p>
+                </div>
+                <span className="text-[10px] bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200 px-1.5 py-0.5 rounded font-medium">Auto</span>
+              </div>
+              <div className="mt-1 flex items-baseline justify-between">
+                <div>
+                  <p className="text-xl font-black text-sky-700 leading-tight">
+                    {((stats?.odooPos?.megasoft?.cant ?? 0) + (stats?.megasoftSi ?? 0))} <span className="text-xs font-normal text-muted-foreground">pagos</span>
+                  </p>
+                  <p className="text-xs font-semibold text-sky-600">
+                    ${fmt(stats?.odooPos?.megasoft?.monto ?? 0)}
+                    {(stats?.montoMegasoftSi ?? 0) > 0 ? ` + Bs. ${fmt(stats?.montoMegasoftSi ?? 0)}` : ""}
+                  </p>
+                </div>
+                <div className="text-right text-[11px] text-sky-700/80">
+                  <p>{stats?.odooPos?.megasoft?.cant ?? 0} Odoo POS</p>
+                  <p>{stats?.megasoftSi ?? 0} Web</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════
+            VALIDACIONES MANUALES & CONTABILIDAD (WEB)
+            ══════════════════════════════════════════════════════════ */}
+        <div className="rounded-lg border bg-card p-2.5">
+          <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Verificaciones Manuales (Caja / Contabilidad)</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => irA("Verificado")}
+              className="bg-teal-50 dark:bg-teal-950/20 rounded-md px-2.5 py-1.5 border border-teal-200/50 text-left hover:bg-teal-100/60 transition-colors"
+            >
+              <div className="flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-teal-600" />
+                <p className="text-[12px] text-teal-700 font-medium">Verificados en Banco</p>
+              </div>
+              <p className="text-base font-bold text-teal-800">{stats?.validadosManual ?? stats?.verificados ?? 0}</p>
+              <p className="text-[12px] text-teal-600">Bs. {fmt(stats?.montoValidadosManual ?? 0)}</p>
+            </button>
+            <button
+              onClick={() => irA("MegasoftNo")}
+              className="bg-blue-50 dark:bg-blue-950/20 rounded-md px-2.5 py-1.5 border border-blue-200/50 text-left hover:bg-blue-100/60 transition-colors"
+            >
               <div className="flex items-center gap-1">
                 <ShieldX className="w-3 h-3 text-blue-600" />
-                <p className="text-[12px] text-blue-600">Transferidos a contabilidad</p>
+                <p className="text-[12px] text-blue-700 font-medium">Transferidos a contabilidad</p>
               </div>
-              <p className="text-base font-bold text-blue-700">{stats?.megasoftNo ?? 0}</p>
-            </div>
+              <p className="text-base font-bold text-blue-800">{stats?.megasoftNo ?? 0}</p>
+              <p className="text-[11px] text-muted-foreground">Transferencias directas (No Megasoft)</p>
+            </button>
           </div>
         </div>
 
